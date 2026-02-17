@@ -37,6 +37,17 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'user',
+    'sustainability_features',
+    'shopping_cart',
+    'settlements_commission',
+    'recurring_orders',
+    'product_management',
+    'product_catalog',
+    'order_management',
+    'community_features',
+    'checkout',
+    'BRFN'
 ]
 
 MIDDLEWARE = [
