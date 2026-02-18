@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'customer_reviews',
     'notifications',
     'content',
+    'admin_account',
 
 ]
 
