@@ -19,9 +19,18 @@
             <nav class="nav-links">
                 <!--we want the buttons styling to be active if we are on that page to make it clear what page the user is currently on
                 which is what is being done here-->
-                <a href="{%url 'home'%}"
-                class="{%if request.resolver_match.url_name == 'home'%}active{%endif%}">Home</a>
-                <a href="#">Login</a>
+                <a href="{% url 'home' %}"
+               class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+                Home
+            </a>
+            <a href="{% url 'checkout' %}"
+               class="{% if request.resolver_match.url_name == 'checkout' %}active{% endif %}">
+                Checkout (Test)
+            </a>
+            <a href="{% url 'order_history' %}"
+               class="{% if request.resolver_match.url_name == 'order_history' %}active{% endif %}">
+                My Orders
+            </a>
             </nav>
         </header>
 

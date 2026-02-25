@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'order_management.css' %}">
+
+<div class="checkout-container">
+    <h1 class="page-title">Checkout</h1>
+    
+    {% if is_multi_vendor %}
+    <div class="multi-vendor-notice">
+        <p>⚠️ Your order contains items from multiple producers.</p>
+    </div>
+    {% endif %}
+    
+    {% for producer_id, producer_data in cart_grouped_by_producer.items %}
+    <div class="producer-group">
+        <h3 class="producer-name">🌾 {{ producer_data.producer_name }}</h3>
+        
+        <div class="order-items">
+            {% for item in producer_data.items %}
+            <div class="order-item">
+                <div class="item-details">
+                    <span class="item-name">{{ item.product_name }}</span>
+                    <span class="item-quantity">x{{ item.quantity }}</span>
+                </div>
+                <div class="item-price">£{{ item.subtotal|floatformat:2 }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="producer-subtotal">
+            <span>Subtotal:</span>
+            <span class="price">£{{ producer_data.subtotal|floatformat:2 }}</span>
+        </div>
+        
+        <div class="delivery-date-section">
+            <label>📅 Select Delivery Date:</label>
+            <input type="date" min="{{ min_delivery_date }}" class="date-input">
+            <small class="hint">Minimum 48 hours notice required</small>
+        </div>
+        
+        <div class="special-instructions">
+            <label>📝 Special Instructions:</label>
+            <textarea rows="2" class="instructions-input" placeholder="e.g., Leave at front door"></textarea>
+        </div>
+    </div>
+    {% endfor %}
+    
+    <div class="checkout-section">
+        <h2>🏠 Delivery Address</h2>
+        <div class="address-display">
+            <p>{{ customer.delivery_address }}</p>
+            <p>{{ customer.postcode }}</p>
+        </div>
+    </div>
+    
+    <div class="order-total-section">
+        <h2>Order Total</h2>
+        <div class="total-breakdown">
+            <div class="total-row">
+                <span>Subtotal:</span>
+                <span>£{{ cart_subtotal|floatformat:2 }}</span>
+            </div>
+            <div class="total-row commission">
+                <span>Network Commission (5%):</span>
+                <span>£{{ commission|floatformat:2 }}</span>
+            </div>
+            <div class="total-row grand-total">
+                <span>Total:</span>
+                <span>£{{ total|floatformat:2 }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="checkout-actions">
+        <button onclick="alert('This is a demo! Payment not implemented yet.')" class="btn btn-primary">
+            Confirm Order (Demo)
+        </button>
+    </div>
+</div>
+{% endblock %}

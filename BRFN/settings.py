@@ -49,7 +49,7 @@ INSTALLED_APPS = [
     'notifications',
     'content',
     'admin_account',
-    'rest_framework',
+     
 
 ]
 
@@ -144,3 +144,5 @@ STATIC_URL = 'static/'
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
+# Add this at the END of your settings.py
+AUTH_USER_MODEL = 'user_accounts.User'

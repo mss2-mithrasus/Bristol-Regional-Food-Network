@@ -24,5 +24,7 @@ from producers.views import db_test
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('db-test/', db_test),
-    path('', include('product.urls'))
+    path('', include('product.urls')),
+    path('orders/', include('order_management.urls')),
+    
 ]

@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'order_management.css' %}">
+
+<div class="order-history-container">
+    <h1 class="page-title">My Orders</h1>
+    
+    {% if orders %}
+        {% for order in orders %}
+        <div class="order-card">
+            <div class="order-header">
+                <div class="order-info">
+                    <h3 class="order-number">Order #{{ order.order_number }}</h3>
+                    <span class="order-date">{{ order.created_at|date:"F j, Y" }}</span>
+                </div>
+                <div class="order-total">
+                    <span class="total-label">Total:</span>
+                    <span class="total-amount">£{{ order.total_amount|floatformat:2 }}</span>
+                </div>
+            </div>
+            
+            <div class="order-status">
+                <span class="status-badge status-{{ order.payment_status }}">
+                    ✅ {{ order.payment_status|title }}
+                </span>
+            </div>
+            
+            <div class="order-producers">
+                <strong>Producers:</strong>
+                {% for po in order.producer_orders.all %}
+                    <span class="producer-badge">
+                        {{ po.producer.business_name }}
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <p class="empty-icon">📦</p>
+            <h2>No orders yet</h2>
+            <p>This is a demo page!</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
