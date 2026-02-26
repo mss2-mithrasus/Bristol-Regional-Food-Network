@@ -1,0 +1,101 @@
+{% extends "producer_base.html" %}
+
+{% block content %}
+
+<div class="welcome">
+  <h1>Add New Product</h1>
+  <p>Enter the details to create a new product listing.</p>
+</div>
+
+<section class="panel">
+  <h2>Product Details</h2>
+
+  <form class="form-card" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Product name</label>
+        <input type="text" name="name" value="Organic Free Range Eggs" required>
+      </div>
+
+      <div class="form-group">
+        <label>Category</label>
+        <select name="category" required>
+          <option value="">Select category</option>
+          <option selected>Dairy &amp; Eggs</option>
+          <option>Vegetables</option>
+          <option>Fruit</option>
+          <option>Bakery</option>
+          <option>Meat</option>
+        </select>
+      </div>
+
+      <div class="form-group form-group-full">
+        <label>Detailed description</label>
+        <textarea name="description" rows="4" required>Fresh organic eggs from free-range hens, collected daily</textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Price</label>
+        <input type="text" name="price" value="£3.50" required>
+      </div>
+
+      <div class="form-group">
+        <label>Unit</label>
+        <input type="text" name="unit" value="Dozen" required>
+      </div>
+
+      <div class="form-group">
+        <label>Availability</label>
+        <select name="availability" required>
+          <option selected>In Season (Available)</option>
+          <option>Available</option>
+          <option>Out of Season</option>
+          <option>Unavailable</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Stock quantity</label>
+        <input type="number" name="stock" value="50" min="0" required>
+      </div>
+
+      <div class="form-group form-group-full">
+        <label>Allergen information</label>
+        <input type="text" name="allergens" value="Contains eggs" required>
+      </div>
+
+      <div class="form-group">
+        <label>Harvest date</label>
+        <input id="harvest_date" type="date" name="harvest_date" required>
+      </div>
+
+      <div class="form-group">
+        <label>Product image (optional)</label>
+        <input type="file" name="image" accept="image/*">
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <a class="button-pill secondary" href="/producers/product_management/">Back</a>
+      <button class="button-pill" type="submit">Submit product listing</button>
+    </div>
+  </form>
+</section>
+
+<script>
+  // auto set harvest date to today
+  (function(){
+    const el = document.getElementById("harvest_date");
+    if (el && !el.value) {
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      const dd = String(d.getDate()).padStart(2,'0');
+      el.value = `${yyyy}-${mm}-${dd}`;
+    }
+  })();
+</script>
+
+{% endblock %}

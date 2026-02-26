@@ -1,0 +1,50 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Producer | Bristol Regional Food Network</title>
+  <link rel="stylesheet" href="{% static 'producers.css' %}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <img src="{% static 'images/leaf.png' %}" class="logo" alt="logo">
+      <span class="brand">Bristol Regional Food Network</span>
+    </div>
+
+    <div class="topbar-right">
+      <a class="about-pill" href="#">About us</a>
+      <div class="nav-icons">
+        <a href="#" title="Notifications"><i class="fa-regular fa-bell"></i></a>
+        <a href="#" title="Profile"><i class="fa-regular fa-user"></i></a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Layout -->
+  <div class="dash-layout">
+    <aside class="sidebar">
+      <a class="sidebar-link {% if request.path == '/producer/dashboard/' %}active{% endif %}" href="/producer/dashboard/">Dashboard</a>
+      <a class="sidebar-link {% if request.path|slice:':18' == '/producer/product_management' %}active{% endif %}" href="/producer/product_management/">Products</a>
+      <a class="sidebar-link" href="#">Orders</a>
+      <a class="sidebar-link" href="#">Payments</a>
+      <a class="sidebar-link" href="#">Content</a>
+      <a class="sidebar-link" href="#">Settings</a>
+      <a class="sidebar-link" href="#">Logout</a>
+    </aside>
+
+    <main class="dash-main">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <footer class="dash-footer">
+    Local Food Marketplace | Supporting Local Farmers
+  </footer>
+
+</body>
+</html>

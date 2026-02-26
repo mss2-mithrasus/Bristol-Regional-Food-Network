@@ -1,0 +1,48 @@
+{% extends "producer_base.html" %}
+
+{% block content %}
+
+<div class="welcome">
+  <h1>Welcome back, (Producer Name)</h1>
+  <p>Here is your overview....</p>
+</div>
+
+<section class="panel">
+  <h2>Overview</h2>
+  <div class="pill-row">
+    <div class="pill"><span>Total Products</span><strong>12</strong></div>
+    <div class="pill"><span>Active Orders</span><strong>5</strong></div>
+    <div class="pill"><span>Revenue</span><strong>£245</strong></div>
+    <div class="pill"><span>Low Stock</span><strong>2</strong></div>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Recent Orders</h2>
+
+  <div class="orders-grid head">
+    <div class="pill mini">Order ID</div>
+    <div class="pill mini">Customer</div>
+    <div class="pill mini">Items</div>
+    <div class="pill mini">Status</div>
+  </div>
+
+  <div class="orders-grid row">
+    <div>01</div><div>John Smith</div><div>3</div><div>Pending</div>
+  </div>
+  <div class="orders-grid row">
+    <div>02</div><div>Eva Jones</div><div>2</div><div>Completed</div>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Product Status</h2>
+  <div class="pill-row">
+    <div class="pill"><span>Low Stock</span><strong>Tomatoes</strong></div>
+    <div class="pill"><span>Out of Season</span><strong>Pumpkin</strong></div>
+    <div class="pill"><span>In Season</span><strong>Carrots</strong></div>
+    <div class="pill"><span>Out of date</span><strong>Oranges</strong></div>
+  </div>
+</section>
+
+{% endblock %}

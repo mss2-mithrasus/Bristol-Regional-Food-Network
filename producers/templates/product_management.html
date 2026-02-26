@@ -1,0 +1,56 @@
+{% extends "producer_base.html" %}
+
+{% block content %}
+
+<div class="welcome">
+  <h1>Products</h1>
+  <p>Manage your product listings.</p>
+</div>
+
+<section class="panel">
+  <div class="panel-header-row">
+    <h2>My Product Listings</h2>
+    <a class="button-pill" href="/producer/product_management/add/">Add New Product</a>
+  </div>
+
+  <div class="table-wrap">
+    <div class="prod-table head">
+      <div>Name</div>
+      <div>Category</div>
+      <div>Price</div>
+      <div>Unit</div>
+      <div>Stock</div>
+      <div>Status</div>
+      <div>Actions</div>
+    </div>
+
+    <div class="prod-table row">
+      <div>Organic Free Range Eggs</div>
+      <div>Dairy &amp; Eggs</div>
+      <div>£3.50</div>
+      <div>Dozen</div>
+      <div>50</div>
+      <div><span class="tag green">In Season</span></div>
+      <div class="actions">
+        <button class="mini-btn">Edit</button>
+        <button class="mini-btn danger">Delete</button>
+      </div>
+    </div>
+
+    <div class="prod-table row">
+      <div>Carrots</div>
+      <div>Vegetables</div>
+      <div>£1.20</div>
+      <div>Kg</div>
+      <div>12</div>
+      <div><span class="tag amber">Low Stock</span></div>
+      <div class="actions">
+        <button class="mini-btn">Edit</button>
+        <button class="mini-btn danger">Delete</button>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+{% endblock %}

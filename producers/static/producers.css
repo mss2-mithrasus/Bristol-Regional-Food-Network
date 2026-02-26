@@ -1,0 +1,300 @@
+.producer-dashboard {
+    padding: 20px;
+}
+
+.dashboard-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.dashboard-header h1 {
+    margin-bottom: 10px;
+}
+
+.dashboard-header p {
+    color: #555;
+    margin-bottom: 20px;
+}
+
+.overview-cards {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.card {
+    background-color: #2f5b77;
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    width: 200px;
+    text-align: center;
+}
+
+.card h3 {
+    margin-bottom: 10px;
+}
+
+.card p {
+    font-size: 22px;
+    font-weight: bold;
+}
+
+.dashboard-section {
+    margin-bottom: 25px;
+}
+
+.button {
+    display: inline-block;
+    padding: 8px 14px;
+    background-color: #406083;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    margin-right: 10px;
+}
+
+.button:hover {
+    background-color:rgba(255, 255, 255, 0.596);
+}
+/* Topbar */
+.topbar{
+  background:#2f5b77;
+  color:#fff;
+  padding:10px 16px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.topbar-left{display:flex;align-items:center;gap:10px}
+.logo{height:26px}
+.brand{font-size:20px;font-weight:700}
+
+.topbar-right{display:flex;align-items:center;gap:14px}
+.about-pill{
+  background:#1f7a4b;
+  color:#fff;
+  padding:6px 12px;
+  border-radius:999px;
+  text-decoration:none;
+  font-weight:700;
+}
+
+/* Your icons (you already have this, keep it) */
+.nav-icons{
+  display:inline-flex;
+  gap:15px;
+  margin-left:10px;
+  align-items:center;
+}
+.nav-icons a{
+  color:white;
+  font-size:18px;
+  text-decoration:none;
+}
+.nav-icons a:hover{color:rgba(255,255,255,.6)}
+
+/* Layout */
+.dash-layout{display:flex;min-height:calc(100vh - 110px);background:#eef2f5}
+.sidebar{
+  width:200px;
+  background:#3d5f7b;
+  padding:10px;
+  border-right:2px solid rgba(255,255,255,.2);
+}
+.sidebar-link{
+  display:block;
+  background:#2f5b77;
+  color:#fff;
+  padding:10px 12px;
+  margin-bottom:8px;
+  border-radius:4px;
+  text-decoration:none;
+  font-weight:700;
+  text-align:center;
+}
+.sidebar-link.active{
+  background:#f2f2f2;
+  color:#406083;
+}
+.sidebar-link:hover{background:#24485f}
+
+.dash-main{flex:1;padding:18px 22px}
+
+/* Footer */
+.dash-footer{
+  background:#2f5b77;
+  color:#fff;
+  text-align:center;
+  padding:10px;
+  font-weight:700;
+}
+
+/* Main content */
+.welcome{text-align:center;margin-bottom:12px}
+.welcome h1{margin:6px 0;font-size:26px}
+.welcome p{margin:0;color:#333}
+
+.panel{
+  background:#fff;
+  color:#406083;
+  border-radius:12px;
+  padding:14px;
+  margin:14px auto;
+  max-width:900px;
+  box-shadow:0 8px 20px rgba(0,0,0,0.08);
+}
+.panel h2{margin:0 0 10px 0;font-size:16px}
+
+/* Green pills */
+.pill-row{
+  display:flex;
+  gap:12px;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+.pill{
+  background:#406083;
+  border-radius:999px;
+  padding:10px 16px;
+  min-width:170px;
+  text-align:center;
+  color:#fff;
+}
+.pill span{display:block;font-weight:800;font-size:13px}
+.pill strong{display:block;font-size:16px;margin-top:4px}
+
+.pill.mini{
+  min-width:auto;
+  padding:8px 12px;
+  font-weight:800;
+}
+
+/* Recent orders grid */
+.orders-grid{
+  display:grid;
+  grid-template-columns: 1fr 2fr 1fr 1fr;
+  gap:10px;
+  align-items:center;
+  max-width:850px;
+  margin:0 auto;
+}
+.orders-grid.head{margin-bottom:8px}
+.orders-grid.row{
+  padding:6px 10px;
+  border-radius:10px;
+  background:rgba(255,255,255,0.08);
+  margin-bottom:6px;
+}
+.orders-grid.row div{font-weight:700;text-align:center}
+/* panel header row */
+.panel-header-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+}
+
+/* button pills to match sample */
+.button-pill{
+  background:#406083;
+  color:#fff;
+  padding:8px 14px;
+  border-radius:999px;
+  text-decoration:none;
+  font-weight:800;
+  border:none;
+  cursor:pointer;
+}
+.button-pill:hover{
+  background:rgba(255,255,255,0.596);
+  color:#406083;
+}
+.button-pill.secondary{ background:#24485f; }
+.button-pill.secondary:hover{ background:#1c3a4c; }
+
+/* product table */
+.table-wrap{ max-width: 950px; margin: 0 auto; }
+
+.prod-table{
+  display:grid;
+  grid-template-columns: 2fr 1.3fr 0.9fr 0.9fr 0.8fr 1fr 1.2fr;
+  gap:10px;
+  align-items:center;
+}
+.prod-table.head{
+  font-weight:800;
+  background:rgba(0,0,0,0.18);
+  padding:10px 12px;
+  border-radius:10px;
+  margin-bottom:8px;
+}
+.prod-table.row{
+  background:#f2f2f2;
+  color:#406083;
+  padding:10px 12px;
+  border-radius:10px;
+  margin-bottom:8px;
+}
+.prod-table.row div{ font-weight:700; text-align:center; }
+.prod-table.row div:first-child{ text-align:left; }
+
+/* tags */
+.tag{
+  display:inline-block;
+  padding:6px 10px;
+  border-radius:999px;
+  font-weight:800;
+}
+.tag.green{ background:#1f7a4b; }
+.tag.amber{ background:#b38b14; }
+
+/* action buttons */
+.actions{ display:flex; justify-content:center; gap:8px; }
+.mini-btn{
+  background:#406083;
+  color:#fff;
+  border:none;
+  padding:6px 10px;
+  border-radius:8px;
+  font-weight:800;
+  cursor:pointer;
+}
+.mini-btn:hover{
+  background:rgba(255,255,255,0.596);
+  color:#406083;
+}
+.mini-btn.danger{ background:#8b2e2e; }
+.mini-btn.danger:hover{ background:#6f2424; }
+
+/* form styling inside panel */
+.form-card{
+  background:#f2f2f2;
+  color:#406083;
+}
+.form-grid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:12px 16px;
+  max-width: 950px;
+  margin: 0 auto;
+}
+.form-group label{ display:block; font-weight:800; margin-bottom:6px; }
+.form-group input, .form-group select, .form-group textarea{
+  width:100%;
+  padding:10px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,0.25);
+  background:rgba(255,255,255,0.15);
+  color:#fff;
+}
+.form-group textarea{ resize:vertical; }
+.form-group-full{ grid-column: 1 / -1; }
+.form-actions{
+  display:flex;
+  justify-content:center;
+  gap:12px;
+  margin-top:14px;
+}
+.panel { background: red !important; }

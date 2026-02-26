@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'notifications',
     'content',
     'admin_account',
+    'rest_framework',
 
 ]
 
