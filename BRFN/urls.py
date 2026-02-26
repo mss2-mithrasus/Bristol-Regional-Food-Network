@@ -16,14 +16,20 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-
-from producers.views import db_test
+from user_accounts.views import home_page,  registration_page, login_page
+#from producers.views import db_test
 
 
 
 urlpatterns = [
+    #path("", home_page, name="home"),
+    # path("login/", login_page, name="login"),
+    # path("register/", registration_page, name='register'),
+    path("", include("user_accounts.urls")),
     path('admin/', admin.site.urls),
-    path('db-test/', db_test),
+    #path('db-test/', db_test),
     path('', include('product.urls')),
     path("producer/", include("producers.urls")),
+    #path('db-test/', db_test),
+    #path('', include('product.urls'))
 ]
