@@ -1,0 +1,139 @@
+.register-container {
+    max-width: 650px;
+    margin: 80px auto;
+    padding: 20px;
+    text-align: center;
+    margin-top: 10px;
+    box-shadow: 0 0 15px rgba(64, 96, 131, 0.4);
+    border-radius: 10px;
+}
+
+.register-container h1{
+    margin-bottom: 10px;
+    color: #406083;
+}
+
+.account_type,
+.customer_type {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 20px 0 20px;
+}
+
+.type_btn {
+    padding: 10px 20px;
+    border-radius: 999px;
+    border: 1px solid #406083;
+    background-color: white;
+    color: #406083;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.type_btn.small {
+    font-size: 14px;
+    padding: 8px 16px;
+}
+
+.type_btn.active {
+    background-color: #406083;
+    color: white;
+}
+
+.subheading {
+    margin-top: 10px;
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.register-form {
+    text-align: left;
+    margin-top: 20px;
+}
+
+.input_row {
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+.input_row label {
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.input_row input,
+.input_row select {
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+
+.checkbox {
+    display: flex;
+    align-items: center;
+}
+
+.submit-btn {
+    width: 100%;
+    padding: 10px;
+    background-color: #406083;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 18px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.submit-btn:hover {
+    background-color: #2e4a63;
+}
+
+.login-link {
+    margin-top: 15px;
+    text-align: center;
+}
+.login-link a {
+    color: #406083;
+    font-weight: 600;
+}
+
+.checkbox {
+    margin-top: 15px;
+    text-align: center;
+}
+.checkbox a {
+    color: #406083;
+    font-weight: 600;
+}
+
+
+/* PASSWORD FIELD WRAPPER */
+.password_field {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+/* PASSWORD INPUT */
+.password_field input {
+    width: 100%;
+    padding: 8px;
+    padding-right: 40px; /* space for the eye icon */
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+}
+
+/* EYE ICON INSIDE INPUT */
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    color: #406083;
+    user-select: none;
+}

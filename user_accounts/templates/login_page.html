@@ -1,0 +1,143 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login | Bristol Regional Food Network</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'base.css' %}">
+    <link rel="stylesheet" href="{% static 'login_page.css' %}">
+</head>
+
+<body>
+
+<header class="navbar">
+    <div class="nav-left">
+        <img src="{% static 'images/leaf.png' %}" alt="Leaf logo" class="logo">
+        <span class="title">Bristol Regional Food Network</span>
+    </div>
+
+    <nav class="nav-links">
+        <a href="{% url 'home' %}">Home</a>
+        <a href="{% url 'login' %}" class="active">Login</a>
+        <a href="{% url 'register' %}">Register</a>
+        <a href="{% url 'about' %}">About us</a>
+    </nav>
+</header>
+
+<main>
+    <div class="login-container">
+        <h1>Welcome back!</h1>
+        <p>Please log in to continue.</p>
+        
+
+        <form id="loginForm" class="login-form">
+
+            <div class="input_row">
+                <label>Email:</label>
+                <input type="text" name="email" required>
+            </div>
+
+            <div class="input_row password_wrapper">
+                <label>Password:</label>
+                <div class="password-field">
+                    <input type="password" id="password" name="password" required>
+                    <i class="fa-solid fa-eye-slash toggle-password" data-target="password"></i>
+                </div>
+            </div>
+
+            <div id="loginErrors" style="color:red; margin-bottom:15px;"></div>
+
+            <button type="submit" class="submit-btn">Login</button>
+
+            
+
+            <p class="register-link">
+                Don’t have an account? <a href="{% url 'register' %}">Register here</a>
+            </p>
+        </form>
+    </div>
+</main>
+
+<footer class="footer">
+    <p>Local Food Marketplace | Supporting Local Farmers</p>
+</footer>
+
+<script>
+    // Show/hide password
+    document.querySelectorAll(".toggle-password").forEach(icon => {
+        icon.addEventListener("click", () => {
+            const targetId = icon.getAttribute("data-target");
+            const field = document.getElementById(targetId);
+
+            if (field.type === "password") {
+                field.type = "text";
+                icon.classList.remove("fa-eye-slash");
+                icon.classList.add("fa-eye");
+            } else {
+                field.type = "password";
+                icon.classList.remove("fa-eye");
+                icon.classList.add("fa-eye-slash");
+            }
+        });
+    });
+
+    document.getElementById("loginForm").addEventListener("submit", async function(e) {
+        e.preventDefault();
+
+        const errorBox = document.getElementById("loginErrors");
+        errorBox.innerHTML = "";
+
+        const email = this.email.value.trim();
+        const password = this.password.value.trim();
+
+        /* ------------------------------
+           VALIDATION BLOCK
+        ------------------------------ */
+
+        // EMAIL VALIDATION
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailPattern.test(email)) {
+            errorBox.innerHTML = "Please enter a valid email address.";
+            return;
+        }
+
+        // PASSWORD REQUIRED
+        if (password.length === 0) {
+            errorBox.innerHTML = "Password is required.";
+            return;
+        }
+
+        /* ------------------------------
+           SEND LOGIN REQUEST
+        ------------------------------ */
+        const response = await fetch("/api/login/", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({email, password})
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            // Save tokens
+            localStorage.setItem("access", data.access);
+            localStorage.setItem("refresh", data.refresh);
+
+            // Redirect to homepage or dashboard
+            window.location.href = data.homepage;
+        } else {
+            // Display backend error messages
+            let messages = [];
+            for (const key in data) {
+                messages.push(`${data[key]}`);
+            }
+            errorBox.innerHTML = messages.join("<br>");
+        }
+    });
+</script>
+
+</body>
+</html>
