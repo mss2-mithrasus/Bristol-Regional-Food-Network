@@ -1,0 +1,100 @@
+Product.html 
+
+
+<!--
+
+ADD LINE LIKE WELCOME CUSTOMER NAME 
+<a href="https://www.flaticon.com/free-icons/carrot" title="carrot icons">Carrot icons created by Freepik - Flaticon</a>
+<a href="https://www.flaticon.com/free-icons/dairy-products" title="dairy products icons">Dairy products icons created by Smashicons - Flaticon</a>
+<a href="https://www.flaticon.com/free-icons/bread" title="bread icons">Bread icons created by Freepik - Flaticon</a>
+<a href="https://www.flaticon.com/free-icons/jam-jar" title="jam jar icons">Jam jar icons created by IconsNova - Flaticon</a>
+<a href="https://www.flaticon.com/free-icons/pumpkin" title="pumpkin icons">Pumpkin icons created by Freepik - Flaticon</a>
+
+-->
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+{%extends "base.html"%}
+
+{% load static %}
+
+{% block head %}
+
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'product.css' %}">
+{% endblock %}
+
+{%block nav%}
+
+    <nav class="nav-links">
+                <!--we want the buttons styling to be active if we are on that page to make it clear what page the user is currently on
+                which is what is being done here-->
+        <a href="{%url 'home'%}"
+            class="{%if request.resolver_match.url_name == 'home'%}active{%endif%}">Home</a>
+
+        <a href="{% url 'orders' %}"
+            class="{% if request.resolver_match.url_name == 'orders'%}active{%endif%}">
+            Orders
+        </a>
+
+        <a href="{% url 'about_us' %}"
+            class="{% if request.resolver_match.url_name == 'about_us'%}active{%endif%}">
+            About Us
+        </a>
+
+        <div class="nav-icons">
+                
+                <a href="#"><i class="fa-solid fa-cart-shopping"></i></a>
+                <a href="#"><i class="fa-solid fa-bell"></i></a>
+                <a href="#"><i class="fa-solid fa-user"></i></a>
+            </div>
+
+
+    </nav>
+
+{%endblock%}
+
+
+{% block content %}
+
+
+
+<div class="search-box">
+    <input type="text" placeholder="Search Products" class="search-bar" >
+</div> 
+
+<div class="category">
+    <a href="#vegetables" class="category-card">
+        <img src="{% static 'images/carrot.png' %}" alt="vegetables">
+        <p>Vegetables</p>
+    </a>
+
+    <a href="#dairy" class="category-card">
+        <img src="{% static 'images/milk.png' %}" alt="dairy">
+        <p>Dairy</p>
+    </a>
+
+    <a href="#bakery" class="category-card">
+        <img src="{% static 'images/bread.png' %}" alt="bakery">
+        <p>Bakery</p>
+    </a>
+
+    <a href="#preserves" class="category-card">
+        <img src="{% static 'images/jam-jar.png' %}" alt="preserves">
+        <p>Preserves</p>
+    </a>
+
+    <a href="#seasonal" class="category-card">
+        <img src="{% static 'images/pumpkin.png' %}" alt="seasonal specialties">
+        <p>Seasonal Specialties</p>
+    </a>
+
+</div>
+
+{% endblock %}
+
+
+
+
+
+
+
