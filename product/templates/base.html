@@ -5,8 +5,11 @@
     <head>
         <meta charset="UTF-8">
         <title>Bristol Regional Food Network</title>
-        <link rel="stylesheet" href="{% static 'product.css'%}">
+        <link rel="stylesheet" href="{% static 'base.css'%}">
+        {% block head%}
+        {%endblock%}
     </head>
+    
 
     <body> 
 
@@ -15,6 +18,7 @@
                 <img src="{% static 'images/leaf.png' %}" alt="Leaf logo" class="logo">
                 <span class="title">Bristol Regional Food Network</span>
             </div>
+            {%block nav%}
 
             <nav class="nav-links">
                 <!--we want the buttons styling to be active if we are on that page to make it clear what page the user is currently on
@@ -22,7 +26,9 @@
                 <a href="{%url 'home'%}"
                 class="{%if request.resolver_match.url_name == 'home'%}active{%endif%}">Home</a>
                 <a href="#">Login</a>
+                {%block nav_extra%}{%endblock%}
             </nav>
+            {%endblock%}
         </header>
 
         <!--page content will go here e.g login form-->

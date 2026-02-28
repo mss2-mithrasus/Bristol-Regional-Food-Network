@@ -1,0 +1,103 @@
+
+{%extends "product.html"%}
+
+
+{%load static%}
+
+{%block head%}
+
+    {{block.super}}
+    <link rel="stylesheet" href="{% static 'categories.css' %}">
+{%endblock%}
+
+{%block content%}
+<div class="search-box">
+    <input type="text" placeholder="Search Products" class="search-bar">
+</div>
+
+
+
+<div class="product-container">
+    <div class="product-card">
+        <img src="{% static 'images/carrot.png'%}" alt="Product image">
+
+        <h4>Product name:</h4>
+        <p class="field"></p>
+
+        <h4>Producer name:</h4>
+        <p class="field"></p>
+
+        <h4>Price:</h4>
+        <p class="field"></p>
+
+        <h4>Status:</h4>
+        <p class="field"></p>
+
+        <div class="quantity">
+            <button class="plus">+</button>
+            <button class="minus">-</button>
+        </div>
+
+        <div class="button-group">
+        <button class="add-cart">Add to Cart</button>
+        <button class="product-details">View Product Details</button>
+
+    </div>
+    </div>
+
+    <div class="product-card">
+        <img src="{% static 'images/carrot.png'%}" alt="Product image">
+
+        <h4>Product name:</h4>
+        <p class="field"></p>
+
+        <h4>Producer name:</h4>
+        <p class="field"></p>
+
+        <h4>Price:</h4>
+        <p class="field"></p>
+
+        <h4>Status:</h4>
+        <p class="field"></p>
+
+        <div class="quantity">
+            <button class="plus">+</button>
+            <button class="minus">-</button>
+        </div>
+
+        <div class="button-group">
+        <button class="add-cart">Add to Cart</button>
+        <button class="product-details">View Product Details</button>
+
+    </div>
+    </div>
+    <div class="product-card">
+        <img src="{% static 'images/carrot.png'%}" alt="Product image">
+
+        <h4>Product name:</h4>
+        <p class="field"></p>
+
+        <h4>Producer name:</h4>
+        <p class="field"></p>
+
+        <h4>Price:</h4>
+        <p class="field"></p>
+
+        <h4>Status:</h4>
+        <p class="field"></p>
+
+    <div class="group">
+        <div class="quantity">
+            <button class="plus">+</button>
+            <button class="minus">-</button>
+        </div>
+        <button class="add-cart">Add to Cart</button>
+        
+    </div>
+    <button class="product-details">View Product Details</button>
+
+
+</div>
+
+{%endblock%}
+
