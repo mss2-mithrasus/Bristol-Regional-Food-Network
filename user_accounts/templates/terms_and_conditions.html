@@ -1,0 +1,79 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Terms & Conditions | Bristol Regional Food Network</title>
+
+    <!-- Global CSS -->
+    <link rel="stylesheet" href="{% static 'base.css' %}">
+
+    <!-- Page-specific CSS -->
+    <link rel="stylesheet" href="{% static 'about_us_and_tc.css' %}">
+</head>
+
+<body>
+
+    <!-- HEADER + NAVBAR -->
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{% static 'images/leaf.png' %}" alt="Leaf logo" class="logo">
+            <span class="title">Bristol Regional Food Network</span>
+        </div>
+
+        <nav class="nav-links">
+            <a href="{% url 'tc' %}" class="active">Terms & Conditions</a>
+        </nav>
+    </header>
+
+    <!-- PAGE CONTENT -->
+    <main>
+        <div class="container">
+            <h1>Terms & Conditions</h1>
+
+            <div class="content">
+                <h2>1. Introduction</h2>
+                <p>
+                    These Terms & Conditions govern your use of the Bristol Regional Food Network
+                    Digital Marketplace. By accessing or using our platform, you agree to comply
+                    with these terms.
+                </p>
+
+                <h2>2. User Responsibilities</h2>
+                <p>
+                    Users must provide accurate information during registration and must not
+                    misuse the platform or engage in fraudulent activity.
+                </p>
+
+                <h2>3. Producer Responsibilities</h2>
+                <p>
+                    Producers must ensure all products listed are safe, legal, and accurately described.
+                </p>
+
+                <h2>4. Data Protection</h2>
+                <p>
+                    We are committed to protecting your personal data in accordance with UK GDPR
+                    and our Privacy Policy.
+                </p>
+
+                <h2>5. Termination</h2>
+                <p>
+                    We reserve the right to suspend or terminate accounts that violate these terms.
+                </p>
+
+                <h2>6. Contact</h2>
+                <p>
+                    If you have any questions regarding these Terms & Conditions, please contact us.
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <p>Local Food Marketplace | Supporting Local Farmers</p>
+    </footer>
+
+</body>
+</html>

@@ -1,0 +1,62 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bristol Regional Food Network</title>
+
+    <!-- Global CSS from product app -->
+    <link rel="stylesheet" href="{% static 'base.css' %}">
+
+    <!-- Page-specific CSS -->
+    <link rel="stylesheet" href="{% static 'user_accounts.css' %}">
+</head>
+
+<body>
+
+    <!-- HEADER + NAVBAR -->
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{% static 'images/leaf.png' %}" alt="Leaf logo" class="logo">
+            <span class="title">Bristol Regional Food Network</span>
+        </div>
+
+        <nav class="nav-links">
+            <a href="{% url 'home' %}" class="active">Home</a>
+            <a href="{% url 'login' %}" class="home-btn">Login</a>
+            <a href="{% url 'register' %}" class="home-btn">Register</a>
+            <a href="{% url 'about' %}">About us</a>
+        </nav>
+    </header>
+
+    <!-- PAGE CONTENT -->
+    <main>
+        <div class="home_image_container">
+
+            <!-- Background Image -->
+            <img src="{% static 'images/background_img.jpg' %}" class="bg-img" alt="Background">
+
+            <div class="background_overlay"></div>
+            <div class="home_page_container">
+
+                <h1 class="home_page_title">Fresh Local Produce</h1>
+                <p class="home_page_subtitle">Connecting local producers and customers in your community.</p>
+
+                <div class="home_page_buttons">
+                    <a href="{% url 'login' %}" class="home_page_btn">Login</a>
+                    <a href="{% url 'register' %}" class="home_page_btn">Register</a>
+                </div>
+
+
+            </div>
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <p>Local Food Marketplace | Supporting Local Farmers</p>
+    </footer>
+
+</body>
+</html>

@@ -1,1 +1,81 @@
-<h1> hi </h1?>
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>About Us | Bristol Regional Food Network</title>
+
+    <!-- Global CSS -->
+    <link rel="stylesheet" href="{% static 'base.css' %}">
+
+    <!-- Page-specific CSS -->
+    <link rel="stylesheet" href="{% static 'about_us_and_tc.css' %}">
+</head>
+
+<body>
+
+    <!-- HEADER + NAVBAR -->
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{% static 'images/leaf.png' %}" alt="Leaf logo" class="logo">
+            <span class="title">Bristol Regional Food Network</span>
+        </div>
+
+        <nav class="nav-links">
+            <a href="{% url 'home' %}">Home</a>
+            <a href="{% url 'login' %}">Login</a>
+            <a href="{% url 'register' %}">Register</a>
+            <a href="{% url 'about' %}" class="active">About us</a>
+        </nav>
+    </header>
+
+    <!-- PAGE CONTENT -->
+    <main>
+        <div class="container">
+            <h1>About Us</h1>
+
+            <div class="content">
+                <p>
+                    Welcome to the Bristol Regional Food Network Digital Marketplace, 
+                    a platform designed to connect local food producers directly with 
+                    customers in the community.
+                </p>
+                <p>
+                    Our mission is to support sustainable agriculture, reduce food miles, 
+                    and strengthen local economies by making fresh, locally sourced food more accessible.
+                </p>
+                <h2>Our Vision</h2>
+                <p>
+                    We believe that communities thrive when people have access to fresh, 
+                    locally produced food. By creating a direct connection between producers and customers, 
+                    we aim to promote transparency, sustainability, and healthier food choices.
+                </p>
+                <div class="section">
+
+                <div class="text_section">
+                    <h2>What We Offer:</h2>
+                    <p>A marketplace for locally produced food.</p>
+                    <p>Direct purchasing from trusted producers.</p>
+                    <p>Seasonal and sustainable food options.</p>
+                    <p>Support for small farms and businesses.</p>
+                    <p>Convenient ordering and collection options.</p>
+                </div>
+
+                <div class="image_section">
+                    <img src="{% static 'images/about_us_img.png' %}" alt="Fresh produce">
+                </div>
+
+            </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <p>Local Food Marketplace | Supporting Local Farmers</p>
+    </footer>
+
+</body>
+</html>
+
