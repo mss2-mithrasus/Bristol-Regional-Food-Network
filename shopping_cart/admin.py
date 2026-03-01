@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ShoppingCart, ShoppingCartItem, Product
+from .models import ShoppingCart, ShoppingCartItem
 
 
 class ShoppingCartItemInline(admin.TabularInline):
@@ -19,11 +19,8 @@ class ShoppingCartItemAdmin(admin.ModelAdmin):
     list_display = ('cart_item_id', 'cart_id', 'product_id', 'quantity', 'unit_price')
 
 
-class ProductAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'price')
-    search_fields = ('name',)
+
 
 
 admin.site.register(ShoppingCart, ShoppingCartAdmin)
 admin.site.register(ShoppingCartItem, ShoppingCartItemAdmin)
-admin.site.register(Product, ProductAdmin)
