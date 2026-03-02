@@ -17,9 +17,20 @@ class AllergenSerializer(serializers.ModelSerializer):
     class Meta:
         model = Allergen
         fields = [
-            "allergen_id",
-            "name",
+           
+            "name"
         ]
+        
+class ProductAllergenSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = ProductAllergen
+        fields = [ 
+                  "product",
+                  "allergen",
+                  "description",
+                  
+                  ]
         
         
 class SeasonalAvailabilitySerializer(serializers.ModelSerializer):
@@ -65,5 +76,24 @@ class ProductSerializer(serializers.ModelSerializer):
             return obj.producer.produceraccount.business_name
        
     
+class ProductCreateSerializer(serializers.ModelSerializer):
+    
+    organic_certified = serializers.BooleanField(required=False)
+    class Meta:
+        model = Product
+        fields = [
+            "name", 
+            "description",
+            "price",
+            "unit",
+            "stock_quantity",
+            "availability_status",
+            "category",
+            "image",
+            "producer",
+            "allergens",
+            "harvest_date",
+            "organic_certified",
+        ]
     
     

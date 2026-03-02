@@ -7,8 +7,10 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
 <a href="https://www.flaticon.com/free-icons/bread" title="bread icons">Bread icons created by Freepik - Flaticon</a>
 <a href="https://www.flaticon.com/free-icons/jam-jar" title="jam jar icons">Jam jar icons created by IconsNova - Flaticon</a>
 <a href="https://www.flaticon.com/free-icons/pumpkin" title="pumpkin icons">Pumpkin icons created by Freepik - Flaticon</a>
-
+<a href="https://iconscout.com/icons/organic" class="text-underline font-size-sm" target="_blank">organic</a> by <a href="https://iconscout.com/contributors/bearicons" class="text-underline font-size-sm" target="_blank">BEARicons</a>
 -->
+
+
    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 {%extends "base.html"%}
@@ -29,13 +31,10 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
         <a href="{%url 'home'%}"
             class="{%if request.resolver_match.url_name == 'home'%}active{%endif%}">Home</a>
 
-        <a href="{% url 'orders' %}"
-            class="{% if request.resolver_match.url_name == 'orders'%}active{%endif%}">
-            Orders
-        </a>
+        <!--add order back in-->
 
-        <a href="{% url 'about_us' %}"
-            class="{% if request.resolver_match.url_name == 'about_us'%}active{%endif%}">
+        <a href="{% url 'about' %}"
+            class="{% if request.resolver_match.url_name == 'about'%}active{%endif%}">
             About Us
         </a>
 
@@ -57,42 +56,83 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
  <!--<h2>Welcome, {{user.first_name}}</h2>-->
 
 <div class="search-box">
-    <input type="text" placeholder="Search Products" class="search-bar" >
+    <form method="get">
+        <input type="text" name="q" placeholder="Search Products" class="search-bar" >
+        <button class="submit" type="submit">Search</button>
+    </form>
 </div> 
+
+{% if query %} 
+<h2 class="search-title">Search results for "{{ query}}"</h2>
+
+
+
+    <div class="product-container">
+        {% if products %}
+            {% for product in products%}
+                <div class="product-card">
+                    <img src="{{product.image.url}}" alt="product.name">
+
+       
+                    <div class="field-row">
+
+                        <h4 class="field"><span class="label">Product:</span> {{product.name}}</h4>
+
+                        {%if product.organic_certified%}
+                            <img src="{% static 'images/organic.png'%}" alt='organic badge' class="organic-badge">
+                        {%endif%}
+                    </div>
+
+                    <h4 class="field"><span class="label">Producer:</span> {{product.producer_name}}</h4>
+
+                    <h4 class="field"><span class="label">Price:</span> {{product.price}}</h4>
+
+                    <h4 class="field"><span class="label">Status:</span> {{product.availability_status|yesno:"Available, Out of stock"}}</h4>
+
+         
+
+                    <div class="button-group">
+                        <div class="quantity">
+                            <button class="plus">+</button>
+                            <button class="minus">-</button>
+                        </div>
+
+        
+                        <button class="add-cart">Add to Cart</button>
+            
+            
+                    </div>
+                    <a href="{% url 'product_detail' product_id=product.product_id%}">
+                        <button class="product-details">View Product Details</button>
+                    </a>
+    
+                </div>
+       
+            {% endfor %}
+        {% else%}
+        <p>No products available for this query</p>
+        {%endif%}
+
+
+
+
+
+{%else%}
 
 <div class="category">
 
     {% for category in categories %}
 
-
+    
     <a href="{% url 'products_category' category.category_name%}" class="category-card">
-        {% if category.category_name == "Vegetables" %}
-            <img src="{% static 'images/carrot.png' %}" alt="vegetables">
-            <p>Vegetables</p>
-    
 
-        {% elif category.category_name == "Dairy" %}
-        <img src="{% static 'images/milk.png' %}" alt="dairy">
-        <p>Dairy</p>
-    
-
-        {% elif category.category_name == "Bakery" %}
-        <img src="{% static 'images/bread.png' %}" alt="bakery">
-        <p>Bakery</p>
-    
-
-        {% elif category.category_name == "Preserves" %}
-        <img src="{% static 'images/jam-jar.png' %}" alt="preserves">
-        <p>Preserves</p>
-    
-
-        {% elif category.category_name == "Seasonal Specialties" %}
-        <img src="{% static 'images/pumpkin.png' %}" alt="seasonal specialties">
-        <p>Seasonal Specialties</p>
-
-        {% endif %}
+        {% if category.image_path %}
+            <img src="{% static category.image_path %}" alt="{{category.category_name}}">
+        {% endif%}
 
         <p> {{ category.category_name}}</p>
+        
+
     </a>
 
 {%empty %}
@@ -103,6 +143,8 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
 {% endfor %}
 
 </div>
+
+{%endif%}
 
 {% endblock %}
 

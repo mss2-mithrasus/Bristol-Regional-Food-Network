@@ -11,93 +11,63 @@
 {%endblock%}
 
 {%block content%}
+
+<h2 class="category-title">{{ category.category_name}}</h2>
+<!--search box to filter products-->
 <div class="search-box">
     <input type="text" placeholder="Search Products" class="search-bar">
 </div>
 
-
-
 <div class="product-container">
+    <!--if there are products in the category we loop through each product
+     in the query set passed from the view-->
+    {% if products %}
+    {% for product in products%}
     <div class="product-card">
-        <img src="{% static 'images/carrot.png'%}" alt="Product image">
+        <img src="{{product.image.url}}" alt="product.product_name">
 
-        <h4>Product name:</h4>
-        <p class="field"></p>
+       
+    <div class="field-row">
 
-        <h4>Producer name:</h4>
-        <p class="field"></p>
+        <h4 class="field"><span class="label">Product:</span> {{product.name}}</h4>
 
-        <h4>Price:</h4>
-        <p class="field"></p>
+        {%if product.organic_certified%}
+            <img src="{% static 'images/organic.png'%}" alt='organic badge' class="organic-badge">
+            {%endif%}
+    </div>
 
-        <h4>Status:</h4>
-        <p class="field"></p>
+        <h4 class="field"><span class="label">Producer:</span> {{product.producer_name}}</h4>
 
+        <h4 class="field"><span class="label">Price:</span> {{product.price}}</h4>
+
+        <h4 class="field"><span class="label">Status:</span> {{product.availability_status|yesno:"Available, Out of stock"}}</h4>
+
+         
+
+    <div class="button-group">
         <div class="quantity">
             <button class="plus">+</button>
             <button class="minus">-</button>
         </div>
 
-        <div class="button-group">
-        <button class="add-cart">Add to Cart</button>
-        <button class="product-details">View Product Details</button>
-
-    </div>
-    </div>
-
-    <div class="product-card">
-        <img src="{% static 'images/carrot.png'%}" alt="Product image">
-
-        <h4>Product name:</h4>
-        <p class="field"></p>
-
-        <h4>Producer name:</h4>
-        <p class="field"></p>
-
-        <h4>Price:</h4>
-        <p class="field"></p>
-
-        <h4>Status:</h4>
-        <p class="field"></p>
-
-        <div class="quantity">
-            <button class="plus">+</button>
-            <button class="minus">-</button>
-        </div>
-
-        <div class="button-group">
-        <button class="add-cart">Add to Cart</button>
-        <button class="product-details">View Product Details</button>
-
-    </div>
-    </div>
-    <div class="product-card">
-        <img src="{% static 'images/carrot.png'%}" alt="Product image">
-
-        <h4>Product name:</h4>
-        <p class="field"></p>
-
-        <h4>Producer name:</h4>
-        <p class="field"></p>
-
-        <h4>Price:</h4>
-        <p class="field"></p>
-
-        <h4>Status:</h4>
-        <p class="field"></p>
-
-    <div class="group">
-        <div class="quantity">
-            <button class="plus">+</button>
-            <button class="minus">-</button>
-        </div>
-        <button class="add-cart">Add to Cart</button>
         
+            <button class="add-cart">Add to Cart</button>
+            
+            
     </div>
-    <button class="product-details">View Product Details</button>
-
+    <a href="{% url 'product_detail' product_id=product.product_id%}">
+        <button class="product-details">View Product Details</button>
+    </a>
+    
+</div>
+       
+        {% endfor %}
+    {% else%}
+        <p>No products available in this category</p>
+    {%endif%}
 
 </div>
+
 
 {%endblock%}
 
