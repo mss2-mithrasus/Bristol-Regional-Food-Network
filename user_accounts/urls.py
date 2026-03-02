@@ -14,7 +14,7 @@ urlpatterns = [
     path("terms_and_conditions/", terms_and_conditions_page, name="tc"),
 
     path("customer/home/", lambda r: render(r, "customer_home_page.html")),
-    path("producer/home/", lambda r: render(r, "producer_home_page.html")),
+    path("producer/home/", lambda r: render(r, "dashboard.html")),
     path("admin/home/", lambda r: render(r, "admin_home_page.html")),
 
     path("api/register/", RegisterView.as_view(), name="api-register"),

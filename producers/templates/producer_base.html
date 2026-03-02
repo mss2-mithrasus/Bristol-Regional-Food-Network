@@ -17,7 +17,6 @@
     </div>
 
     <div class="topbar-right">
-      <a class="about-pill" href="#">About us</a>
       <div class="nav-icons">
         <a href="#" title="Notifications"><i class="fa-regular fa-bell"></i></a>
         <a href="#" title="Profile"><i class="fa-regular fa-user"></i></a>
@@ -28,12 +27,15 @@
   <!-- Layout -->
   <div class="dash-layout">
     <aside class="sidebar">
-      <a class="sidebar-link {% if request.path == '/producer/dashboard/' %}active{% endif %}" href="/producer/dashboard/">Dashboard</a>
-      <a class="sidebar-link {% if request.path|slice:':18' == '/producer/product_management' %}active{% endif %}" href="/producer/product_management/">Products</a>
+      <a class="sidebar-link {% if request.path == '/producer/dashboard/' %}active{% endif %}"
+   href="/producer/dashboard/">
+   Dashboard
+      </a>
+      <a class="sidebar-link {% if '/producer/product_management/' in request.path %}active{% endif %}"
+        href="/producer/product_management/">Products</a>
       <a class="sidebar-link" href="#">Orders</a>
       <a class="sidebar-link" href="#">Payments</a>
       <a class="sidebar-link" href="#">Content</a>
-      <a class="sidebar-link" href="#">Settings</a>
       <a class="sidebar-link" href="#">Logout</a>
     </aside>
 

@@ -61,7 +61,7 @@ class SettlementReport(models.Model):
 
     # Placeholder for now: use the main user model (works even if you later create ProducerAccount)
     producer = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        "user_accounts.ProducerAccount",
         on_delete=models.CASCADE,
         db_column="producer_id",
         related_name="settlement_reports",
@@ -127,7 +127,7 @@ class FarmStory(models.Model):
 
     # Placeholder: use AUTH_USER_MODEL
     producer = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        "user_accounts.ProducerAccount",
         on_delete=models.CASCADE,
         db_column="producer_id",
         related_name="farm_stories",
@@ -151,7 +151,7 @@ class Recipe(models.Model):
 
     # Placeholder: use AUTH_USER_MODEL
     producer = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        "user_accounts.ProducerAccount",
         on_delete=models.CASCADE,
         db_column="producer_id",
         related_name="recipes",
@@ -206,7 +206,7 @@ class SavedRecipe(models.Model):
 
     # Placeholder: use AUTH_USER_MODEL (later can become CustomerAccount)
     customer = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        "user_accounts.CustomerAccount",
         on_delete=models.CASCADE,
         db_column="customer_id",
         related_name="saved_recipes",

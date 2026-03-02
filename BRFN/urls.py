@@ -17,7 +17,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from user_accounts.views import home_page,  registration_page, login_page
-#from producers.views import db_test
+from django.conf import settings
+from django.conf.urls.static import static
 
 
 
@@ -33,3 +34,5 @@ urlpatterns = [
     #path('db-test/', db_test),
     #path('', include('product.urls'))
 ]
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

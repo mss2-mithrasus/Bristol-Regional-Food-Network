@@ -3,17 +3,17 @@
 {% block content %}
 
 <div class="welcome">
-  <h1>Welcome back, (Producer Name)</h1>
+  <h1 id="producer-name">Welcome back...</h1>
   <p>Here is your overview....</p>
 </div>
 
 <section class="panel">
   <h2>Overview</h2>
   <div class="pill-row">
-    <div class="pill"><span>Total Products</span><strong>12</strong></div>
-    <div class="pill"><span>Active Orders</span><strong>5</strong></div>
-    <div class="pill"><span>Revenue</span><strong>£245</strong></div>
-    <div class="pill"><span>Low Stock</span><strong>2</strong></div>
+    <div class="pill"><span>Total Products</span><strong id="total-products">0</strong></div>
+    <div class="pill"><span>Active Orders</span><strong id="active-orders">0</strong></div>
+    <div class="pill"><span>Revenue</span><strong id="revenue">£0</strong></div>
+    <div class="pill"><span>Low Stock</span><strong id="low-stock">0</strong></div>
   </div>
 </section>
 
@@ -27,22 +27,68 @@
     <div class="pill mini">Status</div>
   </div>
 
-  <div class="orders-grid row">
-    <div>01</div><div>John Smith</div><div>3</div><div>Pending</div>
-  </div>
-  <div class="orders-grid row">
-    <div>02</div><div>Eva Jones</div><div>2</div><div>Completed</div>
+  <div id="recent-orders-container">
+    <!-- Orders will be inserted here -->
   </div>
 </section>
 
 <section class="panel">
   <h2>Product Status</h2>
-  <div class="pill-row">
-    <div class="pill"><span>Low Stock</span><strong>Tomatoes</strong></div>
-    <div class="pill"><span>Out of Season</span><strong>Pumpkin</strong></div>
-    <div class="pill"><span>In Season</span><strong>Carrots</strong></div>
-    <div class="pill"><span>Out of date</span><strong>Oranges</strong></div>
+  <div class="pill-row" id="product-status-container">
+    <!-- Product status will be inserted here -->
   </div>
 </section>
+
+<script>
+const token = localStorage.getItem("access");
+
+if (!token) {
+  window.location.href = "/login/";
+}
+
+fetch("/producer/api/dashboard/", {
+  headers: {
+    "Authorization": "Bearer " + token
+  }
+})
+.then(response => {
+  if (!response.ok) throw new Error("Unauthorized");
+  return response.json();
+})
+.then(data => {
+
+  // Producer name
+  document.getElementById("producer-name").textContent =
+    "Welcome back, " + (data.producer_name || data.business_name)
+
+  // Overview stats
+  document.getElementById("total-products").textContent = data.total_products || 0;
+  document.getElementById("active-orders").textContent = data.active_orders || 0;
+  document.getElementById("revenue").textContent = "£" + (data.revenue || 0);
+  document.getElementById("low-stock").textContent = data.low_stock || 0;
+
+  // Recent Orders
+  const ordersContainer = document.getElementById("recent-orders-container");
+  ordersContainer.innerHTML = "";
+
+  if (data.recent_orders) {
+    data.recent_orders.forEach(order => {
+      ordersContainer.innerHTML += `
+        <div class="orders-grid row">
+          <div>${order.id}</div>
+          <div>${order.customer}</div>
+          <div>${order.items}</div>
+          <div>${order.status}</div>
+        </div>
+      `;
+    });
+  }
+
+})
+.catch(error => {
+  console.error(error);
+  window.location.href = "/login/";
+});
+</script>
 
 {% endblock %}
