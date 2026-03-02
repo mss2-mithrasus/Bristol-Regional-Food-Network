@@ -13,7 +13,7 @@ urlpatterns = [
     path("about/", about_page, name="about"),
     path("terms_and_conditions/", terms_and_conditions_page, name="tc"),
 
-    path("customer/home/", lambda r: render(r, "customer_home_page.html")),
+    path("customer/home/", lambda r: render(r, "product.html")),
     path("producer/home/", lambda r: render(r, "producer_home_page.html")),
     path("admin/home/", lambda r: render(r, "admin_home_page.html")),
 
