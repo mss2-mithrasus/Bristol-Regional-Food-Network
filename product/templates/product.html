@@ -1,0 +1,156 @@
+
+<!--
+
+ADD LINE LIKE WELCOME CUSTOMER NAME 
+<a href="https://www.flaticon.com/free-icons/carrot" title="carrot icons">Carrot icons created by Freepik - Flaticon</a>
+<a href="https://www.flaticon.com/free-icons/dairy-products" title="dairy products icons">Dairy products icons created by Smashicons - Flaticon</a>
+<a href="https://www.flaticon.com/free-icons/bread" title="bread icons">Bread icons created by Freepik - Flaticon</a>
+<a href="https://www.flaticon.com/free-icons/jam-jar" title="jam jar icons">Jam jar icons created by IconsNova - Flaticon</a>
+<a href="https://www.flaticon.com/free-icons/pumpkin" title="pumpkin icons">Pumpkin icons created by Freepik - Flaticon</a>
+<a href="https://iconscout.com/icons/organic" class="text-underline font-size-sm" target="_blank">organic</a> by <a href="https://iconscout.com/contributors/bearicons" class="text-underline font-size-sm" target="_blank">BEARicons</a>
+-->
+
+
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+{%extends "base.html"%}
+
+{% load static %}
+
+{% block head %}
+
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'product.css' %}">
+{% endblock %}
+
+{%block nav%}
+
+    <nav class="nav-links">
+                <!--we want the buttons styling to be active if we are on that page to make it clear what page the user is currently on
+                which is what is being done here-->
+        <a href="{%url 'home'%}"
+            class="{%if request.resolver_match.url_name == 'home'%}active{%endif%}">Home</a>
+
+        <!--add order back in-->
+
+        <a href="{% url 'about' %}"
+            class="{% if request.resolver_match.url_name == 'about'%}active{%endif%}">
+            About Us
+        </a>
+
+        <div class="nav-icons">
+                
+                <a href="#"><i class="fa-solid fa-cart-shopping"></i></a>
+                <a href="#"><i class="fa-solid fa-bell"></i></a>
+                <a href="#"><i class="fa-solid fa-user"></i></a>
+            </div>
+
+
+    </nav>
+
+{%endblock%}
+
+
+{% block content %}
+
+ <!--<h2>Welcome, {{user.first_name}}</h2>-->
+
+<div class="search-box">
+    <form method="get">
+        <input type="text" name="q" placeholder="Search Products" class="search-bar" >
+        <button class="submit" type="submit">Search</button>
+    </form>
+</div> 
+
+{% if query %} 
+<h2 class="search-title">Search results for "{{ query}}"</h2>
+
+
+
+    <div class="product-container">
+        {% if products %}
+            {% for product in products%}
+                <div class="product-card">
+                    <img src="{{product.image.url}}" alt="product.name">
+
+       
+                    <div class="field-row">
+
+                        <h4 class="field"><span class="label">Product:</span> {{product.name}}</h4>
+
+                        {%if product.organic_certified%}
+                            <img src="{% static 'images/organic.png'%}" alt='organic badge' class="organic-badge">
+                        {%endif%}
+                    </div>
+
+                    <h4 class="field"><span class="label">Producer:</span> {{product.producer_name}}</h4>
+
+                    <h4 class="field"><span class="label">Price:</span> {{product.price}}</h4>
+
+                    <h4 class="field"><span class="label">Status:</span> {{product.availability_status|yesno:"Available, Out of stock"}}</h4>
+
+         
+
+                    <div class="button-group">
+                        <div class="quantity">
+                            <button class="plus">+</button>
+                            <button class="minus">-</button>
+                        </div>
+
+        
+                        <button class="add-cart">Add to Cart</button>
+            
+            
+                    </div>
+                    <a href="{% url 'product_detail' product_id=product.product_id%}">
+                        <button class="product-details">View Product Details</button>
+                    </a>
+    
+                </div>
+       
+            {% endfor %}
+        {% else%}
+        <p>No products available for this query</p>
+        {%endif%}
+
+
+
+
+
+{%else%}
+
+<div class="category">
+
+    {% for category in categories %}
+
+    
+    <a href="{% url 'products_category' category.category_name%}" class="category-card">
+
+        {% if category.image_path %}
+            <img src="{% static category.image_path %}" alt="{{category.category_name}}">
+        {% endif%}
+
+        <p> {{ category.category_name}}</p>
+        
+
+    </a>
+
+{%empty %}
+
+    <p>No categories found</p>
+   
+
+{% endfor %}
+
+</div>
+
+{%endif%}
+
+{% endblock %}
+
+
+
+
+
+
+

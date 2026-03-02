@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import RegistrationSerializer, LoginSerializer
 from .permissions import IsProducer, IsCustomer, IsAdmin
-
+ 
 
 def home_page(request):
     return render(request, "main_home_page.html")
