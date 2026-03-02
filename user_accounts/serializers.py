@@ -97,6 +97,10 @@ class RegistrationSerializer(serializers.Serializer):
             # Otherwise it is a normal customer 
             else:
                 account_type = "normal"
+            
+            account_verified = True if account_type == "normal" else False
+
+
 
             # Create CustomerAccount
             customer = CustomerAccount.objects.create(
@@ -104,7 +108,8 @@ class RegistrationSerializer(serializers.Serializer):
                 person=person,
                 address=address,
                 account_type=account_type,
-                accepted_terms=True
+                accepted_terms=True,
+                account_verified=account_verified
             )
 
             # Community group table
@@ -140,7 +145,8 @@ class RegistrationSerializer(serializers.Serializer):
                 user=user,
                 business_name=validated_data.get("business_name", ""),
                 contact_person=contact_person,
-                address=address
+                address=address,
+                account_verified=False
             )
 
         return user
@@ -157,7 +163,20 @@ class LoginSerializer(serializers.Serializer):
         user = authenticate(email=data["email"], password=data["password"])
         if not user:
             raise serializers.ValidationError({"error": "Invalid credentials"})
+        # Stops user who have soft deleted their account from loggin in
+        if not user.is_active:
+            raise serializers.ValidationError({"error": "This account has been deactivated."})
+        # Stops unverified producers from loggin in
+        if user.role == "producer":
+            if not hasattr(user, "produceraccount") or not user.produceraccount.account_verified:
+                raise serializers.ValidationError({"error": "Producer account awaiting approval from admin."})
+        # Stops unverified community group + resatarant from loggining in
+        if user.role == "customer":
+            acc = getattr(user, "customeraccount", None)
+            if acc and acc.account_type in ["community", "restaurant"] and not acc.account_verified:
+                raise serializers.ValidationError({"error": "Business account awaiting admin approval."})
 
+        # JWT
         refresh = RefreshToken.for_user(user)
         return {
             "access": str(refresh.access_token),

@@ -3,7 +3,7 @@ from django.shortcuts import render
 from .views import (
     home_page, registration_page, login_page, about_page, terms_and_conditions_page,
     RegisterView, LoginView, LogoutView,
-    ProducerOnlyView, CustomerOnlyView, AdminOnlyView
+    ProducerOnlyView, CustomerOnlyView, AdminOnlyView, DeleteAccountView, RequestDeletionView
 )
 
 urlpatterns = [
@@ -24,4 +24,8 @@ urlpatterns = [
     path("api/producer-only/", ProducerOnlyView.as_view(), name="producer-only"),
     path("api/customer-only/", CustomerOnlyView.as_view(), name="customer-only"),
     path("api/admin-only/", AdminOnlyView.as_view(), name="admin-only"),
+
+    path("api/delete-account/", DeleteAccountView.as_view(), name="delete-account"),
+    path("api/request-deletion/", RequestDeletionView.as_view(), name="request-deletion"),
+
 ]
