@@ -13,13 +13,8 @@ urlpatterns = [
     path("about/", about_page, name="about"),
     path("terms_and_conditions/", terms_and_conditions_page, name="tc"),
 
-<<<<<<< HEAD
-    path("customer/home/", lambda r: render(r, "customer_home_page.html")),
-    path("producer/home/", lambda r: render(r, "dashboard.html")),
-=======
     path("customer/home/", lambda r: render(r, "product.html")),
-    path("producer/home/", lambda r: render(r, "producer_home_page.html")),
->>>>>>> origin/main
+    path("producer/home/", lambda r: render(r, "dashboard.html")),
     path("admin/home/", lambda r: render(r, "admin_home_page.html")),
 
     path("api/register/", RegisterView.as_view(), name="api-register"),
