@@ -1,3 +1,6 @@
+from sqlite3 import IntegrityError
+from django.db.models import ProtectedError
+
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -5,9 +8,11 @@ from rest_framework import request, status
 from rest_framework.permissions import IsAuthenticated
 
 from product.models import Product, ProductCategory, Allergen
+from product.serializers import ProductSerializer
 from user_accounts.permissions import IsProducer
 from user_accounts.models import ProducerAccount
-
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
+from rest_framework.generics import UpdateAPIView
 
 from .serializers import ProductCreateSerializer
 
@@ -124,7 +129,6 @@ class ProducerProductListAPI(APIView):
         return Response(data, status=status.HTTP_200_OK)
     
 
-
 class ProducerDeleteProductAPI(APIView):
     permission_classes = [IsAuthenticated, IsProducer]
 
@@ -141,8 +145,16 @@ class ProducerDeleteProductAPI(APIView):
         if not product:
             return Response({"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        product.delete()
+        try:
+            product.delete()
+        except Exception as e:
+            return Response(
+                {"error": f"Delete failed: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
         return Response({"message": "Product deleted successfully"}, status=status.HTTP_200_OK)
+
     
 class ProducerUpdateProductAPI(APIView):
     permission_classes = [IsAuthenticated, IsProducer]
@@ -171,3 +183,16 @@ class ProducerUpdateProductAPI(APIView):
         product.save()
 
         return Response({"message": "Product updated successfully"}, status=status.HTTP_200_OK)
+
+class ProductUpdateView(APIView):
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
+
+    def put(self, request, pk):
+        product = Product.objects.get(pk=pk)
+
+        serializer = ProductSerializer(product, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()  # this will save image too if it is in request.FILES
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)   

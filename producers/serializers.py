@@ -11,9 +11,10 @@ class ProductCreateSerializer(serializers.Serializer):
     unit = serializers.CharField(max_length=50)
     availability = serializers.CharField()
     stock = serializers.IntegerField(min_value=0)
-    allergens = serializers.CharField(required=False, allow_blank=True)
+    allergens = serializers.ListField(child=serializers.IntegerField(),required=False)
     harvest_date = serializers.DateField(required=False, allow_null=True)
     image = serializers.ImageField(required=False, allow_null=True)
+    organic_certified = serializers.BooleanField(required=False, default=False)
 
     def validate_price(self, value):
         # Strip currency symbols/spaces/commas: "£3.50" -> "3.50"
@@ -45,11 +46,12 @@ class ProductCreateSerializer(serializers.Serializer):
 
         available_values = {"available", "in season (available)", "in season"}
         availability_status = availability_text in available_values
-
+        organic_certified = validated_data.pop("organic_certified", False)
         product = Product.objects.create(
             producer=producer_account,
             stock_quantity=stock,
             availability_status=availability_status,
+            organic_certified=organic_certified,
             image=image,
             **validated_data
         )
@@ -68,3 +70,10 @@ class ProductCreateSerializer(serializers.Serializer):
                 )
 
         return product
+    
+class ProductSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(required=False, allow_null=True)
+
+    class Meta:
+        model = Product
+        fields = "__all__"
