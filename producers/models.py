@@ -1,4 +1,6 @@
+
 from django.db import models
+<<<<<<< HEAD
 from django.conf import settings
 
 
@@ -240,3 +242,6 @@ class EducationalContent(models.Model):
     class Meta:
         managed = True
         db_table = "educational_content"
+=======
+
+>>>>>>> origin/main

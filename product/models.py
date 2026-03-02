@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main
 from django.db import models
 from django.conf import settings
 
@@ -28,8 +32,12 @@ class Allergen(models.Model):
 class Product(models.Model):
     
     product_id = models.AutoField(primary_key=True)
+<<<<<<< HEAD
     producer = models.ForeignKey("user_accounts.ProducerAccount", on_delete=models.CASCADE, related_name="products")
     
+=======
+    producer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="products")
+>>>>>>> origin/main
     category = models.ForeignKey(ProductCategory, on_delete=models.CASCADE, related_name="products")
     
     name = models.CharField(max_length=255)
@@ -87,4 +95,9 @@ class ProductAllergen(models.Model):
         unique_together = ("product", "allergen")
         
     def __str__(self):
+<<<<<<< HEAD
         return str(self.product)
+=======
+        return str(self.product)
+
+>>>>>>> origin/main

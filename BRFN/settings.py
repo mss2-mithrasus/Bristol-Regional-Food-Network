@@ -152,9 +152,13 @@ STATIC_URL = 'static/'
 
 STATICFILES_DIRS = [
     BASE_DIR / "static",
-]
+] 
 
+  
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Added - to tell Django to use custom User model 
 AUTH_USER_MODEL = "user_accounts.User"
@@ -177,5 +181,9 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
 }
 
+<<<<<<< HEAD
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+=======
+
+>>>>>>> origin/main
