@@ -14,14 +14,15 @@
     gap: 30px;
     box-shadow:  0 2px 10px rgba(0,0,0,0.1);
     align-items: flex-start;
-}
+    margin-top: 100px;
+} 
 
 
 .product-detail-img{
     display: block;
     width: 100%;
-    max-width: 600px;
-    object-fit: cover;
+    max-width: 300px;
+
 
 }
 
@@ -49,4 +50,3 @@
     color: red;
     font-weight: bold;
 }
-

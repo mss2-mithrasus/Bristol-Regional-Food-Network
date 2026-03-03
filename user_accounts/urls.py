@@ -22,8 +22,9 @@ urlpatterns = [
     path("user_profile/", user_profile_page, name="user_profile"),
     
     path("customer/home/", lambda r: render(r, "product.html")),
-    path("producer/home/", lambda r: render(r, "producer_home_page.html")),
-    
+    path("producer/home/", lambda r: render(r, "dashboard.html")),
+    path("admin/home/", lambda r: render(r, "admin_home_page.html")),
+
     path("api/register/", RegisterView.as_view(), name="api-register"),
     path("api/login/", LoginView.as_view(), name="api-login"),
     path("api/logout/", LogoutView.as_view(), name="api-logout"),

@@ -71,7 +71,11 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
         {% if products %}
             {% for product in products%}
                 <div class="product-card">
-                    <img src="{{product.image.url}}" alt="product.name">
+                    {% if product.image %}
+                        <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                    {% else %}
+                        <img src="{% static 'images/default-product.png' %}" alt="{{ product.name }}">
+                    {% endif %}
 
        
                     <div class="field-row">
