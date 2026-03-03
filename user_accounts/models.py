@@ -20,6 +20,11 @@ class User(AbstractUser):
     role = models.CharField(max_length=20, choices=USER_ROLE_CHOICES)
 
     date_created = models.DateTimeField(auto_now_add=True)
+    # Used for soft deleting user account
+    is_active = models.BooleanField(default=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    reason_for_deleting = models.CharField(max_length=255, null=True, blank=True)
+    deleted_by_user = models.BooleanField(default=False)
 
     class Meta:
         db_table = "user_account"
@@ -71,6 +76,8 @@ class CustomerAccount(models.Model):
 
     account_type = models.CharField(max_length=20, choices=CUSTOMER_ACCOUNT_TYPES)
     accepted_terms = models.BooleanField(default=False)
+    account_verified = models.BooleanField(default=False)
+
 
     class Meta:
         db_table = "customer_account"
@@ -120,9 +127,23 @@ class ProducerAccount(models.Model):
     business_name = models.CharField(max_length=255)
     contact_person = models.ForeignKey(Person, on_delete=models.SET_NULL, null=True)
     address = models.ForeignKey(Address, on_delete=models.SET_NULL, null=True)
+    account_verified = models.BooleanField(default=False)
 
     class Meta:
         db_table = "producer_account"
 
     def __str__(self):
         return f"{self.business_name} ({self.user.email})"
+
+# Hard delete for user account request
+class DeletionRequest(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    reason = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    processed = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "deletion_request"
+
+    def __str__(self):
+        return f"Deletion request for {self.user.email}"
