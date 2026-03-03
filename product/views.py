@@ -34,7 +34,7 @@ def home(request):
         "Dairy": "images/milk.png",
         "Bakery": "images/bread.png",
         "Preserves": "images/jam-jar.png",
-        "Seasonal Specialties": "images/pumpkin.png"
+        "Seasonal Specialities": "images/pumpkin.png"
     }
     
     for c in categories:

@@ -11,7 +11,7 @@ class SurplusDiscount(models.Model):
 
     product = models.ForeignKey(
         "product.Product",
-        on_delete=models.CASCADE,
+        on_delete=models.CASCADE,null=True, blank=True,
         db_column="product_id",
         related_name="surplus_discounts",
     )
@@ -41,7 +41,7 @@ class Inventory(models.Model):
     product = models.ForeignKey(
         "product.Product",
         on_delete=models.CASCADE,
-        db_column="product_id",
+        db_column="product_id", null=True, blank=True,
         related_name="inventory_history",
     )
 
@@ -186,7 +186,7 @@ class RecipeProduct(models.Model):
 
     product = models.ForeignKey(
         "product.Product",
-        on_delete=models.CASCADE,
+        on_delete=models.CASCADE,null=True, blank=True,
         db_column="product_id",
         related_name="linked_recipes",
     )
