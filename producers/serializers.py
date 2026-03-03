@@ -11,7 +11,7 @@ class ProductCreateSerializer(serializers.Serializer):
     unit = serializers.CharField(max_length=50)
     availability = serializers.CharField()
     stock = serializers.IntegerField(min_value=0)
-    allergens = serializers.ListField(child=serializers.IntegerField(),required=False)
+    allergens = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
     harvest_date = serializers.DateField(required=False, allow_null=True)
     image = serializers.ImageField(required=False, allow_null=True)
     organic_certified = serializers.BooleanField(required=False, default=False)
@@ -41,7 +41,11 @@ class ProductCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError({"producer": "Producer account not found for this user."})
         stock = validated_data.pop("stock")
         availability_text = (validated_data.pop("availability") or "").strip().lower()
-        allergens_text = (validated_data.pop("allergens", "") or "").strip()
+        allergens_value = validated_data.pop("allergens", "")
+        # In case request is multipart (image upload) and allergens were sent as repeated keys
+        raw_list = request.data.getlist("allergens") if hasattr(request.data, "getlist") else []
+        if raw_list:  # prefer multipart list if present
+            allergens_value = raw_list
         image = validated_data.pop("image", None)
 
         available_values = {"available", "in season (available)", "in season"}
@@ -56,13 +60,19 @@ class ProductCreateSerializer(serializers.Serializer):
             **validated_data
         )
 
-        # Save allergens via through model
-        if allergens_text:
+        
+        if isinstance(allergens_value, list):
+            allergen_names = [str(x).strip() for x in allergens_value if str(x).strip()]
+            allergens_text = ", ".join(allergen_names)
+        else:
+            allergens_text = str(allergens_value or "").strip()
             cleaned = allergens_text.lower().replace("contains", "").strip()
-            parts = [p.strip() for p in cleaned.split(",") if p.strip()] or [cleaned]
+            allergen_names = [p.strip() for p in cleaned.split(",") if p.strip()] or ([cleaned] if cleaned else [])
 
-            for name in parts:
-                allergen_obj, _ = Allergen.objects.get_or_create(name=name)
+        # Save allergens via through model (with description)
+        if allergen_names:
+            for name in allergen_names:
+                allergen_obj, _ = Allergen.objects.get_or_create(name=name.lower())
                 ProductAllergen.objects.get_or_create(
                     product=product,
                     allergen=allergen_obj,
@@ -73,7 +83,7 @@ class ProductCreateSerializer(serializers.Serializer):
     
 class ProductSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(required=False, allow_null=True)
-
+    allergens = serializers.ListField(child=serializers.CharField(),required=False,allow_empty=True)
     class Meta:
         model = Product
         fields = "__all__"
