@@ -27,6 +27,7 @@
                 <a href="{%url 'home'%}"
                 class="{%if request.resolver_match.url_name == 'home'%}active{%endif%}">Home</a>
                 <a href="#">Login</a>
+                
                 {%block nav_extra%}{%endblock%}
             </nav>
             {%endblock%}

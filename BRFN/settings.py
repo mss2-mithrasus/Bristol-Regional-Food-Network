@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'notifications',
     'content',
     'admin_account',
+
     
     
 
@@ -163,6 +164,10 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # Added - to tell Django to use custom User model 
 AUTH_USER_MODEL = "user_accounts.User"
+
+# settings.py
+LOGIN_URL = '/login/'  # this should match your actual login URL
+LOGIN_REDIRECT_URL = '/customer/home/'  # where users go after login
 
 
 

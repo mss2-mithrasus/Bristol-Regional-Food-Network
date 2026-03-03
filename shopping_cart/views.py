@@ -1,53 +1,101 @@
-from django.shortcuts import render, redirect, get_object_or_404
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from .models import ShoppingCart, ShoppingCartItem
+from product.models import Product
+from django.shortcuts import redirect, get_object_or_404
 from .models import ShoppingCart, ShoppingCartItem
 from product.models import Product
 
-def add_to_cart(request, product_id):
-    cart, created = ShoppingCart.objects.get_or_create(
-        user_id=request.user.id,
-        cart_status="active"
-    )
 
-    product = get_object_or_404(Product, pk=product_id)
 
-    item, created = ShoppingCartItem.objects.get_or_create(
-        cart_id=cart.cart_id,
-        product_id=product_id,
-        defaults={"quantity": 1, "unit_price": product.price}
-    )
 
-    if not created:
-        item.quantity += 1
-        item.save()
-
-    return redirect("cart_page")
+from django.shortcuts import render, redirect
 
 def cart_page(request):
-    cart = ShoppingCart.objects.filter(
-        user_id=request.user.id,
-        cart_status="active"
-    ).first()
+    return render(request, 'shopping_cart/cart.html')
 
-    if not cart:
-        return render(request, "cart.html", {"items": [], "total": 0})
-
-    items = ShoppingCartItem.objects.filter(cart_id=cart.cart_id)
-    total = sum(i.unit_price * i.quantity for i in items)
-
-    return render(request, "cart.html", {"items": items, "total": total})
+def add_to_cart(request, product_id):
+    # Your logic here
+    return redirect('shopping_cart:cart_page')
 
 def update_quantity(request, item_id):
-    item = get_object_or_404(ShoppingCartItem, cart_item_id=item_id)
-    action = request.POST.get("action")
-
-    if action == "increase":
-        item.quantity += 1
-    elif action == "decrease" and item.quantity > 1:
-        item.quantity -= 1
-
-    item.save()
-    return redirect("cart_page")
+    # Your logic here
+    return redirect('shopping_cart:cart_page')
 
 def remove_item(request, item_id):
-    ShoppingCartItem.objects.filter(cart_item_id=item_id).delete()
-    return redirect("cart_page")
+    # Your logic here
+    return redirect('shopping_cart:cart_page')
+
+
+
+class CartAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        cart = ShoppingCart.objects.filter(user=request.user, cart_status="active").first()
+        if not cart:
+            return Response({"items": [], "total": 0})
+        items = cart.items.all()
+        data = []
+        total = 0
+        for item in items:
+            data.append({
+                "item_id": item.cart_item_id,
+                "product_id": item.product.product_id,
+                "name": item.product.name,
+                "price": float(item.unit_price),
+                "quantity": item.quantity,
+            })
+            total += item.unit_price * item.quantity
+        return Response({"items": data, "total": total})
+
+
+
+    def add_to_cart(request, product_id):
+        if not request.user.is_authenticated:
+            return redirect('login')  # redirect if user not logged in
+
+        # Get the product or return 404 if not found
+        product = get_object_or_404(Product, product_id=product_id)
+
+        # Get or create the active cart for this user
+        cart, _ = ShoppingCart.objects.get_or_create(user=request.user, cart_status="active")
+
+        # Add product to cart or increase quantity if already exists
+        item, created = ShoppingCartItem.objects.get_or_create(
+            cart=cart,
+            product=product,
+            defaults={'quantity': 1, 'unit_price': product.price}
+        )
+        if not created:
+            item.quantity += 1
+            item.save()
+
+        return redirect('shopping_cart:cart_page')
+
+class UpdateCartItemAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, item_id):
+        action = request.data.get("action")
+        item = ShoppingCartItem.objects.filter(cart_item_id=item_id, cart__user=request.user).first()
+        if not item:
+            return Response({"error": "Item not found"}, status=status.HTTP_404_NOT_FOUND)
+        if action == "increase":
+            item.quantity += 1
+        elif action == "decrease" and item.quantity > 1:
+            item.quantity -= 1
+        item.save()
+        return Response({"message": "Quantity updated"}, status=status.HTTP_200_OK)
+
+class DeleteCartItemAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, item_id):
+        item = ShoppingCartItem.objects.filter(cart_item_id=item_id, cart__user=request.user).first()
+        if not item:
+            return Response({"error": "Item not found"}, status=status.HTTP_404_NOT_FOUND)
+        item.delete()
+        return Response({"message": "Item removed"}, status=status.HTTP_200_OK)

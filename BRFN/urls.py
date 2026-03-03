@@ -28,8 +28,9 @@ urlpatterns = [
     # path("register/", registration_page, name='register'),
     
     #path('db-test/', db_test),
-    path('product/', include('product.urls')),
+    path ('customer/home/', include ("product.urls")),
     path("", include("user_accounts.urls")),
+    path ("admin/", admin.site.urls),
     path("producer/", include("producers.urls")),
     path("cart/", include("shopping_cart.urls")), 
     #path('db-test/', db_test),

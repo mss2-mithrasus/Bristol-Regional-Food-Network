@@ -1,0 +1,69 @@
+<h2>Your Cart</h2>
+{% if items %}
+    {% for item in items %}
+        <div>
+            <p>{{ item.product.name }} x {{ item.quantity }} - £{{ item.subtotal }}</p>
+            <form method="POST" action="{% url 'shopping_cart:update_quantity' item.id %}">
+                {% csrf_token %}
+                <button name="action" value="increase">+</button>
+                <button name="action" value="decrease">-</button>
+            </form>
+            <form method="POST" action="{% url 'shopping_cart:remove_item' item.id %}">
+                {% csrf_token %}
+                <button>Remove</button>
+            </form>
+        </div>
+    {% endfor %}
+    <p>Total: £{{ total }}</p>
+{% else %}
+    <p>Your cart is empty.</p>
+{% endif %}
+
+
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+    // Handle Add to Cart button click
+    document.querySelectorAll(".add-cart").forEach(btn => {
+        btn.addEventListener("click", async () => {
+            const productId = btn.dataset.id;
+            const token = localStorage.getItem("access"); // JWT token
+
+            const quantityEl = btn.closest(".button-group").querySelector(".quantity-display");
+            const quantity = parseInt(quantityEl.textContent);
+
+            for (let i = 0; i < quantity; i++) { // add multiple if quantity > 1
+                const res = await fetch("/cart/api/cart/add/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + token
+                    },
+                    body: JSON.stringify({product_id: productId})
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.error || "Failed to add product to cart");
+                    return;
+                }
+            }
+
+            alert("Added to cart!");
+        });
+    });
+
+    // Quantity buttons
+    document.querySelectorAll(".quantity").forEach(q => {
+        const display = q.querySelector(".quantity-display");
+        q.querySelector(".plus").addEventListener("click", () => {
+            display.textContent = parseInt(display.textContent) + 1;
+        });
+        q.querySelector(".minus").addEventListener("click", () => {
+            let val = parseInt(display.textContent);
+            if (val > 1) display.textContent = val - 1;
+        });
+    });
+
+});
+</script>
