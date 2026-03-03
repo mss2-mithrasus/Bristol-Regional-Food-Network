@@ -24,7 +24,11 @@
     {% if products %}
     {% for product in products%}
     <div class="product-card">
-        <img src="{{product.image.url}}" alt="product.product_name">
+        {% if product.image %}
+            <img src="{{ product.image.url }}" alt="{{ product.name }}">
+        {% else %}
+            <img src="{% static 'images/default-product.png' %}" alt="{{ product.name }}">
+        {% endif %}
 
        
     <div class="field-row">
@@ -36,7 +40,7 @@
             {%endif%}
     </div>
 
-        <h4 class="field"><span class="label">Producer:</span> {{product.producer_name}}</h4>
+        <h4 class="field"><span class="label">Producer:</span> {{product.producer.business_name}}</h4>
 
         <h4 class="field"><span class="label">Price:</span> {{product.price}}</h4>
 
