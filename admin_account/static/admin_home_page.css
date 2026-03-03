@@ -1,0 +1,121 @@
+/* Layout */
+body {
+    background: #f7f9fc;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+.admin_container {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 20px;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #406083;
+}
+
+/* Section styling */
+.admin_section {
+    background: #ffffff;
+    padding: 20px;
+    margin-bottom: 25px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(64, 96, 131, 0.4);
+
+    display: block !important;
+    cursor: default !important;
+}
+
+.admin_section h2 {
+    margin-top: 0;
+    color: #406083;
+    border-bottom: 2px solid #e0e6ed;
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+
+    display: block !important;
+    width: 100%;
+    text-align: left;
+    cursor: default !important;
+}
+
+.admin_section > div {
+    display: block !important;
+    height: auto !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    margin-top: 10px;
+}
+
+/* Empty message styling */
+.empty-message {
+    color: #555;
+    font-size: 15px;
+    margin: 10px 0;
+    font-style: italic;
+}
+
+/* Account cards */
+.admin_card {
+    background: #ffffff;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 10px;
+    border: 1px solid #d7e0ea;
+    box-shadow: 0 0 10px rgba(64, 96, 131, 0.2);
+}
+
+.admin_card p {
+    margin: 8px 0;
+    font-size: 16px;
+}
+
+/* Buttons */
+.approve_btn {
+    background: #406083;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    width: 100%;
+    margin-top: 10px;
+    transition: 0.2s;
+}
+
+.approve_btn:hover {
+    background: #2d4a3f;
+}
+
+.reject_btn {
+    background: #b02a37;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    width: 100%;
+    margin-top: 10px;
+    transition: 0.2s;
+}
+
+.reject_btn:hover {
+    background: #7a1d26;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .admin_container {
+        padding: 10px;
+    }
+
+    .admin_section {
+        padding: 15px;
+    }
+}

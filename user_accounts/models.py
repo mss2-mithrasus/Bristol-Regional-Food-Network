@@ -1,6 +1,7 @@
 # Micaiah Palha - 23033423
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+import hashlib
 
 
 # USER (Authentication only)
@@ -135,15 +136,36 @@ class ProducerAccount(models.Model):
     def __str__(self):
         return f"{self.business_name} ({self.user.email})"
 
-# Hard delete for user account request
-class DeletionRequest(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    reason = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
-    processed = models.BooleanField(default=False)
 
-    class Meta:
-        db_table = "deletion_request"
+
+class DeletionAudit(models.Model):
+    hashed_user_identifier = models.CharField(max_length=255)
+    role = models.CharField(max_length=50)
+    reason = models.TextField()
+    deleted_at = models.DateTimeField(auto_now_add=True)
+
 
     def __str__(self):
-        return f"Deletion request for {self.user.email}"
+        return f"DeletionAudit({self.role}, {self.deleted_at})"
+
+    @staticmethod
+    def from_user(user, reason: str):
+        hashed_id = hashlib.sha256(str(user.id).encode()).hexdigest()
+        return DeletionAudit.objects.create(
+            hashed_user_identifier=hashed_id,
+            role=user.role,
+            reason=reason,
+        )
+
+# Failed login attempt
+class FailedLoginAttempt(models.Model):
+    email = models.CharField(max_length=255)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "failed_login_attempts"
+
+    def __str__(self):
+        return f"Failed login for {self.email} at {self.timestamp}"

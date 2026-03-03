@@ -172,6 +172,21 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
     ),
+
+    # Brute force protection 
+    # Brute‑force protection limits how many times someone can attempt to log in within a short period.
+    # Allow only 5 login attempts per minute for unauthenticated users
+    # Allow only 20 requests per minute for authenticated users
+
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "5/minute",   # Unauthenticated users (login attempts)
+        "user": "200/minute",  # Authenticated users
+    },
+
 }
 
 SIMPLE_JWT = {
@@ -181,4 +196,5 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
 }
 
+LOGIN_URL = "/login/"
 

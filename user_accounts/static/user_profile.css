@@ -1,0 +1,168 @@
+/* Page layout */
+
+body {
+    background: #f7f9fc;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+.user_profile_container {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 20px;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #406083;
+}
+
+/* User profile section */
+
+.user_profile_section {
+    background: #ffffff;
+    padding: 20px;
+    margin-bottom: 25px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(64, 96, 131, 0.4);
+}
+
+.delete_form_content{
+    margin-top: 25px;
+    background: #ffffff;
+    padding: 20px;
+    margin-bottom: 25px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(64, 96, 131, 0.4);
+
+}
+
+.delete_form_content h3{
+    margin-top: 0;
+    color: #406083;
+    border-bottom: 2px solid #e0e6ed;
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+
+}
+
+
+.user_profile_section h2 {
+    margin-top: 0;
+    color: #406083;
+    border-bottom: 2px solid #e0e6ed;
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+}
+
+.user_profile_section p {
+    font-size: 16px;
+    margin: 10px 0;
+}
+
+.user_profile_sectionstrong {
+    color: #406083;
+}
+
+/* Edit buttons */
+
+.edit_btn {
+    background: #406083;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-left: 10px;
+    font-size: 14px;
+    transition: 0.2s;
+}
+
+.edit-btn:hover {
+    background: #2d4a3f;
+}
+
+/* Save changes button */
+
+.submit_btn {
+    background: #406083;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    width: 100%;
+    margin-top: 15px;
+    transition: 0.2s;
+}
+
+.submit-btn:hover {
+    background: #2d4a3f;
+}
+
+/* Delete button */
+
+.delete_btn {
+    background: #b02a37;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    width: 100%;
+    margin-top: 15px;
+    transition: 0.2s;
+}
+
+.delete_btn:hover {
+    background: #7a1d26;
+}
+
+/* Input fields for edit  */
+
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"] {
+    padding: 6px 10px;
+    border: 1px solid #406083;
+    border-radius: 6px;
+    font-size: 15px;
+    width: 250px;
+    margin-left: 10px;
+}
+
+input:focus {
+    outline: none;
+    border-color: #406083;
+    box-shadow: 0 0 15px rgba(64, 96, 131, 0.4);
+}
+
+/* Responsive web design  */
+
+@media (max-width: 768px) {
+    .user_profile_container {
+        padding: 10px;
+    }
+
+    .user_profile_section {
+        padding: 15px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="email"],
+    input[type="password"] {
+        width: 100%;
+        margin: 10px 0 0 0;
+    }
+
+    .edit_btn {
+        margin-top: 10px;
+        display: inline-block;
+    }
+}

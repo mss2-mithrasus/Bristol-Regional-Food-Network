@@ -49,7 +49,9 @@
             </div>
 
             <div id="loginErrors" style="color:red; margin-bottom:15px;"></div>
+                <label><input type="checkbox" id="rememberMe"> Remember Me</label>
 
+            
             <button type="submit" class="submit-btn">Login</button>
 
             
@@ -93,9 +95,6 @@
         const email = this.email.value.trim();
         const password = this.password.value.trim();
 
-        /* ------------------------------
-           VALIDATION BLOCK
-        ------------------------------ */
 
         // EMAIL VALIDATION
         const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -110,9 +109,7 @@
             return;
         }
 
-        /* ------------------------------
-           SEND LOGIN REQUEST
-        ------------------------------ */
+        // SEND LOGIN REQUEST
         const response = await fetch("/api/login/", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
@@ -122,11 +119,25 @@
         const data = await response.json();
 
         if (response.ok) {
+            // Clear previous tokens
+            // localStorage.removeItem("access");
+            // localStorage.removeItem("refresh");
+            // sessionStorage.removeItem("access");
+            // sessionStorage.removeItem("refresh");
+            localStorage.clear();
+            sessionStorage.clear();
+            // If remeber me selected save tokens
+            const remember = document.getElementById("rememberMe").checked;
             // Save tokens
-            localStorage.setItem("access", data.access);
-            localStorage.setItem("refresh", data.refresh);
-
-            // Redirect to homepage or dashboard
+            if(remember){
+                localStorage.setItem("access", data.access);
+                localStorage.setItem("refresh", data.refresh);
+            }
+            else {
+                sessionStorage.setItem("access", data.access);
+                sessionStorage.setItem("refresh", data.refresh);
+            }
+            // Redirect to homepage
             window.location.href = data.homepage;
         } else {
             // Display backend error messages
