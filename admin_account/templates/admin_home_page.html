@@ -1,9 +1,208 @@
+{% load static %}
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Admin Home</title>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard | Bristol Regional Food Network</title>
+
+    <link rel="stylesheet" href="{% static 'base.css' %}">
+    <link rel="stylesheet" href="{% static 'admin_home_page.css' %}">
 </head>
+
 <body>
-    <h1>Admin Home Page</h1>
+
+<header class="navbar">
+    <div class="nav-left">
+        <img src="{% static 'images/leaf.png' %}" class="logo" alt="Logo">
+        <span class="title">Admin Dashboard</span>
+    </div>
+
+    <nav class="nav-links">
+        <a href="{% url 'admin_home' %}" class="active">Dashboard</a>
+        <a href="{% url 'home' %}" onclick="adminLogout()">Logout</a>
+    </nav>
+</header>
+
+<div class="admin_container">
+
+    <h1>Pending Account Approvals</h1>
+
+    <section class="admin_section">
+        <h2>Community Groups</h2>
+        <div id="communityContainer"></div>
+    </section>
+
+    <section class="admin_section">
+        <h2>Restaurants</h2>
+        <div id="restaurantContainer"></div>
+    </section>
+
+    <section class="admin_section">
+        <h2>Producers</h2>
+        <div id="producerContainer"></div>
+    </section>
+    <h1>Failed Login Attempts Record</h1>
+    <section class="admin_section">
+        <h2>Failed Login Attempts</h2>
+        <div id="failedLoginContainer"></div>
+    </section>
+    <h1>Deleted Accounts Record</h1>
+    <section class="admin_section">
+        <h2>Deleted Accounts</h2>
+        <div id="deletedAccountsContainer"></div>
+    </section>
+
+</div>
+
+<footer class="footer">
+    <p>Local Food Marketplace | Supporting Local Farmers</p>
+</footer>
+
+<script>
+window.onload = function () {
+
+    function getToken() {
+        return localStorage.getItem("access") || sessionStorage.getItem("access");
+    }
+
+    if (!getToken()) {
+        window.location.href = "{% url 'login' %}";
+    }
+
+    async function loadPendingAccounts() {
+        const response = await fetch("/api/admin/pending/", {
+            headers: { "Authorization": "Bearer " + getToken() }
+        });
+
+        const payload = await response.json();
+
+        const communityContainer = document.getElementById("communityContainer");
+        const restaurantContainer = document.getElementById("restaurantContainer");
+        const producerContainer = document.getElementById("producerContainer");
+
+        communityContainer.innerHTML = "";
+        restaurantContainer.innerHTML = "";
+        producerContainer.innerHTML = "";
+
+        const customers = Array.isArray(payload.customers) ? payload.customers : [];
+        const producers = Array.isArray(payload.producers) ? payload.producers : [];
+
+        const communityAccounts = customers.filter(acc => acc.account_type === "community");
+        const restaurantAccounts = customers.filter(acc => acc.account_type === "restaurant");
+        const producerAccounts = producers;
+
+        renderAccountList(communityAccounts, communityContainer, "customer", "No pending community group approvals.");
+        renderAccountList(restaurantAccounts, restaurantContainer, "customer", "No pending restaurant approvals.");
+        renderAccountList(producerAccounts, producerContainer, "producer", "No pending producer approvals.");
+    }
+
+    function renderAccountList(list, container, roleType, emptyMessage) {
+        if (!Array.isArray(list) || list.length === 0) {
+            container.innerHTML = `<p class="empty-message">${emptyMessage}</p>`;
+            return;
+        }
+
+        list.forEach(entry => {
+            container.innerHTML += `
+                <div class="admin_card">
+                    <p><strong>Name:</strong> ${entry.organisation_name || entry.business_name}</p>
+                    <p><strong>Contact:</strong> ${(entry.first_name || "") + " " + (entry.last_name || "")}</p>
+                    <p><strong>Email:</strong> ${entry.email}</p>
+                    <p><strong>Phone:</strong> ${entry.phone || "N/A"}</p>
+
+                    <button class="approve_btn" onclick="approveAccount('${entry.user_id}', '${roleType}')">Approve</button>
+                    <button class="reject_btn" onclick="rejectAccount('${entry.user_id}')">Reject</button>
+                </div>
+            `;
+        });
+    }
+
+    async function approveAccount(userId, roleType) {
+        await fetch("/api/admin/approve/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + getToken()
+            },
+            body: JSON.stringify({ user_id: userId, role: roleType })
+        });
+        loadPendingAccounts();
+    }
+
+    async function rejectAccount(userId) {
+        await fetch("/api/admin/reject/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + getToken()
+            },
+            body: JSON.stringify({ user_id: userId })
+        });
+        loadPendingAccounts();
+    }
+
+    async function loadFailedLogins() {
+        const response = await fetch("/api/admin/failed-logins/", {
+            headers: { "Authorization": "Bearer " + getToken() }
+        });
+
+        const list = await response.json();
+        const container = document.getElementById("failedLoginContainer");
+        container.innerHTML = "";
+
+        const safeList = Array.isArray(list) ? list : [];
+
+        if (safeList.length === 0) {
+            container.innerHTML = "<p class='empty-message'>No failed login attempts found.</p>";
+            return;
+        }
+
+        safeList.forEach(item => {
+            container.innerHTML += `
+                <div class="admin_card">
+                    <p><strong>Email:</strong> ${item.email}</p>
+                    <p><strong>IP:</strong> ${item.ip_address || "Unknown"}</p>
+                    <p><strong>User Agent:</strong> ${item.user_agent || "N/A"}</p>
+                    <p><strong>Time:</strong> ${new Date(item.timestamp).toLocaleString()}</p>
+                </div>
+            `;
+        });
+    }
+
+    async function loadDeletedAccounts() {
+        const response = await fetch("/api/admin/deleted-accounts/", {
+            headers: { "Authorization": "Bearer " + getToken() }
+        });
+
+        const list = await response.json();
+        const container = document.getElementById("deletedAccountsContainer");
+        container.innerHTML = "";
+
+        const safeList = Array.isArray(list) ? list : [];
+
+        if (safeList.length === 0) {
+            container.innerHTML = "<p class='empty-message'>No deleted account records found.</p>";
+            return;
+        }
+
+        safeList.forEach(item => {
+            container.innerHTML += `
+                <div class="admin_card">
+                    <p><strong>Hashed ID:</strong> ${item.hashed_user_identifier}</p>
+                    <p><strong>Role:</strong> ${item.role}</p>
+                    <p><strong>Reason:</strong> ${item.reason}</p>
+                    <p><strong>Deleted At:</strong> ${new Date(item.deleted_at).toLocaleString()}</p>
+                </div>
+            `;
+        });
+    }
+
+    loadPendingAccounts();
+    loadFailedLogins();
+    loadDeletedAccounts();
+};
+</script>
+
 </body>
 </html>

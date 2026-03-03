@@ -5,7 +5,7 @@ from django.contrib import admin
 from .models import (
     User, Person, Address,
     CustomerAccount, CommunityGroup, Restaurant,
-    ProducerAccount, DeletionRequest
+    ProducerAccount
 )
 
 
@@ -59,16 +59,3 @@ class ProducerAccountAdmin(admin.ModelAdmin):
         queryset.update(account_verified=True)
     verify_producers.short_description = "Set selected producers as verified"
 
-
-# Delete admin
-@admin.register(DeletionRequest)
-class DeletionRequestAdmin(admin.ModelAdmin):
-    list_display = ("user", "reason", "created_at", "processed")
-    list_filter = ("processed",)
-    search_fields = ("user__email", "reason")
-
-    actions = ["mark_processed"]
-
-    def mark_processed(self, request, queryset):
-        queryset.update(processed=True)
-    mark_processed.short_description = "Set selected deletion requests as processed"
