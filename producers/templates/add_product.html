@@ -139,7 +139,8 @@
   }
 
   async function refreshAccessToken() {
-    const refresh = localStorage.getItem("refresh");
+    // const refresh = localStorage.getItem("refresh");
+    const refresh = localStorage.getItem("refresh") || sessionStorage.getItem("refresh");
     if (!refresh) return null;
     
     const res = await fetch(refreshUrl, {
@@ -180,7 +181,8 @@
       const formData = new FormData(form);
 
       // Get JWT access token (must match login storage key)
-      const token = localStorage.getItem("access");
+      // const token = localStorage.getItem("access");
+      const token = localStorage.getItem("access") || sessionStorage.getItem("access");
 
       if (!token) {
         errorBox.innerHTML = "You are not authenticated. Please log in again.";
