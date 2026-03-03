@@ -2,12 +2,12 @@ from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
-
+import re, logging
 # Imports custom models created in models.py
 from .models import (
     User, Person, Address,
     CustomerAccount, CommunityGroup, Restaurant,
-    ProducerAccount
+    ProducerAccount, FailedLoginAttempt, DeletionAudit
 )
 
 
@@ -39,9 +39,34 @@ class RegistrationSerializer(serializers.Serializer):
     contact_last_name = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, data):
+        password = data["password"]
+        password2 = data["password2"]
+
         # Checks if passwords match 
-        if data["password"] != data["password2"]:
-            raise serializers.ValidationError({"password": "Passwords do not match"})
+        if password != password2:
+            raise serializers.ValidationError({"password": "Passwords do not match."})
+        # Custom password strenght checker
+        # Custom complexity
+        # Checks if greater than 8 characters
+        if len(password) < 8:
+            raise serializers.ValidationError({"password": "Password must be at least 8 characters long."})
+
+        # Checks if password included atleast one uppercase letter
+        if not re.search(r"[A-Z]", password):
+            raise serializers.ValidationError({"password": "Password must contain at least one uppercase letter."})
+        
+        # Checks if password included atleast one lowercase letter
+        if not re.search(r"[a-z]", password):
+            raise serializers.ValidationError({"password": "Password must contain at least one lowercase letter."})
+        
+        # Checks if password included atleast one number
+        if not re.search(r"\d", password):
+            raise serializers.ValidationError({"password": "Password must contain at least one number."})
+
+        # Checks if password included atleast one special character
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+            raise serializers.ValidationError({"password": "Password must contain at least one special character."})
+
 
         # Checks if password meets Django's password strenght requirements
         validate_password(data["password"])
@@ -160,8 +185,16 @@ class LoginSerializer(serializers.Serializer):
 
     def validate(self, data):
         # Validates user login and checks credentials
-        user = authenticate(email=data["email"], password=data["password"])
+        request = self.context.get("request")
+        email = data["email"]
+        password = data["password"]
+        user = authenticate(email=email, password=password)
         if not user:
+            FailedLoginAttempt.objects.create(
+                email=email,
+                ip_address=request.META.get("REMOTE_ADDR"),
+                user_agent=request.META.get("HTTP_USER_AGENT", "")
+            )
             raise serializers.ValidationError({"error": "Invalid credentials"})
         # Stops user who have soft deleted their account from loggin in
         if not user.is_active:
@@ -175,6 +208,10 @@ class LoginSerializer(serializers.Serializer):
             acc = getattr(user, "customeraccount", None)
             if acc and acc.account_type in ["community", "restaurant"] and not acc.account_verified:
                 raise serializers.ValidationError({"error": "Business account awaiting admin approval."})
+        
+        logger = logging.getLogger(__name__)
+        logger.info(f"Successful login for {email} from {request.META.get('REMOTE_ADDR')}")
+
 
         # JWT
         refresh = RefreshToken.for_user(user)
@@ -183,3 +220,15 @@ class LoginSerializer(serializers.Serializer):
             "refresh": str(refresh),
             "user": user,
         }
+
+class FailedLoginAttemptSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FailedLoginAttempt
+        fields = ["email", "ip_address", "user_agent", "timestamp"]
+
+
+class DeletionAuditSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DeletionAudit
+        fields = ["hashed_user_identifier", "role", "reason", "deleted_at"]
+

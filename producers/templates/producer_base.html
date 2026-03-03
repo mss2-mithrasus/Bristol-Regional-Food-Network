@@ -19,7 +19,7 @@
     <div class="topbar-right">
       <div class="nav-icons">
         <a href="#" title="Notifications"><i class="fa-regular fa-bell"></i></a>
-        <a href="#" title="Profile"><i class="fa-regular fa-user"></i></a>
+        <a href="{% url 'user_profile' %}"><i class="fa-solid fa-user"></i></a>
       </div>
     </div>
   </header>
@@ -36,7 +36,6 @@
       <a class="sidebar-link" href="#">Orders</a>
       <a class="sidebar-link" href="#">Payments</a>
       <a class="sidebar-link" href="#">Content</a>
-      <a class="sidebar-link" href="{% url 'login' %}">Logout</a>
     </aside>
 
     <main class="dash-main">

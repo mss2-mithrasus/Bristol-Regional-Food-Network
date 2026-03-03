@@ -384,6 +384,8 @@ document.addEventListener("DOMContentLoaded", function () {
         // Checks if both the passwords match
         const password = getVisibleValue("password");
         const confirmPassword = getVisibleValue("confirm_password");
+        const lowerPassword = password.toLowerCase();
+
         // If passwords do not match it display an errro message
         if (password !== confirmPassword) {
             errorBox.innerHTML = "Passwords do not match.";
@@ -395,6 +397,50 @@ document.addEventListener("DOMContentLoaded", function () {
             errorBox.innerHTML = "Password must be at least 8 characters long.";
             return;
         }
+        // Must contain at least one uppercase letter
+        if (!/[A-Z]/.test(password)) {
+            errorBox.innerHTML = "Password must contain at least one uppercase letter.";
+            return;
+        }
+        // Must contain at least one lowercase letter
+        if (!/[a-z]/.test(password)) {
+            errorBox.innerHTML = "Password must contain at least one lowercase letter.";
+            return;
+        }
+        // Must contain at least one number
+        if (!/[0-9]/.test(password)) {
+            errorBox.innerHTML = "Password must contain at least one number.";
+            return;
+        }
+        // Must contain at least one special character
+        if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+            errorBox.innerHTML = "Password must contain at least one special character.";
+            return;
+        }
+
+        // Cannot contain spaces
+        if (password.includes(" ")) {
+            errorBox.innerHTML = "Password cannot contain spaces.";
+            return;
+        }
+
+        // Cannot contain 4 repeated characters (aaaa, 1111)
+        if (/(.)\1\1\1/.test(password)) {
+            errorBox.innerHTML = "Password cannot contain 4 or more repeated characters.";
+            return;
+        }
+
+        // Cannot contain common sequences
+        const sequences = ["123", "1234", "abcd", "qwer", "asdf", "zxcv"];
+        for (const seq of sequences) {
+            if (lowerPassword.includes(seq)) {
+                errorBox.innerHTML = "Password cannot contain common keyboard sequences.";
+                return;
+            }
+        }
+
+
+
 
         // Cannot be numeric only
         if (/^\d+$/.test(password)) {
@@ -440,7 +486,6 @@ document.addEventListener("DOMContentLoaded", function () {
         const producerFirst = (getVisibleValue("contact_first_name") || "").toLowerCase();
         const producerLast = (getVisibleValue("contact_last_name") || "").toLowerCase();
 
-        const lowerPassword = password.toLowerCase();
 
         if (
             (email && lowerPassword.includes(email)) ||
@@ -530,13 +575,24 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // If successful
         if (response.ok) {
-            // Shows pop message 
-            alert("Registration successful! You can now log in.");
-            // Redirects user to login page
+
+            // Determine if this is a business account requiring admin approval
+            const isBusiness =
+                payload.role === "producer" ||
+                payload.account_type === "community" ||
+                payload.account_type === "restaurant";
+
+            if (isBusiness) {
+                alert("Registration successful! Your account is awaiting admin approval. You will be able to log in once approved.");
+            } else {
+                alert("Registration successful! You can now log in.");
+            }
+
             window.location.href = "/login/";
+        }
 
         // Displays error message
-        } else {
+        else {
             for (const key in data) {
                 errorBox.innerHTML += `<p>${key}: ${data[key]}</p>`;
             }
