@@ -92,6 +92,13 @@ def product_detail(request, product_id):
     
     return render(request, "product_detail.html", context)
 
+#-----------------------------
+#new view for customer home page
+#-----------------------------
+
+def customer_home(request):
+    return render(request, "customer_home.html")
+
 
 
 

@@ -1,0 +1,137 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang = "en">
+    <head> 
+        <meta charset="UTF-8">
+        <title>Bristol Regional Food Network</title>
+        <title>Shopping Cart Mockup</title>
+        <link rel="stylesheet" href="{% static 'shopping_cart.css'%}">
+    </head>
+
+    <body> 
+
+        <header class="navbar">
+            <div class="nav-left">
+                <img src="{% static 'images/leaf.png' %}" alt="Leaf logo" class="logo">
+                <span class="title">Bristol Regional Food Network</span>
+            </div>
+
+            <nav class="nav-links">
+                <!--we want the buttons styling to be active if we are on that page to make it clear what page the user is currently on
+                which is what is being done here-->
+                <a href="{%url 'home'%}"
+                class="{%if request.resolver_match.url_name == 'home'%}active{%endif%}">Home</a>
+                <a href="#">Login</a>
+                 
+                
+
+            </nav>
+        </header>
+        <h2>Products</h2>
+        <div class="product-grid" id="product-list">
+            <!-- Products will render here -->
+        </div>
+
+        <div class="cart-container">
+            <h2>Your Cart</h2>
+            <div id="cart-items"></div>
+            <div class="cart-total" id="cart-total">Total: £0.00</div>
+            <button class="checkout-btn">Proceed to Payment</button>
+        </div>
+        <script>
+        const staticUrl = "{% static 'images/' %}";
+
+        const products = [
+            { id: 1, name: "Organic Apples", price: 3.50, description: "Fresh locally grown apples.", image: staticUrl + "apple.png" },
+            { id: 2, name: "Fresh Milk", price: 1.20, description: "Organic whole milk.", image: staticUrl + "milk.jpg" },
+            { id: 3, name: "Whole Wheat Bread", price: 2.00, description: "Baked fresh daily.", image: staticUrl + "bread.jpg" },
+            { id: 4, name: "Pumpkin Pie", price: 10.50, description: "delicious home made baked pie.", image: staticUrl + "pumpkin_Pie.jpg" },
+            { id: 5, name: "Cookies", price: 5.80, description: "Locally made cookies.", image: staticUrl + "cookies.jpg" },
+        ];
+        
+
+       
+
+        let cart = [];
+
+        // Render product cards
+        function renderProducts() {
+            const container = document.getElementById("product-list");
+            container.innerHTML = "";
+            products.forEach(p => {
+                container.innerHTML += `
+                    <div class="product-card">
+                        <img src="${p.image}" alt="${p.name}">
+                        <h3>${p.name}</h3>
+                        <p>${p.description}</p>
+                        <p><strong>£${p.price.toFixed(2)}</strong></p>
+                        <button onclick="addToCart(${p.id})">Add to Cart</button>
+                    </div>
+                `;
+            });
+        }
+
+        // Add to cart logic
+        function addToCart(productId) {
+            const item = cart.find(i => i.id === productId);
+            if(item) {
+                item.quantity += 1;
+            } else {
+                const product = products.find(p => p.id === productId);
+                cart.push({ ...product, quantity: 1 });
+            }
+            renderCart();
+        }
+
+        // Cart rendering
+        function renderCart() {
+            const container = document.getElementById("cart-items");
+            container.innerHTML = "";
+            let total = 0;
+            cart.forEach(item => {
+                total += item.price * item.quantity;
+                container.innerHTML += `
+                    <div class="cart-item">
+                        <img src="${item.image}" alt="${item.name}">
+                        <div>
+                            <h4>${item.name}</h4>
+                            <p>£${item.price.toFixed(2)}</p>
+                        </div>
+                        <div>
+                            <button onclick="decrease(${item.id})">-</button>
+                            ${item.quantity}
+                            <button onclick="increase(${item.id})">+</button>
+                            <button onclick="removeItem(${item.id})">Remove</button>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById("cart-total").innerText = "Total: £" + total.toFixed(2);
+        }
+
+        // Cart controls
+        function increase(id) { const i = cart.find(x => x.id===id); i.quantity++; renderCart(); }
+        function decrease(id) { const i = cart.find(x => x.id===id); if(i.quantity>1)i.quantity--; renderCart(); }
+        function removeItem(id) { cart = cart.filter(x=>x.id!==id); renderCart(); }
+
+        renderProducts();
+        renderCart();
+        </script>
+
+
+
+        <!--page content will go here e.g login form-->
+        <main>
+            {% block content%}
+            {%endblock%}
+        </main>
+
+        <footer class="footer">
+            <p>Local Food Marketplace | Supporting Local Farmers</p>
+        </footer>
+
+    </body>
+    </html>
+
+        

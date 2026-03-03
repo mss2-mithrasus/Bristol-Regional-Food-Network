@@ -1,15 +1,39 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from .models import ShoppingCart, ShoppingCartItem
-from product.models import Product
+from django.shortcuts import render, redirect
+from django.db import connection
+from .models import ShoppingCart, ShoppingCartItem, Product
 
+
+# -----------------------------
+# HOME PAGE (optional)
+# -----------------------------
+def home(request):
+    return render(request, "home.html")   # or your landing page template
+
+
+# -----------------------------
+# PRODUCTS PAGE
+# -----------------------------
+def products_page(request):
+    # Load all products from the Product table
+    products = Product.objects.all()
+    return render(request, "products.html", {"products": products})
+
+
+# -----------------------------
+# ADD TO CART
+# -----------------------------
 def add_to_cart(request, product_id):
+
+    #  Get or create the user's active cart
     cart, created = ShoppingCart.objects.get_or_create(
         user_id=request.user.id,
         cart_status="active"
     )
 
-    product = get_object_or_404(Product, pk=product_id)
+    #  Get the product from DB
+    product = Product.objects.get(id=product_id)
 
+    #  Add or update the cart item
     item, created = ShoppingCartItem.objects.get_or_create(
         cart_id=cart.cart_id,
         product_id=product_id,
@@ -22,7 +46,13 @@ def add_to_cart(request, product_id):
 
     return redirect("cart_page")
 
+
+# -----------------------------
+# CART PAGE
+# -----------------------------
 def cart_page(request):
+
+    # Get the user's active cart
     cart = ShoppingCart.objects.filter(
         user_id=request.user.id,
         cart_status="active"
@@ -31,13 +61,20 @@ def cart_page(request):
     if not cart:
         return render(request, "cart.html", {"items": [], "total": 0})
 
+    # Get all items in the cart
     items = ShoppingCartItem.objects.filter(cart_id=cart.cart_id)
+
+    # Calculate total
     total = sum(i.unit_price * i.quantity for i in items)
 
     return render(request, "cart.html", {"items": items, "total": total})
 
+
+# -----------------------------
+# UPDATE QUANTITY
+# -----------------------------
 def update_quantity(request, item_id):
-    item = get_object_or_404(ShoppingCartItem, cart_item_id=item_id)
+    item = ShoppingCartItem.objects.get(cart_item_id=item_id)
     action = request.POST.get("action")
 
     if action == "increase":
@@ -48,6 +85,10 @@ def update_quantity(request, item_id):
     item.save()
     return redirect("cart_page")
 
+
+# -----------------------------
+# REMOVE ITEM
+# -----------------------------
 def remove_item(request, item_id):
     ShoppingCartItem.objects.filter(cart_item_id=item_id).delete()
     return redirect("cart_page")

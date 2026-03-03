@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="customer-home-container">
+
+    <h1>Welcome, {{ request.user.first_name }}!</h1>
+
+    <p>You are logged in as a customer.</p>
+
+    <div class="customer-actions">
+
+        <!-- Go to product home -->
+        <a href="{% url 'home' %}" class="btn">
+            Browse Products
+        </a>
+
+        <!-- Go to cart -->
+        <a href="{% url 'cart_page' %}" class="btn">
+            View Cart
+        </a>
+
+        <!-- Go to orders -->
+        <a href="{% url 'orders' %}" class="btn">
+            My Orders
+        </a>
+
+    </div>
+
+</div>
+
+{% endblock %}
