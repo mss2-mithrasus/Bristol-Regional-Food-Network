@@ -140,5 +140,8 @@ class ProductAllergenCreateAPIView(generics.CreateAPIView):
     queryset = ProductAllergen.objects.all()
     serializer_class = ProductAllergenSerializer
     permission_classes= [AllowAny]
+
+
+
     
     

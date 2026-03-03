@@ -1,69 +1,36 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
 <h2>Your Cart</h2>
+
 {% if items %}
     {% for item in items %}
         <div>
-            <p>{{ item.product.name }} x {{ item.quantity }} - £{{ item.subtotal }}</p>
-            <form method="POST" action="{% url 'shopping_cart:update_quantity' item.id %}">
+            {{ item.product.name }} x {{ item.quantity }} - £{{ item.subtotal }}
+
+            <form method="POST" action="{% url 'shopping_cart:update_quantity' item.id 'increase' %}" style="display:inline;">
                 {% csrf_token %}
-                <button name="action" value="increase">+</button>
-                <button name="action" value="decrease">-</button>
+                <button type="submit">+</button>
             </form>
-            <form method="POST" action="{% url 'shopping_cart:remove_item' item.id %}">
+
+            <form method="POST" action="{% url 'shopping_cart:update_quantity' item.id 'decrease' %}" style="display:inline;">
                 {% csrf_token %}
-                <button>Remove</button>
+                <button type="submit">-</button>
+            </form>
+
+            <form method="POST" action="{% url 'shopping_cart:remove_item' item.id %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit">Remove</button>
             </form>
         </div>
     {% endfor %}
-    <p>Total: £{{ total }}</p>
+
+    <p><strong>Total: £{{ total }}</strong></p>
 {% else %}
     <p>Your cart is empty.</p>
 {% endif %}
 
-
-
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-
-    // Handle Add to Cart button click
-    document.querySelectorAll(".add-cart").forEach(btn => {
-        btn.addEventListener("click", async () => {
-            const productId = btn.dataset.id;
-            const token = localStorage.getItem("access"); // JWT token
-
-            const quantityEl = btn.closest(".button-group").querySelector(".quantity-display");
-            const quantity = parseInt(quantityEl.textContent);
-
-            for (let i = 0; i < quantity; i++) { // add multiple if quantity > 1
-                const res = await fetch("/cart/api/cart/add/", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": "Bearer " + token
-                    },
-                    body: JSON.stringify({product_id: productId})
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                    alert(data.error || "Failed to add product to cart");
-                    return;
-                }
-            }
-
-            alert("Added to cart!");
-        });
-    });
-
-    // Quantity buttons
-    document.querySelectorAll(".quantity").forEach(q => {
-        const display = q.querySelector(".quantity-display");
-        q.querySelector(".plus").addEventListener("click", () => {
-            display.textContent = parseInt(display.textContent) + 1;
-        });
-        q.querySelector(".minus").addEventListener("click", () => {
-            let val = parseInt(display.textContent);
-            if (val > 1) display.textContent = val - 1;
-        });
-    });
-
-});
-</script>
+<hr>
+<a href="{% url 'product:product_list' %}">Continue Shopping</a>
+{% endblock %}

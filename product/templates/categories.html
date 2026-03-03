@@ -54,8 +54,9 @@
             <button class="minus">-</button>
         </div>
 
-        
-            <button class="add-cart" data-id="{{ product.product_id }}">Add to Cart</button>
+            <button class="btn-add-cart" data-product-id="{{ product.product_id }}">
+                Add to Cart
+            </button>
             
             
     </div>
@@ -74,3 +75,20 @@
 
 
 {%endblock%}
+
+document.querySelectorAll('.btn-add-cart').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const productId = btn.dataset.productId;
+        const token = localStorage.getItem('access');
+        const res = await fetch(`/shopping_cart/api/cart/add/${productId}/`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        const data = await res.json();
+        if(res.ok) alert('Added to cart!');
+        else alert('Error: ' + JSON.stringify(data));
+    });
+});
