@@ -1,17 +1,75 @@
+{% extends "product.html" %}
 
-{%extends "product.html"%}
+{% load static %}
 
-
-{%load static%}
-
-{%block head%}
-
-    {{block.super}}
+{% block head %}
+    {{ block.super }}
     <link rel="stylesheet" href="{% static 'categories.css' %}">
-{%endblock%}
+{% endblock %}
 
-{%block content%}
+{% block nav %}
+    <nav class="nav-links">
+        <a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">Home</a>
+        <a href="{% url 'about' %}" class="{% if request.resolver_match.url_name == 'about' %}active{% endif %}">About Us</a>
+        
+        <div class="nav-icons">
+            <!-- Updated cart icon with token handling -->
+            <a href="#" onclick="goToCartWithToken(event)" class="cart-icon" id="cart-icon-link">
+                <i class="fa-solid fa-cart-shopping"></i>
+                <span class="cart-badge" id="cart-badge" style="display: none;">0</span>
+            </a>
+            <a href="#"><i class="fa-solid fa-bell"></i></a>
+            <a href="{% url 'user_profile' %}"><i class="fa-solid fa-user"></i></a>
+        </div>
+    </nav>
 
+    <script>
+    // Function to go to cart with token
+    function goToCartWithToken(event) {
+        event.preventDefault();
+        const token = localStorage.getItem("access") || sessionStorage.getItem("access");
+        if (!token) {
+            window.location.href = "/login/";
+            return;
+        }
+        window.location.href = "/cart/?token=" + token;
+    }
+
+    // Update cart badge function
+    function updateCartBadge(count) {
+        const badge = document.getElementById('cart-badge');
+        if (badge) {
+            if (count > 0) {
+                badge.textContent = count;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    }
+
+    // Get initial cart count when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        const token = localStorage.getItem("access") || sessionStorage.getItem("access");
+        if (token) {
+            fetch('/cart/api/icon/', {
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.total_items > 0) {
+                    updateCartBadge(data.total_items);
+                }
+            })
+            .catch(error => console.error('Error fetching cart count:', error));
+        }
+    });
+    </script>
+{% endblock %}
+
+{% block content %}
 <h2 class="category-title">{{ category.category_name}}</h2>
 <!--search box to filter products-->
 <div class="search-box">
@@ -23,7 +81,7 @@
      in the query set passed from the view-->
     {% if products %}
     {% for product in products%}
-    <div class="product-card">
+    <div class="product-card" data-product-id="{{ product.product_id }}">
         {% if product.image %}
             <img src="{{ product.image.url }}" alt="{{ product.name }}">
         {% else %}
@@ -72,6 +130,271 @@
 
 </div>
 
+<!-- JavaScript for cart functionality -->
+<script>
+    // Get JWT token from storage
+    function getToken() {
+        return localStorage.getItem("access") || sessionStorage.getItem("access");
+    }
+    
+    // CSRF Token setup
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+    
+    // Protect this page
+    const token = getToken();
+    if (!token) {
+        window.location.href = "/login/";
+    }
+    
+    // Show notification function
+    function showNotification(message, type) {
+        const existing = document.querySelector('.notification');
+        if (existing) existing.remove();
+        
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.style.position = 'fixed';
+        notification.style.top = '20px';
+        notification.style.right = '20px';
+        notification.style.padding = '15px 25px';
+        notification.style.background = 'white';
+        notification.style.borderRadius = '6px';
+        notification.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        notification.style.zIndex = '1000';
+        notification.style.display = 'flex';
+        notification.style.alignItems = 'center';
+        notification.style.gap = '15px';
+        notification.style.animation = 'slideIn 0.3s';
+        notification.style.borderLeft = `4px solid ${type === 'success' ? '#28a745' : '#dc3545'}`;
+        
+        notification.innerHTML = `
+            <span>${message}</span>
+            <button onclick="this.parentElement.remove()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #999;">×</button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
+    
+    // Update cart badge (uses the function from nav block)
+    // This is just a wrapper to avoid conflicts
+    function updateCartBadgeFromScript(count) {
+        if (typeof updateCartBadge === 'function') {
+            updateCartBadge(count);
+        }
+    }
+    
+    // Add to cart function with JWT
+    function addToCart(productId, quantity = 1, button) {
+        const token = getToken();
+        if (!token) {
+            showNotification('Please log in', 'error');
+            window.location.href = '/login/';
+            return;
+        }
+        
+        if (button) {
+            button.textContent = 'Adding...';
+            button.disabled = true;
+        }
+        
+        fetch('/cart/api/add/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({
+                product_id: parseInt(productId),
+                quantity: quantity
+            })
+        })
+        .then(response => {
+            if (response.status === 401) {
+                throw new Error('Session expired');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                if (typeof updateCartBadge === 'function') {
+                    updateCartBadge(data.cart_total_items);
+                }
+                
+                const display = button?.closest('.product-card')?.querySelector('.quantity-display');
+                if (display) {
+                    display.textContent = '1';
+                }
+            } else {
+                showNotification('Error: ' + (data.error || 'Could not add to cart'), 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification(error.message, 'error');
+            if (error.message === 'Session expired') {
+                setTimeout(() => window.location.href = '/login/', 2000);
+            }
+        })
+        .finally(() => {
+            if (button) {
+                button.textContent = 'Add to Cart';
+                button.disabled = false;
+            }
+        });
+    }
+    
+    // Initialize quantity controls
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.product-card').forEach(card => {
+            // Add quantity display
+            const quantityDiv = card.querySelector('.quantity');
+            if (quantityDiv) {
+                let quantityDisplay = card.querySelector('.quantity-display');
+                if (!quantityDisplay) {
+                    quantityDisplay = document.createElement('span');
+                    quantityDisplay.className = 'quantity-display';
+                    quantityDisplay.textContent = '1';
+                    quantityDisplay.style.minWidth = '30px';
+                    quantityDisplay.style.textAlign = 'center';
+                    quantityDisplay.style.fontWeight = 'bold';
+                    quantityDisplay.style.color = '#406083';
+                    
+                    const minusBtn = quantityDiv.querySelector('.minus');
+                    const plusBtn = quantityDiv.querySelector('.plus');
+                    if (minusBtn && plusBtn) {
+                        quantityDiv.insertBefore(quantityDisplay, plusBtn);
+                    }
+                }
+            }
+            
+            // Plus button
+            const plusBtn = card.querySelector('.plus');
+            if (plusBtn) {
+                plusBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const display = card.querySelector('.quantity-display');
+                    if (display) {
+                        let currentQty = parseInt(display.textContent);
+                        if (currentQty < 10) {
+                            display.textContent = currentQty + 1;
+                        }
+                    }
+                });
+            }
+            
+            // Minus button
+            const minusBtn = card.querySelector('.minus');
+            if (minusBtn) {
+                minusBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const display = card.querySelector('.quantity-display');
+                    if (display) {
+                        let currentQty = parseInt(display.textContent);
+                        if (currentQty > 1) {
+                            display.textContent = currentQty - 1;
+                        }
+                    }
+                });
+            }
+            
+            // Add to cart button
+            const addToCartBtn = card.querySelector('.add-cart');
+            if (addToCartBtn) {
+                addToCartBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    const productId = card.dataset.productId;
+                    if (!productId) {
+                        showNotification('Error: Product ID not found', 'error');
+                        return;
+                    }
+                    
+                    const quantityDisplay = card.querySelector('.quantity-display');
+                    const quantity = quantityDisplay ? parseInt(quantityDisplay.textContent) : 1;
+                    
+                    addToCart(productId, quantity, this);
+                });
+            }
+        });
+    });
+    
+    // Animation keyframes
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Logout function
+    function logoutUser() {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = "/login/";
+    }
+</script>
 
-{%endblock%}
+<!-- Add minimal CSS for quantity display if not already present -->
+<style>
+.quantity {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
 
+.quantity-display {
+    min-width: 30px;
+    text-align: center;
+    font-weight: bold;
+    color: #406083;
+}
+
+.cart-icon {
+    position: relative;
+}
+
+.cart-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #dc3545;
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+}
+</style>
+{% endblock %}
