@@ -1,106 +1,243 @@
+
 from django.db import models
-from user_accounts.models import User
-import uuid
+from django.conf import settings
 
-class ProducerAccount(models.Model):
-    """Producer account model for farmers and food producers"""
-    
-    producer = models.OneToOneField(User, on_delete=models.CASCADE, 
-                                    primary_key=True, related_name='producer_profile')
-    
-    # Business information
-    business_name = models.CharField(max_length=200)
-    business_address = models.TextField()
-    business_postcode = models.CharField(max_length=10)
-    business_phone = models.CharField(max_length=20)
-    business_email = models.EmailField()
-    
-    # Farm/Producer details
-    farm_description = models.TextField(blank=True)
-    farm_logo = models.ImageField(upload_to='producer_logos/', null=True, blank=True)
-    cover_image = models.ImageField(upload_to='producer_covers/', null=True, blank=True)
-    
-    # Location for food miles calculation
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    
-    # Certification information
-    organic_certified = models.BooleanField(default=False)
-    organic_certification_body = models.CharField(max_length=100, blank=True)
-    organic_certificate = models.FileField(upload_to='certificates/', null=True, blank=True)
-    
-    # Delivery settings
-    default_lead_time_hours = models.IntegerField(default=48, 
-                                                   help_text="Default lead time in hours (minimum 48)")
-    delivery_radius_miles = models.IntegerField(default=20, 
-                                                help_text="Maximum delivery distance in miles")
-    
-    # Payment settings
-    payout_account_holder = models.CharField(max_length=200, blank=True)
-    payout_sort_code = models.CharField(max_length=8, blank=True)
-    payout_account_number = models.CharField(max_length=8, blank=True)
-    payout_bank_name = models.CharField(max_length=100, blank=True)
-    
-    # Business hours for pickup/delivery
-    business_hours = models.JSONField(default=dict, blank=True,
-                                      help_text="JSON field for business hours")
-    
-    # Status
-    is_verified = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True)
-    
-    # Timestamps
-    joined_date = models.DateField(auto_now_add=True)
+
+# -----------------------------
+# SURPLUS DISCOUNT
+# -----------------------------
+class SurplusDiscount(models.Model):
+    surplus_id = models.AutoField(primary_key=True)
+
+    product = models.ForeignKey(
+        "product.Product",
+        on_delete=models.CASCADE,null=True, blank=True,
+        db_column="product_id",
+        related_name="surplus_discounts",
+    )
+
+    discount_percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    expiry_date = models.DateField()
+
+    status = models.CharField(
+        max_length=20,
+        choices=[("active", "active"), ("expired", "expired")],
+        default="active",
+    )
+
+    date_discount_created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        managed = True
+        db_table = "surplus_discount"
+
+
+# -----------------------------
+# INVENTORY (Stock Change History)
+# -----------------------------
+class Inventory(models.Model):
+    inventory_id = models.AutoField(primary_key=True)
+
+    product = models.ForeignKey(
+        "product.Product",
+        on_delete=models.CASCADE,
+        db_column="product_id", null=True, blank=True,
+        related_name="inventory_history",
+    )
+
+    old_stock = models.PositiveIntegerField()
+    new_stock = models.PositiveIntegerField()
+    stock_time_change = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        managed = True
+        db_table = "inventory"
+
+
+# -----------------------------
+# SETTLEMENT REPORT
+# -----------------------------
+class SettlementReport(models.Model):
+    settlement_report_id = models.AutoField(primary_key=True)
+
+    # Placeholder for now: use the main user model (works even if you later create ProducerAccount)
+    producer = models.ForeignKey(
+        "user_accounts.ProducerAccount",
+        on_delete=models.CASCADE,
+        db_column="producer_id",
+        related_name="settlement_reports",
+    )
+
+    # Placeholder for now: transaction reference (later can become FK to a payments table)
+    transaction_id = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        db_column="transaction_id",
+        help_text="Payment transaction reference (placeholder until payments app exists).",
+    )
+
+    week_start = models.DateField()
+    week_end = models.DateField()
+    total_order_value = models.DecimalField(max_digits=10, decimal_places=2)
+    commission_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payout_amount = models.DecimalField(max_digits=10, decimal_places=2)
+
+    payment_status = models.CharField(
+        max_length=20,
+        choices=[("Pending", "Pending"), ("Paid", "Paid")],
+        default="Pending",
+    )
+
+    class Meta:
+        managed = True
+        db_table = "settlement_report"
+
+
+# -----------------------------
+# PRODUCER SETTLEMENT ORDER
+# -----------------------------
+class ProducerSettlementOrder(models.Model):
+    settlement_order_id = models.AutoField(primary_key=True)
+
+    settlement_report = models.ForeignKey(
+        SettlementReport,
+        on_delete=models.CASCADE,
+        db_column="settlement_report_id",
+        related_name="settlement_orders",
+    )
+
+    # Placeholder for now: store order id as integer.
+    # Later: convert to ForeignKey once your Orders model exists.
+    order_id = models.IntegerField(db_column="order_id")
+
+    order_value = models.DecimalField(max_digits=10, decimal_places=2)
+    commission_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    producer_payout = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        managed = True
+        db_table = "producer_settlement_order"
+
+
+# -----------------------------
+# FARM STORY
+# -----------------------------
+class FarmStory(models.Model):
+    farm_story_id = models.AutoField(primary_key=True)
+
+    # Placeholder: use AUTH_USER_MODEL
+    producer = models.ForeignKey(
+        "user_accounts.ProducerAccount",
+        on_delete=models.CASCADE,
+        db_column="producer_id",
+        related_name="farm_stories",
+    )
+
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    image = models.CharField(max_length=500, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
-        db_table = "producer_accounts"
-        ordering = ['business_name']
-    
-    def __str__(self):
-        return f"{self.business_name} ({'Verified' if self.is_verified else 'Unverified'})"
-    
-    def save(self, *args, **kwargs):
-        # Ensure lead time is at least 48 hours
-        if self.default_lead_time_hours < 48:
-            self.default_lead_time_hours = 48
-        super().save(*args, **kwargs)
-    
-    def get_payment_display(self):
-        """Return masked payment details for display"""
-        if self.payout_account_number and len(self.payout_account_number) >= 4:
-            return f"****{self.payout_account_number[-4:]}"
-        return "Not set"
+        managed = True
+        db_table = "farm_story"
 
 
-class ProducerProductCategory(models.Model):
-    """Categories that a producer specializes in"""
-    
-    producer = models.ForeignKey(ProducerAccount, on_delete=models.CASCADE, 
-                                 related_name='specializations')
-    category_name = models.CharField(max_length=100)
-    
+# -----------------------------
+# RECIPES
+# -----------------------------
+class Recipe(models.Model):
+    recipe_id = models.AutoField(primary_key=True)
+
+    # Placeholder: use AUTH_USER_MODEL
+    producer = models.ForeignKey(
+        "user_accounts.ProducerAccount",
+        on_delete=models.CASCADE,
+        db_column="producer_id",
+        related_name="recipes",
+    )
+
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    ingredients = models.TextField()
+    instructions = models.TextField()
+    seasonal_tag = models.CharField(max_length=100, null=True, blank=True)
+    image = models.CharField(max_length=500, null=True, blank=True)
+    date_recipe_created = models.DateTimeField(auto_now_add=True)
+
     class Meta:
-        db_table = "producer_categories"
-        unique_together = ['producer', 'category_name']
-    
-    def __str__(self):
-        return f"{self.producer.business_name} - {self.category_name}"
+        managed = True
+        db_table = "recipes"
 
 
-class ProducerDeliveryPostcode(models.Model):
-    """Specific postcodes that a producer delivers to"""
-    
-    producer = models.ForeignKey(ProducerAccount, on_delete=models.CASCADE,
-                                 related_name='delivery_postcodes')
-    postcode = models.CharField(max_length=10)
-    delivery_fee = models.DecimalField(max_digits=6, decimal_places=2, default=0.00)
-    minimum_order = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
-    
+# -----------------------------
+# PRODUCTS ↔ RECIPES
+# -----------------------------
+class RecipeProduct(models.Model):
+    recipe_product_id = models.AutoField(primary_key=True)
+
+    recipe = models.ForeignKey(
+        Recipe,
+        on_delete=models.CASCADE,
+        db_column="recipe_id",
+        related_name="linked_products",
+    )
+
+    product = models.ForeignKey(
+        "product.Product",
+        on_delete=models.CASCADE,null=True, blank=True,
+        db_column="product_id",
+        related_name="linked_recipes",
+    )
+
     class Meta:
-        db_table = "producer_delivery_postcodes"
-        unique_together = ['producer', 'postcode']
-    
-    def __str__(self):
-        return f"{self.producer.business_name} delivers to {self.postcode}"
+        managed = True
+        db_table = "products_recipes"
+        constraints = [
+            models.UniqueConstraint(fields=["recipe", "product"], name="unique_recipe_product_link")
+        ]
+
+
+# -----------------------------
+# SAVED RECIPES (Customer Favourites)
+# -----------------------------
+class SavedRecipe(models.Model):
+    saved_id = models.AutoField(primary_key=True)
+
+    # Placeholder: use AUTH_USER_MODEL (later can become CustomerAccount)
+    customer = models.ForeignKey(
+        "user_accounts.CustomerAccount",
+        on_delete=models.CASCADE,
+        db_column="customer_id",
+        related_name="saved_recipes",
+    )
+
+    recipe = models.ForeignKey(
+        Recipe,
+        on_delete=models.CASCADE,
+        db_column="recipe_id",
+        related_name="saved_by_customers",
+    )
+
+    class Meta:
+        managed = True
+        db_table = "saved_recipes"
+        constraints = [
+            models.UniqueConstraint(fields=["customer", "recipe"], name="unique_customer_recipe_save")
+        ]
+
+
+# -----------------------------
+# EDUCATIONAL CONTENT
+# -----------------------------
+class EducationalContent(models.Model):
+    article_id = models.AutoField(primary_key=True)
+    title = models.CharField(max_length=255)
+    body = models.TextField()
+    image = models.CharField(max_length=500, null=True, blank=True)
+    date_created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        managed = True
+        db_table = "educational_content"

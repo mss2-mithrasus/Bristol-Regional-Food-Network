@@ -1,104 +1,171 @@
+# Micaiah Palha - 23033423
 from django.db import models
-
-# Create your models here.
 from django.contrib.auth.models import AbstractUser
-from django.utils import timezone
-import uuid
+import hashlib
+
+
+# USER (Authentication only)
 
 class User(AbstractUser):
-    """Base user model extending Django's AbstractUser"""
-    
-    USER_TYPES = [
-        ('customer', 'Customer'),
-        ('producer', 'Producer'),
-        ('admin', 'Administrator'),
-    ]
-    
-    user_id = models.AutoField(primary_key=True)
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = []
+
+    username = None
     email = models.EmailField(unique=True)
-    user_type = models.CharField(max_length=20, choices=USER_TYPES, default='customer')
-    
-    # Personal information
+
+    USER_ROLE_CHOICES = [
+        ("customer", "Customer"),
+        ("producer", "Producer"),
+        ("admin", "Admin"),
+    ]
+    role = models.CharField(max_length=20, choices=USER_ROLE_CHOICES)
+
+    date_created = models.DateTimeField(auto_now_add=True)
+    # Used for soft deleting user account
+    is_active = models.BooleanField(default=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    reason_for_deleting = models.CharField(max_length=255, null=True, blank=True)
+    deleted_by_user = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "user_account"
+
+    def __str__(self):
+        return f"{self.email} ({self.role})"
+
+
+# PERSON (Contact details)
+
+class Person(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
+
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    phone = models.CharField(max_length=20, blank=True)
+
+    class Meta:
+        db_table = "person"
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name}"
+
+
+
+# ADDRESS 
+class Address(models.Model):
+    address_line = models.CharField(max_length=255)
+    postcode = models.CharField(max_length=20)
+
+    class Meta:
+        db_table = "address"
+
+    def __str__(self):
+        return f"{self.address_line}, {self.postcode}"
+
+
+# CUSTOMER ACCOUNT
+class CustomerAccount(models.Model):
+    CUSTOMER_ACCOUNT_TYPES = [
+        ("normal", "Normal Customer"),
+        ("community", "Community Group"),
+        ("restaurant", "Restaurant"),
+    ]
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    person = models.ForeignKey(Person, on_delete=models.SET_NULL, null=True, blank=True)
+    address = models.ForeignKey(Address, on_delete=models.SET_NULL, null=True)
+
+    account_type = models.CharField(max_length=20, choices=CUSTOMER_ACCOUNT_TYPES)
+    accepted_terms = models.BooleanField(default=False)
+    account_verified = models.BooleanField(default=False)
+
+
+    class Meta:
+        db_table = "customer_account"
+
+    def __str__(self):
+        return f"{self.user.email} ({self.account_type})"
+
+
+
+# CUSTOMER - COMMUNITY GROUP
+
+class CommunityGroup(models.Model):
+    ORG_STATUS_CHOICES = [
+        ("charity", "Charity"),
+        ("education", "Education"),
+    ]
+
+    customer_account = models.OneToOneField(CustomerAccount, on_delete=models.CASCADE)
+    organisation_name = models.CharField(max_length=255)
+    organisation_status = models.CharField(max_length=20, choices=ORG_STATUS_CHOICES)
+    phone = models.CharField(max_length=20, blank=True)
+
+    class Meta:
+        db_table = "community_group"
+
+    def __str__(self):
+        return self.organisation_name
+
+
+# CUSTOMER - RESTAURANT
+class Restaurant(models.Model):
+    customer_account = models.OneToOneField(CustomerAccount, on_delete=models.CASCADE)
+    organisation_name = models.CharField(max_length=255)
     phone = models.CharField(max_length=20, blank=True)
     
-    # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-        # ✅ FIX: Add related_name to avoid clashes with auth.User
-    groups = models.ManyToManyField(
-        'auth.Group',
-        verbose_name='groups',
-        blank=True,
-        help_text='The groups this user belongs to.',
-        related_name="custom_user_set",  # ✅ Add this
-        related_query_name="custom_user",
-    )
-    user_permissions = models.ManyToManyField(
-        'auth.Permission',
-        verbose_name='user permissions',
-        blank=True,
-        help_text='Specific permissions for this user.',
-        related_name="custom_user_set",  # ✅ Add this
-        related_query_name="custom_user",
-    )
-
-    # Override username field to use email for login
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']  # username is still required by AbstractUser
-    
     class Meta:
-        db_table = "users"
-    
+        db_table = "restaurant"
+
     def __str__(self):
-        return f"{self.email} ({self.user_type})"
+        return self.organisation_name
 
 
-class CustomerAccount(models.Model):
-    """Extended profile for customer users"""
-    
-    customer = models.OneToOneField(User, on_delete=models.CASCADE, 
-                                    primary_key=True, related_name='customer_profile')
-    
-    # Customer-specific fields
-    default_delivery_address = models.TextField()
-    default_postcode = models.CharField(max_length=10)
-    
-    # Preferences
-    marketing_consent = models.BooleanField(default=False)
-    
-    # For community groups/organizations
-    is_community_group = models.BooleanField(default=False)
-    organization_name = models.CharField(max_length=200, blank=True)
-    organization_type = models.CharField(max_length=50, blank=True, 
-                                         choices=[
-                                             ('school', 'School'),
-                                             ('charity', 'Charity'),
-                                             ('community', 'Community Group'),
-                                             ('other', 'Other')
-                                         ])
-    
-    # For restaurants
-    is_restaurant = models.BooleanField(default=False)
-    restaurant_name = models.CharField(max_length=200, blank=True)
-    vat_number = models.CharField(max_length=20, blank=True)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
+# PRODUCER ACCOUNT
+class ProducerAccount(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+
+    business_name = models.CharField(max_length=255)
+    contact_person = models.ForeignKey(Person, on_delete=models.SET_NULL, null=True)
+    address = models.ForeignKey(Address, on_delete=models.SET_NULL, null=True)
+    account_verified = models.BooleanField(default=False)
+
     class Meta:
-        db_table = "customer_accounts"
-    
+        db_table = "producer_account"
+
     def __str__(self):
-        if self.is_community_group and self.organization_name:
-            return f"Community: {self.organization_name}"
-        elif self.is_restaurant and self.restaurant_name:
-            return f"Restaurant: {self.restaurant_name}"
-        return f"Customer: {self.customer.email}"
-    
-    def get_delivery_address(self):
-        """Return the delivery address to use for orders"""
-        return self.default_delivery_address
-    
-    def get_postcode(self):
-        """Return the postcode to use for orders"""
-        return self.default_postcode
+        return f"{self.business_name} ({self.user.email})"
+
+
+
+class DeletionAudit(models.Model):
+    hashed_user_identifier = models.CharField(max_length=255)
+    role = models.CharField(max_length=50)
+    reason = models.TextField()
+    deleted_at = models.DateTimeField(auto_now_add=True)
+
+
+    def __str__(self):
+        return f"DeletionAudit({self.role}, {self.deleted_at})"
+
+    @staticmethod
+    def from_user(user, reason: str):
+        hashed_id = hashlib.sha256(str(user.id).encode()).hexdigest()
+        return DeletionAudit.objects.create(
+            hashed_user_identifier=hashed_id,
+            role=user.role,
+            reason=reason,
+        )
+
+# Failed login attempt
+class FailedLoginAttempt(models.Model):
+    email = models.CharField(max_length=255)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "failed_login_attempts"
+
+    def __str__(self):
+        return f"Failed login for {self.email} at {self.timestamp}"

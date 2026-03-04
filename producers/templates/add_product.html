@@ -1,0 +1,225 @@
+{% extends "producer_base.html" %}
+{% block content %}
+
+<div class="welcome">
+  <h1>Add New Product</h1>
+  <p>Enter the details to create a new product listing.</p>
+</div>
+
+<section class="panel">
+  <h2>Product Details</h2>
+
+  <!-- Removed method="post" (API handles submission) -->
+  <form id="addProductForm" class="form-card" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <div class="form-grid">
+
+      <div class="form-group">
+        <label>Product name</label>
+        <input type="text" name="name" required>
+      </div>
+
+      <div class="form-group">
+        <label>Category</label>
+        <select name="category" required>
+          <option value="">Select category</option>
+          {% for category in categories %}
+            <option value="{{ category.category_id }}">
+              {{ category.category_name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group form-group-full">
+        <label>Detailed description</label>
+        <textarea name="description" rows="4" required></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Price (£)</label>
+        <!-- Important: numeric only -->
+        <input type="number" step="0.01" name="price" min="0" required>
+      </div>
+
+      <div class="form-group">
+        <label>Unit</label>
+        <select name="unit" required>
+          <option value="">Select unit</option>
+          <option value="kg">kg</option>
+          <option value="g">g</option>
+          <option value="l">l</option>
+          <option value="ml">ml</option>
+          <option value="each">each</option>
+          <option value="dozen">dozen</option>   <!-- Add it here -->
+          <option value="pack">pack</option>
+          <option value="bunch">bunch</option>
+          <option value="box">box</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Availability</label>
+        <select name="availability" required>
+          <option value="In Season (Available)">In Season (Available)</option>
+          <option value="Available">Available</option>
+          <option value="Out of Season">Out of Season</option>
+          <option value="Unavailable">Unavailable</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Stock quantity</label>
+        <input type="number" name="stock" min="0" required>
+      </div>
+
+      <div class="form-group form-group-full">
+        <label>Allergens (select all that apply)</label>
+        <select id="allergens" name="allergens" multiple>
+          {% for allergen in allergens %}
+            <option value="{{ allergen.allergen_id }}">{{ allergen.name }}</option>
+          {% endfor %}
+        </select>
+        <small>Hold Ctrl (Windows) / Cmd (Mac) to select multiple.</small>
+      </div>
+
+      <div class="form-group">
+        <label>Harvest date</label>
+        <input id="harvest_date" type="date" name="harvest_date">
+      </div>
+
+      <div class="form-group">
+        <label>Product image (optional)</label>
+        <input type="file" name="image" accept="image/*">
+      </div>
+
+      <div class="form-group">
+      <label>Organic Certified</label>
+      <select name="organic_certified" required>
+        <option value="false" selected>No</option>
+        <option value="true">Yes</option>
+      </select>
+    </div>
+    </div>
+
+    <div id="formErrors" style="color:red; margin-top:15px;"></div>
+
+    <div class="form-actions">
+      <a class="button-pill secondary" href="/producer/product_management/">Back</a>
+      <button class="button-pill" type="submit">Submit product listing</button>
+    </div>
+  </form>
+  <!-- Success Modal -->
+  <div id="successModal" class="custom-modal">
+    <div class="modal-content">
+      <div class="modal-icon">✔</div>
+      <h3>Product Added Successfully!</h3>
+      <p>Your product has been listed in the marketplace.</p>
+      <button id="closeModalBtn" class="modal-btn">Continue</button>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Auto set harvest date to today
+  (function(){
+    const el = document.getElementById("harvest_date");
+    if (el && !el.value) {
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      const dd = String(d.getDate()).padStart(2,'0');
+      el.value = `${yyyy}-${mm}-${dd}`;
+    }
+  })();
+  async function safeJson(response) {
+    const text = await response.text();
+    try { return JSON.parse(text); } catch { return { detail: text || "Unknown error" }; }
+  }
+
+  async function refreshAccessToken() {
+    // const refresh = localStorage.getItem("refresh");
+    const refresh = localStorage.getItem("refresh") || sessionStorage.getItem("refresh");
+    if (!refresh) return null;
+    
+    const res = await fetch(refreshUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh })
+    });
+
+    if (!res.ok) return null;
+
+    const data = await safeJson(res);
+    if (data.access) {
+      localStorage.setItem("access", data.access);
+      return data.access;
+    }
+    return null;
+  }
+  async function createProduct(formData, token) {
+    return fetch("/producer/api/products/create/", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`
+      },
+      body: formData
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+
+    const form = document.getElementById("addProductForm");
+    const errorBox = document.getElementById("formErrors");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      errorBox.innerHTML = "";
+
+      const formData = new FormData(form);
+
+      // Get JWT access token (must match login storage key)
+      // const token = localStorage.getItem("access");
+      const token = localStorage.getItem("access") || sessionStorage.getItem("access");
+
+      if (!token) {
+        errorBox.innerHTML = "You are not authenticated. Please log in again.";
+        return;
+      }
+
+      try {
+        const response = await fetch("/producer/api/products/create/", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          },
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          document.getElementById("successModal").classList.add("active");
+
+          document.getElementById("closeModalBtn").addEventListener("click", () => {
+            window.location.href = "/producer/product_management/";
+          });
+          
+        } else {
+          // Display validation errors
+          for (const key in data) {
+            errorBox.innerHTML += `<p><strong>${key}:</strong> ${data[key]}</p>`;
+          }
+        }
+
+      } catch (error) {
+        errorBox.innerHTML = "An unexpected error occurred.";
+        console.error(error);
+      }
+    });
+  });
+</script>
+
+{% endblock %}

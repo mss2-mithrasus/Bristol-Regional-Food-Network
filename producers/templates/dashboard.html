@@ -1,0 +1,164 @@
+{% extends "producer_base.html" %}
+
+{% block content %}
+
+<div class="welcome">
+  <h1 id="producer-name">Welcome back...</h1>
+  <p>Here is your overview....</p>
+</div>
+
+<section class="panel">
+  <h2>Overview</h2>
+  <div class="pill-row">
+    <div class="pill"><span>Total Products</span><strong id="total-products">0</strong></div>
+    <div class="pill"><span>Active Orders</span><strong id="active-orders">0</strong></div>
+    <div class="pill"><span>Revenue</span><strong id="revenue">£0</strong></div>
+    <div class="pill"><span>Low Stock</span><strong id="low-stock">0</strong></div>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Recent Orders</h2>
+
+  <div class="orders-grid head">
+    <div class="pill mini">Order ID</div>
+    <div class="pill mini">Customer</div>
+    <div class="pill mini">Items</div>
+    <div class="pill mini">Status</div>
+  </div>
+
+  <div id="recent-orders-container">
+    <!-- Orders will be inserted here -->
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Product Status</h2>
+  <div class="pill-row" id="product-status-container">
+    <!-- Product status will be inserted here -->
+  </div>
+</section>
+
+<!-- <script>
+// const token = localStorage.getItem("access");
+
+// if (!token) {
+//   window.location.href = "/login/";
+// }
+const token = localStorage.getItem("access") || sessionStorage.getItem("access");
+
+if (!token) {
+  window.location.href = "/login/";
+}
+
+fetch("/producer/api/dashboard/", {
+  headers: {
+    "Authorization": "Bearer " + token
+  }
+})
+.then(response => {
+  if (!response.ok) throw new Error("Unauthorized");
+  return response.json();
+})
+.then(data => {
+
+  // Producer name
+  document.getElementById("producer-name").textContent =
+    "Welcome back, " + (data.producer_name || data.business_name)
+
+  // Overview stats
+  document.getElementById("total-products").textContent = data.total_products || 0;
+  document.getElementById("active-orders").textContent = data.active_orders || 0;
+  document.getElementById("revenue").textContent = "£" + (data.revenue || 0);
+  document.getElementById("low-stock").textContent = data.low_stock || 0;
+
+  // Recent Orders
+  const ordersContainer = document.getElementById("recent-orders-container");
+  ordersContainer.innerHTML = "";
+
+  if (data.recent_orders) {
+    data.recent_orders.forEach(order => {
+      ordersContainer.innerHTML += `
+        <div class="orders-grid row">
+          <div>${order.id}</div>
+          <div>${order.customer}</div>
+          <div>${order.items}</div>
+          <div>${order.status}</div>
+        </div>
+      `;
+    });
+  }
+
+})
+.catch(error => {
+  console.error(error);
+  window.location.href = "/login/";
+});
+</script> -->
+<script>
+    // Shared auth helpers
+    function getAccessToken() {
+        return localStorage.getItem("access") || sessionStorage.getItem("access");
+    }
+
+    // Protect this page
+    if (!getAccessToken()) {
+        window.location.href = "/login/";
+    }
+
+    // Logout function (optional, used by profile/logout buttons)
+    function logoutUser() {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = "/login/";
+    }
+
+    // Dashboard logic
+    const token = getAccessToken();
+
+    fetch("/producer/api/dashboard/", {
+        headers: {
+            "Authorization": "Bearer " + token
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error("Unauthorized");
+        return response.json();
+    })
+    .then(data => {
+
+        // Producer name
+        document.getElementById("producer-name").textContent =
+            "Welcome back, " + (data.producer_name || data.business_name);
+
+        // Overview stats
+        document.getElementById("total-products").textContent = data.total_products || 0;
+        document.getElementById("active-orders").textContent = data.active_orders || 0;
+        document.getElementById("revenue").textContent = "£" + (data.revenue || 0);
+        document.getElementById("low-stock").textContent = data.low_stock || 0;
+
+        // Recent Orders
+        const ordersContainer = document.getElementById("recent-orders-container");
+        ordersContainer.innerHTML = "";
+
+        if (data.recent_orders) {
+            data.recent_orders.forEach(order => {
+                ordersContainer.innerHTML += `
+                    <div class="orders-grid row">
+                        <div>${order.id}</div>
+                        <div>${order.customer}</div>
+                        <div>${order.items}</div>
+                        <div>${order.status}</div>
+                    </div>
+                `;
+            });
+        }
+
+    })
+    .catch(error => {
+        console.error(error);
+        window.location.href = "/login/";
+    });
+</script>
+
+{% endblock %}

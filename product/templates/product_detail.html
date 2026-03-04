@@ -1,0 +1,43 @@
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+{%extends "base.html"%}
+
+{% load static %}
+
+{% block head %}
+
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'product_detail.css' %}">
+{% endblock %}
+
+
+{% block content%}
+
+<div class="product-detail-container">
+    <div class="product-detail-box">
+
+
+    {% if product.image%}
+    <img src="{{product.image.url}}" alt="{{product.name}}" class="product-detail-img">
+    {%endif%}
+
+    <div class="product-details">
+        <h2 class="product-name">Product: {{product.name}}</h2>
+        <h4 class="product-description">Product description: {{product.description}}</h4>
+
+
+    <h3>Allergens</h3>
+    {% if product.allergens.exists %}
+        <ul class="allergens-list">
+            {% for allergen in product.allergens.all %}
+                <li class="allergen-name">{{ allergen.name }}</li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>No allergens are present.</p>
+        {% endif %}
+    <h3>Farm miles: </h3>
+</div>
+
+</div>
+{%endblock%}
