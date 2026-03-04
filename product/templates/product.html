@@ -42,7 +42,7 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
                 
                 <a href="#"><i class="fa-solid fa-cart-shopping"></i></a>
                 <a href="#"><i class="fa-solid fa-bell"></i></a>
-                <a href="#"><i class="fa-solid fa-user"></i></a>
+                <a href="{% url 'user_profile' %}"><i class="fa-solid fa-user"></i></a>
             </div>
 
 
@@ -152,7 +152,26 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
 
 {% endblock %}
 
+<!-- Login and Logout Sessions -->
+<!-- Micaiah Palha - 23033423 -->
+<script>
+    // Get token from either storage
+    function getAccessToken() {
+        return localStorage.getItem("access") || sessionStorage.getItem("access");
+    }
 
+    // Protect this page
+    if (!getAccessToken()) {
+        window.location.href = "/login/";
+    }
+
+    // Logout function (used by user_profile.html)
+    function logoutUser() {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = "/login/";
+    }
+</script>
 
 
 

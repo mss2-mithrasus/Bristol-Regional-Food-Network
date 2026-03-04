@@ -1,0 +1,262 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Your Profile | Bristol Regional Food Network</title>
+
+    <link rel="stylesheet" href="{% static 'base.css' %}">
+    <link rel="stylesheet" href="{% static 'user_profile.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+
+<body>
+
+<header class="navbar">
+    <div class="nav-left">
+        <img src="{% static 'images/leaf.png' %}" class="logo">
+        <span class="title">Bristol Regional Food Network</span>
+    </div>
+
+    <nav class="nav-links">
+        <!-- <a href="{% url 'home' %}">Home</a> -->
+        <a href="{% url 'user_profile' %}"><i class="fa-solid fa-user"></i></a>
+        <!-- <a href="{% url 'user_profile' %}" class="active">Profile</a> -->
+    </nav>
+</header>
+
+<main class="user_profile_container">
+
+    <h1>Your Profile</h1>
+
+    <div id="general-section" class="user_profile_section">
+        <h2>Account Information</h2>
+        <p><strong>Email:</strong> <span id="email"></span></p>
+        <p><strong>Role:</strong> <span id="role"></span></p>
+    </div>
+
+    <div id="person-section" class="user_profile_section">
+        <h2>Personal Details</h2>
+
+        <p><strong>First Name:</strong> <span id="first_name"></span>
+            <button onclick="enableEdit('first_name')" class="edit_btn">Edit</button>
+        </p>
+
+        <p><strong>Last Name:</strong> <span id="last_name"></span>
+            <button onclick="enableEdit('last_name')" class="edit_btn">Edit</button>
+        </p>
+
+        <p><strong>Phone:</strong> <span id="phone"></span>
+            <button onclick="enableEdit('phone')" class="edit_btn">Edit</button>
+        </p>
+    </div>
+
+    <div id="address-section" class="user_profile_section">
+        <h2>Address</h2>
+
+        <p><strong>Address Line:</strong> <span id="address_line"></span>
+            <button onclick="enableEdit('address_line')" class="edit_btn">Edit</button>
+        </p>
+
+        <p><strong>Postcode:</strong> <span id="postcode"></span>
+            <button onclick="enableEdit('postcode')" class="edit_btn">Edit</button>
+        </p>
+    </div>
+    <!-- Customer account -->
+    <div id="customer-section" class="user_profile_section" style="display:none;">
+        <h2>Customer Account</h2>
+        <p><strong>Account Type:</strong> <span id="account_type"></span></p>
+        <p><strong>Verified:</strong> <span id="account_verified"></span></p>
+    </div>
+
+    <!-- Community account  -->
+    <div id="community-section" class="user_profile_section" style="display:none;">
+        <h2>Community Group</h2>
+        <p><strong>Organisation Name:</strong> <span id="organisation_name"></span></p>
+        <p><strong>Status:</strong> <span id="organisation_status"></span></p>
+        <p><strong>Phone:</strong> <span id="community_phone"></span></p>
+    </div>
+    <!-- Restaurant account -->
+    <div id="restaurant-section" class="user_profile_section" style="display:none;">
+        <h2>Restaurant</h2>
+        <p><strong>Name:</strong> <span id="restaurant_name"></span></p>
+        <p><strong>Phone:</strong> <span id="restaurant_phone"></span></p>
+    </div>
+    <!-- Producer account -->
+    <div id="producer-section" class="user_profile_section" style="display:none;">
+        <h2>Producer Account</h2>
+        <p><strong>Business Name:</strong> <span id="business_name"></span></p>
+        <p><strong>Contact Person:</strong> <span id="contact_person"></span></p>
+        <p><strong>Verified:</strong> <span id="producer_verified"></span></p>
+    </div>
+
+    <button id="saveBtn" class="submit_btn" style="display:none;" onclick="saveChanges()">Save Changes</button>
+
+    <button class="delete_btn" onclick="openDeleteForm()">Delete Account</button>
+    <div id="deleteForm" class="delete_form" style="display:none;">
+        <div class="delete_form_content">
+            <h3>Delete Account</h3>
+
+            <label for="deleteReason">Reason for deleting:</label>
+            <select id="deleteReason">
+                <option value="I no longer use the service">I no longer use the service</option>
+                <option value="I have privacy concerns">I have privacy concerns</option>
+                <option value="I want to remove my data">I want to remove my data</option>
+                <option value="I created a duplicate account">I created a duplicate account</option>
+                <option value="I am switching to another platform">I am switching to another platform</option>
+            </select>
+
+            <button class="submit_btn" onclick="confirmSoftDelete()">Deactivate Account (Keep Data)</button>
+            <button class="delete_btn" onclick="confirmHardDelete()">Permanently Delete Account</button>
+            <button class="edit_btn" onclick="closeDeleteForm()" style="margin-top: 10px">Close</button>
+        </div>
+    </div>
+    <button class="submit_btn" onclick="logoutUser()">Logout</button>
+</main>
+
+
+
+<script>
+function getAccessToken() {
+    return localStorage.getItem("access") || sessionStorage.getItem("access");
+}
+
+if (!getAccessToken()) {
+    window.location.href = "/login/";
+}
+
+function logoutUser() {
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.href = "/login/";
+}
+
+let profileData = {};
+
+async function loadProfile() {
+    const response = await fetch("/api/user/profile/", {
+        headers: { "Authorization": "Bearer " + getAccessToken() }
+    });
+
+    if (!response.ok) {
+        logoutUser();
+        return;
+    }
+
+    profileData = await response.json();
+
+    for (const key in profileData) {
+        const el = document.getElementById(key);
+        if (el) el.innerText = profileData[key] || "";
+    }
+
+    if (profileData.role === "customer") {
+        document.getElementById("customer-section").style.display = "block";
+
+        if (profileData.account_type === "community") {
+            document.getElementById("community-section").style.display = "block";
+        }
+
+        if (profileData.account_type === "restaurant") {
+            document.getElementById("restaurant-section").style.display = "block";
+        }
+    }
+
+    if (profileData.role === "producer") {
+        document.getElementById("producer-section").style.display = "block";
+    }
+}
+
+loadProfile();
+
+function enableEdit(field) {
+    const span = document.getElementById(field);
+    const value = span.innerText;
+
+    span.innerHTML = `<input id="${field}_input" value="${value}">`;
+    document.getElementById("saveBtn").style.display = "block";
+}
+// Save edited changes 
+async function saveChanges() {
+    const payload = {};
+
+    ["first_name", "last_name", "phone", "address_line", "postcode"].forEach(field => {
+        const input = document.getElementById(field + "_input");
+        if (input) payload[field] = input.value;
+    });
+
+    const response = await fetch("/api/user/update/", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + getAccessToken()
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (response.ok) {
+        alert("Profile updated!");
+        loadProfile();
+        document.getElementById("saveBtn").style.display = "none";
+    } else {
+        alert("Update failed.");
+    }
+}
+// Delete account
+function openDeleteForm() {
+    document.getElementById("deleteForm").style.display = "flex";
+}
+
+function closeDeleteForm() {
+    document.getElementById("deleteForm").style.display = "none";
+}
+
+async function confirmSoftDelete() {
+    const reason = document.getElementById("deleteReason").value;
+
+    const response = await fetch("/api/account/soft-delete/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + getAccessToken()
+        },
+        body: JSON.stringify({ reason })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+        alert(data.message);
+        logoutUser();
+    } else {
+        alert(data.error);
+    }
+}
+async function confirmHardDelete() {
+    const reason = document.getElementById("deleteReason").value;
+
+    const response = await fetch("/api/account/hard-delete/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + getAccessToken()
+        },
+        body: JSON.stringify({ reason })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+        alert(data.message);
+        logoutUser();
+    } else {
+        alert(data.error);
+    }
+}
+
+
+</script>
+
+</body>
+</html>

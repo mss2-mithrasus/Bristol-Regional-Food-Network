@@ -100,7 +100,8 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", async () => {
-  const token = localStorage.getItem("access");
+  // const token = localStorage.getItem("access");
+  const token = localStorage.getItem("access") || sessionStorage.getItem("access");
   const errorBox = document.getElementById("productsError");
   const rowsBox = document.getElementById("productsRows");
 
@@ -231,7 +232,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
           const res = await fetch(`/producer/api/products/${id}/delete/`, {
             method: "DELETE",
-            headers: { "Authorization": `Bearer ${localStorage.getItem("access")}` }
+            // headers: { "Authorization": `Bearer ${localStorage.getItem("access")}` }
+            headers: {
+              "Authorization": `Bearer ${
+                localStorage.getItem("access") || sessionStorage.getItem("access")
+              }`
+            }
           });
 
           const data = await res.json().catch(() => ({}));
@@ -256,7 +262,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     saveEditBtn.addEventListener("click", async () => {
       editErrors.textContent = "";
 
-      const token = localStorage.getItem("access");
+      // const token = localStorage.getItem("access");
+      const token = localStorage.getItem("access") || sessionStorage.getItem("access");
       if (!token) {
         editErrors.textContent = "Token missing. Please log in again.";
         return;
