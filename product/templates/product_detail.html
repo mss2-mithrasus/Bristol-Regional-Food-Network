@@ -35,10 +35,9 @@
             <span class="allergen-name">{{ pa.allergen.name}}</span>
             {# displaying allergen description #}
             {% if pa.description%} - Description: {{ pa.description}}
-            {%endif%}{% if not forloop.last%}, {%endif%}
+            {%endif%}
         </li>
         {%endfor%}
-    </p>
     </ul>
 
     {# if no allergens are present then message is displayed#}

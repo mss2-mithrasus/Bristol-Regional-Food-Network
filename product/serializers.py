@@ -91,7 +91,6 @@ class ProductCreateSerializer(serializers.ModelSerializer):
             "category",
             "image",
             "producer",
-            "allergens",
             "harvest_date",
             "organic_certified",
         ]

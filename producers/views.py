@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework import request, status
 from rest_framework.permissions import IsAuthenticated
 
-from product.models import Product, ProductCategory, Allergen
+from product.models import Product, ProductCategory, Allergen, ProductAllergen
 from product.serializers import ProductSerializer
 from user_accounts.permissions import IsProducer
 from user_accounts.models import ProducerAccount
@@ -90,6 +90,17 @@ class ProducerCreateProductAPI(APIView):
         serializer = ProductCreateSerializer(data=request.data, context={"request": request})
         if serializer.is_valid():
             product = serializer.save()
+            #list of allergens
+            allergens_id = request.data.getlist("allergens")
+            for allergen_id in allergens_id:
+                description = request.data.get(f"allergen_description_{allergen_id}", "")
+                if description or description == "":
+                    ProductAllergen.objects.create(
+                        product=product,
+                        allergen_id=allergen_id,
+                        description=description
+                        
+                    )
             return Response(
                 {"message": "Product added successfully!", "product_id": product.product_id},
                 status=status.HTTP_201_CREATED
