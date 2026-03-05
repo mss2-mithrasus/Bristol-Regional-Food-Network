@@ -38,6 +38,10 @@ class RegistrationSerializer(serializers.Serializer):
     contact_first_name = serializers.CharField(required=False, allow_blank=True)
     contact_last_name = serializers.CharField(required=False, allow_blank=True)
 
+    # Added role 
+    account_type = serializers.CharField(required=False, allow_blank=True)
+
+
     def validate(self, data):
         password = data["password"]
         password2 = data["password2"]
@@ -83,6 +87,7 @@ class RegistrationSerializer(serializers.Serializer):
         password = validated_data.pop("password")
         validated_data.pop("password2")
         role = validated_data.pop("role")
+        account_type = validated_data.pop("account_type", "normal")
 
         # Create User
         user = User.objects.create(
@@ -113,15 +118,6 @@ class RegistrationSerializer(serializers.Serializer):
                 )
 
             # Determine account type
-            # If organisation status then account_type = community_group
-            if validated_data.get("organisation_status"):
-                account_type = "community"
-            # If organisation name then account_type = restaurant
-            elif validated_data.get("organisation_name"):
-                account_type = "restaurant"
-            # Otherwise it is a normal customer 
-            else:
-                account_type = "normal"
             
             account_verified = True if account_type == "normal" else False
 
