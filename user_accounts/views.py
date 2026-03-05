@@ -51,6 +51,7 @@ class LoginView(APIView):
         if serializer.is_valid():
             tokens = serializer.validated_data
             
+            
             user = tokens["user"]
 
             if user.role == "admin":
