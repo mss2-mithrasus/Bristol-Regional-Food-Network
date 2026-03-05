@@ -13,7 +13,6 @@
         <a href="{% url 'about' %}" class="{% if request.resolver_match.url_name == 'about' %}active{% endif %}">About Us</a>
         
         <div class="nav-icons">
-            <!-- Updated cart icon with token handling -->
             <a href="#" onclick="goToCartWithToken(event)" class="cart-icon" id="cart-icon-link">
                 <i class="fa-solid fa-cart-shopping"></i>
                 <span class="cart-badge" id="cart-badge" style="display: none;">0</span>
@@ -22,51 +21,6 @@
             <a href="{% url 'user_profile' %}"><i class="fa-solid fa-user"></i></a>
         </div>
     </nav>
-
-    <script>
-    // Function to go to cart with token
-    function goToCartWithToken(event) {
-        event.preventDefault();
-        const token = localStorage.getItem("access") || sessionStorage.getItem("access");
-        if (!token) {
-            window.location.href = "/login/";
-            return;
-        }
-        window.location.href = "/cart/?token=" + token;
-    }
-
-    // Update cart badge function
-    function updateCartBadge(count) {
-        const badge = document.getElementById('cart-badge');
-        if (badge) {
-            if (count > 0) {
-                badge.textContent = count;
-                badge.style.display = 'flex';
-            } else {
-                badge.style.display = 'none';
-            }
-        }
-    }
-
-    // Get initial cart count when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-        const token = localStorage.getItem("access") || sessionStorage.getItem("access");
-        if (token) {
-            fetch('/cart/api/icon/', {
-                headers: {
-                    'Authorization': 'Bearer ' + token
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.total_items > 0) {
-                    updateCartBadge(data.total_items);
-                }
-            })
-            .catch(error => console.error('Error fetching cart count:', error));
-        }
-    });
-    </script>
 {% endblock %}
 
 {% block content %}
@@ -77,8 +31,6 @@
 </div>
 
 <div class="product-container">
-    <!--if there are products in the category we loop through each product
-     in the query set passed from the view-->
     {% if products %}
     {% for product in products%}
     <div class="product-card" data-product-id="{{ product.product_id }}">
@@ -88,56 +40,81 @@
             <img src="{% static 'images/default-product.png' %}" alt="{{ product.name }}">
         {% endif %}
 
-       
-    <div class="field-row">
-
-        <h4 class="field"><span class="label">Product:</span> {{product.name}}</h4>
-
-        {%if product.organic_certified%}
-            <img src="{% static 'images/organic.png'%}" alt='organic badge' class="organic-badge">
+        <div class="field-row">
+            <h4 class="field"><span class="label">Product:</span> {{product.name}}</h4>
+            {%if product.organic_certified%}
+                <img src="{% static 'images/organic.png'%}" alt='organic badge' class="organic-badge">
             {%endif%}
-    </div>
-
-        <h4 class="field"><span class="label">Producer:</span> {{product.producer.business_name}}</h4>
-
-        <h4 class="field"><span class="label">Price:</span> {{product.price}}</h4>
-
-        <h4 class="field"><span class="label">Status:</span> {{product.availability_status|yesno:"Available, Out of stock"}}</h4>
-
-         
-
-    <div class="button-group">
-        <div class="quantity">
-            <button class="plus">+</button>
-            <button class="minus">-</button>
         </div>
 
-        
+        <h4 class="field"><span class="label">Producer:</span> {{product.producer.business_name}}</h4>
+        <h4 class="field"><span class="label">Price:</span> {{product.price}}</h4>
+        <h4 class="field"><span class="label">Status:</span> {{product.availability_status|yesno:"Available, Out of stock"}}</h4>
+
+        <div class="button-group">
+            <div class="quantity">
+                <button class="plus">+</button>
+                <button class="minus">-</button>
+            </div>
             <button class="add-cart">Add to Cart</button>
-            
-            
+        </div>
+        <a href="{% url 'product_detail' product_id=product.product_id%}">
+            <button class="product-details">View Product Details</button>
+        </a>
     </div>
-    <a href="{% url 'product_detail' product_id=product.product_id%}">
-        <button class="product-details">View Product Details</button>
-    </a>
-    
-</div>
-       
-        {% endfor %}
+    {% endfor %}
     {% else%}
         <p>No products available in this category</p>
     {%endif%}
-
 </div>
 
-<!-- JavaScript for cart functionality -->
 <script>
-    // Get JWT token from storage
     function getToken() {
         return localStorage.getItem("access") || sessionStorage.getItem("access");
     }
-    
-    // CSRF Token setup
+
+    function getRefreshToken() {
+        return localStorage.getItem("refresh") || sessionStorage.getItem("refresh");
+    }
+
+    function setToken(newAccess) {
+        if (localStorage.getItem("access")) {
+            localStorage.setItem("access", newAccess);
+        } else {
+            sessionStorage.setItem("access", newAccess);
+        }
+    }
+
+    // Go To Cart
+    function goToCartWithToken(event) {
+        event.preventDefault();
+        const token = getToken();
+        if (!token) {
+            window.location.href = "/login/";
+            return;
+        }
+        // Create a hidden form and POST the token instead of showing it in URL
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/cart/';
+        
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+        
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = 'token';
+        tokenInput.value = token;
+        
+        form.appendChild(csrfInput);
+        form.appendChild(tokenInput);
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    // CSRF
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -153,207 +130,168 @@
         return cookieValue;
     }
     const csrftoken = getCookie('csrftoken');
-    
-    // Protect this page
+
     const token = getToken();
     if (!token) {
         window.location.href = "/login/";
     }
-    
-    // Show notification function
+
+    async function refreshAccessToken() {
+        const refresh = getRefreshToken();
+        if (!refresh) throw new Error("No refresh token");
+
+        const response = await fetch("/api/token/refresh/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refresh })
+        });
+
+        if (!response.ok) throw new Error("Refresh failed");
+
+        const data = await response.json();
+        setToken(data.access);
+        return data.access;
+    }
+
+    async function fetchWithAuth(url, options = {}) {
+        let token = getToken();
+
+        options.headers = {
+            ...options.headers,
+            "Authorization": `Bearer ${token}`,
+            "X-CSRFToken": csrftoken,
+        };
+
+        let response = await fetch(url, options);
+
+        if (response.status === 401) {
+            try {
+                token = await refreshAccessToken();
+                options.headers["Authorization"] = `Bearer ${token}`;
+                response = await fetch(url, options);
+            } catch (e) {
+                window.location.href = "/login/";
+                throw new Error("Session expired");
+            }
+        }
+
+        return response;
+    }
+
     function showNotification(message, type) {
         const existing = document.querySelector('.notification');
         if (existing) existing.remove();
-        
+
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
-        notification.style.position = 'fixed';
-        notification.style.top = '20px';
-        notification.style.right = '20px';
-        notification.style.padding = '15px 25px';
-        notification.style.background = 'white';
-        notification.style.borderRadius = '6px';
-        notification.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-        notification.style.zIndex = '1000';
-        notification.style.display = 'flex';
-        notification.style.alignItems = 'center';
-        notification.style.gap = '15px';
-        notification.style.animation = 'slideIn 0.3s';
-        notification.style.borderLeft = `4px solid ${type === 'success' ? '#28a745' : '#dc3545'}`;
-        
         notification.innerHTML = `
             <span>${message}</span>
-            <button onclick="this.parentElement.remove()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #999;">×</button>
+            <button onclick="this.parentElement.remove()">×</button>
         `;
-        
         document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.remove();
-        }, 3000);
+        setTimeout(() => notification.remove(), 3000);
     }
-    
-    // Update cart badge (uses the function from nav block)
-    // This is just a wrapper to avoid conflicts
-    function updateCartBadgeFromScript(count) {
-        if (typeof updateCartBadge === 'function') {
-            updateCartBadge(count);
+
+    function updateCartBadge(count) {
+        const badge = document.getElementById('cart-badge');
+        if (badge) {
+            badge.textContent = count;
+            badge.style.display = count > 0 ? 'flex' : 'none';
         }
     }
-    
-    // Add to cart function with JWT
-    function addToCart(productId, quantity = 1, button) {
-        const token = getToken();
-        if (!token) {
-            showNotification('Please log in', 'error');
-            window.location.href = '/login/';
-            return;
-        }
-        
+
+    async function addToCart(productId, quantity, button) {
         if (button) {
             button.textContent = 'Adding...';
             button.disabled = true;
         }
-        
-        fetch('/cart/api/add/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token
-            },
-            body: JSON.stringify({
-                product_id: parseInt(productId),
-                quantity: quantity
-            })
-        })
-        .then(response => {
-            if (response.status === 401) {
-                throw new Error('Session expired');
-            }
-            return response.json();
-        })
-        .then(data => {
+
+        try {
+            const response = await fetchWithAuth('/cart/api/add/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    product_id: parseInt(productId),
+                    quantity: quantity
+                })
+            });
+
+            const data = await response.json();
+
             if (data.success) {
                 showNotification(data.message, 'success');
-                if (typeof updateCartBadge === 'function') {
-                    updateCartBadge(data.cart_total_items);
-                }
-                
+                updateCartBadge(data.cart_total_items);
                 const display = button?.closest('.product-card')?.querySelector('.quantity-display');
-                if (display) {
-                    display.textContent = '1';
-                }
+                if (display) display.textContent = '1';
             } else {
                 showNotification('Error: ' + (data.error || 'Could not add to cart'), 'error');
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification(error.message, 'error');
-            if (error.message === 'Session expired') {
-                setTimeout(() => window.location.href = '/login/', 2000);
-            }
-        })
-        .finally(() => {
+        } catch (e) {
+            if (e.message !== 'Session expired') showNotification('Something went wrong', 'error');
+        } finally {
             if (button) {
                 button.textContent = 'Add to Cart';
                 button.disabled = false;
             }
-        });
+        }
     }
-    
-    // Initialize quantity controls
+
     document.addEventListener('DOMContentLoaded', function() {
+
+        // Load cart badge count
+        fetchWithAuth('/cart/api/icon/')
+            .then(r => r.json())
+            .then(data => { if (data.total_items > 0) updateCartBadge(data.total_items); })
+            .catch(err => console.error('Cart icon error:', err));
+        
+        // Setup each product card
         document.querySelectorAll('.product-card').forEach(card => {
-            // Add quantity display
+
+            // Inject quantity display between + and - buttons
             const quantityDiv = card.querySelector('.quantity');
             if (quantityDiv) {
-                let quantityDisplay = card.querySelector('.quantity-display');
-                if (!quantityDisplay) {
-                    quantityDisplay = document.createElement('span');
-                    quantityDisplay.className = 'quantity-display';
-                    quantityDisplay.textContent = '1';
-                    quantityDisplay.style.minWidth = '30px';
-                    quantityDisplay.style.textAlign = 'center';
-                    quantityDisplay.style.fontWeight = 'bold';
-                    quantityDisplay.style.color = '#406083';
-                    
-                    const minusBtn = quantityDiv.querySelector('.minus');
-                    const plusBtn = quantityDiv.querySelector('.plus');
-                    if (minusBtn && plusBtn) {
-                        quantityDiv.insertBefore(quantityDisplay, plusBtn);
-                    }
-                }
+                const quantityDisplay = document.createElement('span');
+                quantityDisplay.className = 'quantity-display';
+                quantityDisplay.textContent = '1';
+                const plusBtn = quantityDiv.querySelector('.plus');
+                if (plusBtn) quantityDiv.insertBefore(quantityDisplay, plusBtn);
             }
-            
+
             // Plus button
-            const plusBtn = card.querySelector('.plus');
-            if (plusBtn) {
-                plusBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const display = card.querySelector('.quantity-display');
-                    if (display) {
-                        let currentQty = parseInt(display.textContent);
-                        if (currentQty < 10) {
-                            display.textContent = currentQty + 1;
-                        }
-                    }
-                });
-            }
-            
+            card.querySelector('.plus')?.addEventListener('click', function(e) {
+                e.preventDefault();
+                const display = card.querySelector('.quantity-display');
+                if (display) {
+                    const current = parseInt(display.textContent);
+                    if (current < 10) display.textContent = current + 1;
+                }
+            });
+
             // Minus button
-            const minusBtn = card.querySelector('.minus');
-            if (minusBtn) {
-                minusBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const display = card.querySelector('.quantity-display');
-                    if (display) {
-                        let currentQty = parseInt(display.textContent);
-                        if (currentQty > 1) {
-                            display.textContent = currentQty - 1;
-                        }
-                    }
-                });
-            }
-            
+            card.querySelector('.minus')?.addEventListener('click', function(e) {
+                e.preventDefault();
+                const display = card.querySelector('.quantity-display');
+                if (display) {
+                    const current = parseInt(display.textContent);
+                    if (current > 1) display.textContent = current - 1;
+                }
+            });
+
             // Add to cart button
-            const addToCartBtn = card.querySelector('.add-cart');
-            if (addToCartBtn) {
-                addToCartBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    const productId = card.dataset.productId;
-                    if (!productId) {
-                        showNotification('Error: Product ID not found', 'error');
-                        return;
-                    }
-                    
-                    const quantityDisplay = card.querySelector('.quantity-display');
-                    const quantity = quantityDisplay ? parseInt(quantityDisplay.textContent) : 1;
-                    
-                    addToCart(productId, quantity, this);
-                });
-            }
+            card.querySelector('.add-cart')?.addEventListener('click', function(e) {
+                e.preventDefault();
+                const productId = card.dataset.productId;
+                if (!productId) {
+                    showNotification('Error: Product ID not found', 'error');
+                    return;
+                }
+                const display = card.querySelector('.quantity-display');
+                const quantity = display ? parseInt(display.textContent) : 1;
+                addToCart(productId, quantity, this);
+            });
         });
     });
-    
-    // Animation keyframes
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-    `;
-    document.head.appendChild(style);
-    
-    // Logout function
+
     function logoutUser() {
         localStorage.clear();
         sessionStorage.clear();
@@ -361,7 +299,6 @@
     }
 </script>
 
-<!-- Add minimal CSS for quantity display if not already present -->
 <style>
 .quantity {
     display: flex;
@@ -395,6 +332,38 @@
     align-items: center;
     justify-content: center;
     padding: 0 4px;
+}
+
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    animation: slideIn 0.3s;
+    border-left: 4px solid;
+}
+
+.notification.success { border-left-color: #28a745; }
+.notification.error   { border-left-color: #dc3545; }
+
+.notification button {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #999;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
 }
 </style>
 {% endblock %}

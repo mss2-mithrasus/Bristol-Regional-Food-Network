@@ -12,7 +12,6 @@ class Cart(models.Model):
         settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE, 
         related_name='cart'
-        # REMOVE the limit_choices_to line completely
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -38,7 +37,6 @@ class Cart(models.Model):
         items_by_producer = {}
         for item in self.items.select_related('product__producer').all():
             producer = item.product.producer
-            # FIX THIS LINE - Get producer name safely
             try:
                 producer_name = item.product.producer.produceraccount.business_name
             except:
@@ -70,7 +68,7 @@ class CartItem(models.Model):
     
     class Meta:
         db_table = "cart_item"
-        unique_together = ['cart', 'product']  # One product per cart max
+        unique_together = ['cart', 'product'] 
     
     def __str__(self):
         return f"{self.quantity} x {self.product.name}"

@@ -86,6 +86,5 @@ class UpdateCartItemSerializer(serializers.Serializer):
     
     def validate_quantity(self, value):
         if value == 0:
-            # Quantity 0 means remove item
             return value
         return value

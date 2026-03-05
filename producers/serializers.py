@@ -40,12 +40,13 @@ class ProductCreateSerializer(serializers.Serializer):
         if not producer_account:
             raise serializers.ValidationError({"producer": "Producer account not found for this user."})
         stock = validated_data.pop("stock")
+        validated_data.pop("allergens", None)
         availability_text = (validated_data.pop("availability") or "").strip().lower()
-        allergens_value = validated_data.pop("allergens", "")
+        # allergens_value = validated_data.pop("allergens", "")
         # In case request is multipart (image upload) and allergens were sent as repeated keys
-        raw_list = request.data.getlist("allergens") if hasattr(request.data, "getlist") else []
-        if raw_list:  # prefer multipart list if present
-            allergens_value = raw_list
+        # raw_list = request.data.getlist("allergens") if hasattr(request.data, "getlist") else []
+        # if raw_list:  # prefer multipart list if present
+        #   allergens_value = raw_list
         image = validated_data.pop("image", None)
 
         available_values = {"available", "in season (available)", "in season"}
@@ -59,25 +60,6 @@ class ProductCreateSerializer(serializers.Serializer):
             image=image,
             **validated_data
         )
-
-        
-        if isinstance(allergens_value, list):
-            allergen_names = [str(x).strip() for x in allergens_value if str(x).strip()]
-            allergens_text = ", ".join(allergen_names)
-        else:
-            allergens_text = str(allergens_value or "").strip()
-            cleaned = allergens_text.lower().replace("contains", "").strip()
-            allergen_names = [p.strip() for p in cleaned.split(",") if p.strip()] or ([cleaned] if cleaned else [])
-
-        # Save allergens via through model (with description)
-        if allergen_names:
-            for name in allergen_names:
-                allergen_obj, _ = Allergen.objects.get_or_create(name=name.lower())
-                ProductAllergen.objects.get_or_create(
-                    product=product,
-                    allergen=allergen_obj,
-                    defaults={"description": allergens_text}
-                )
 
         return product
     

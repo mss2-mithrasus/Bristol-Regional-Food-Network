@@ -12,17 +12,15 @@ from .models import Cart, CartItem
 from product.models import Product
 from .serializers import CartSerializer, AddToCartSerializer, UpdateCartItemSerializer
 
-from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework.exceptions import AuthenticationFailed
-from rest_framework_simplejwt.tokens import AccessToken
-
 def cart_view(request):
     """
     Display shopping cart page
     """
-    # Try to get user from token in URL first
+    if request.method not in ['GET', 'POST']:
+        from django.http import HttpResponseNotAllowed
+        return HttpResponseNotAllowed(['GET', 'POST'])
     user = None
-    token_from_url = request.GET.get('token')
+    token_from_url = request.GET.get('token') or request.POST.get('token')
     
     if token_from_url:
         try:
@@ -33,34 +31,34 @@ def cart_view(request):
             jwt_auth = JWTAuthentication()
             validated_token = jwt_auth.get_validated_token(token_from_url)
             user = jwt_auth.get_user(validated_token)
-            print(f"✅ Token auth successful: {user.email}")
-        except AuthenticationFailed:
-            print("❌ Token auth failed")
+            print(f" Token auth successful: {user.email}")
+        except Exception:
+            print(" Token auth failed or expired")
     
     # If no user from token, try session
     if not user and request.user.is_authenticated:
         user = request.user
-        print(f"✅ Session auth: {user.email}")
+        print(f" Session auth: {user.email}")
     
     # Check if we have a user
     if not user:
-        print("❌ No authenticated user")
+        print(" No authenticated user")
         return render(request, 'shopping_cart.html', {'login_required': True})
     
-    print(f"✅ Using user: {user.email} (ID: {user.id})")
+    print(f" Using user: {user.email} (ID: {user.id})")
     
     # Get or create cart for this user
     cart, created = Cart.objects.get_or_create(customer=user)
-    print(f"✅ Cart ID: {cart.cart_id}, Created: {created}")
+    print(f" Cart ID: {cart.cart_id}, Created: {created}")
     
     # Get all cart items
     cart_items = cart.items.select_related('product__producer').all()
     items_count = cart_items.count()
-    print(f"📦 Cart items count: {items_count}")
+    print(f" Cart items count: {items_count}")
     
     # If no items, return empty cart
     if items_count == 0:
-        print("❌ No items in cart")
+        print(" No items in cart")
         context = {
             'cart': cart,
             'cart_items': [],
@@ -80,7 +78,9 @@ def cart_view(request):
     
     # Calculate totals
     subtotal = sum(item.quantity * item.product.price for item in cart_items_list)
-    
+    subtotal_float = float(subtotal)
+    network_fee = round(subtotal_float * 0.05, 2)  # Calculate 5% commission
+    total = round(subtotal_float + network_fee, 2)  # Calculate total including fee
     # Group by producer
     producers = []
     producer_dict = {}
@@ -104,12 +104,14 @@ def cart_view(request):
         'cart_items': cart_items_list,
         'producers': producers,
         'subtotal': subtotal,
+        'network_fee': network_fee,
+        'total': total,
         'total_items': cart.total_items,
         'has_items': items_count > 0,
         'tc_006_demo': True,
     }
     
-    print(f"🔍 Context cart_items length: {len(context['cart_items'])}")
+    print(f" Context cart_items length: {len(context['cart_items'])}")
     
     return render(request, 'shopping_cart.html', context)
 
@@ -120,9 +122,9 @@ def add_to_cart(request):
     """
     API endpoint to add item to cart
     """
-    print(f"🔵 ADD TO CART - User: {request.user.email}")
-    print(f"🔵 ADD TO CART - User ID: {request.user.id}")
-    print(f"🔵 ADD TO CART - Auth: {request.auth}")
+    print(f" ADD TO CART - User: {request.user.email}")
+    print(f" ADD TO CART - User ID: {request.user.id}")
+    print(f" ADD TO CART - Auth: {request.auth}")
     serializer = AddToCartSerializer(data=request.data)
     
     if not serializer.is_valid():
@@ -149,11 +151,9 @@ def add_to_cart(request):
     # Get or create cart for user
     cart, _ = Cart.objects.get_or_create(customer=request.user)
     
-    # 👇 ADD THESE DEBUG LINES HERE 👇
-    print(f"🔵 ADD TO CART - Using cart ID: {cart.cart_id}")
-    print(f"🔵 ADD TO CART - Cart belongs to: {cart.customer.email}")
-    print(f"🔵 ADD TO CART - Cart belongs to user ID: {cart.customer.id}")
-    # 👆 ADD THESE DEBUG LINES HERE 👆
+    print(f" ADD TO CART - Using cart ID: {cart.cart_id}")
+    print(f" ADD TO CART - Cart belongs to: {cart.customer.email}")
+    print(f" ADD TO CART - Cart belongs to user ID: {cart.customer.id}")
     
     # Check if item already in cart
     cart_item, created = CartItem.objects.get_or_create(
@@ -288,9 +288,8 @@ def get_cart_data(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def cart_icon_data(request):
-    # The @permission_classes([IsAuthenticated]) already handles JWT
-    print(f"🔵 CART ICON - User: {request.user.email}")
-    print(f"🔵 CART ICON - User ID: {request.user.id}")
+    print(f" CART ICON - User: {request.user.email}")
+    print(f" CART ICON - User ID: {request.user.id}")
 
     cart, _ = Cart.objects.get_or_create(customer=request.user)
     return Response({
