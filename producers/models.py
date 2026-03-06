@@ -2,10 +2,7 @@
 from django.db import models
 from django.conf import settings
 
-
-# -----------------------------
 # SURPLUS DISCOUNT
-# -----------------------------
 class SurplusDiscount(models.Model):
     surplus_id = models.AutoField(primary_key=True)
 
@@ -31,10 +28,7 @@ class SurplusDiscount(models.Model):
         managed = True
         db_table = "surplus_discount"
 
-
-# -----------------------------
 # INVENTORY (Stock Change History)
-# -----------------------------
 class Inventory(models.Model):
     inventory_id = models.AutoField(primary_key=True)
 
@@ -54,9 +48,7 @@ class Inventory(models.Model):
         db_table = "inventory"
 
 
-# -----------------------------
 # SETTLEMENT REPORT
-# -----------------------------
 class SettlementReport(models.Model):
     settlement_report_id = models.AutoField(primary_key=True)
 
@@ -93,10 +85,7 @@ class SettlementReport(models.Model):
         managed = True
         db_table = "settlement_report"
 
-
-# -----------------------------
 # PRODUCER SETTLEMENT ORDER
-# -----------------------------
 class ProducerSettlementOrder(models.Model):
     settlement_order_id = models.AutoField(primary_key=True)
 
@@ -119,10 +108,7 @@ class ProducerSettlementOrder(models.Model):
         managed = True
         db_table = "producer_settlement_order"
 
-
-# -----------------------------
 # FARM STORY
-# -----------------------------
 class FarmStory(models.Model):
     farm_story_id = models.AutoField(primary_key=True)
 
@@ -143,10 +129,7 @@ class FarmStory(models.Model):
         managed = True
         db_table = "farm_story"
 
-
-# -----------------------------
 # RECIPES
-# -----------------------------
 class Recipe(models.Model):
     recipe_id = models.AutoField(primary_key=True)
 
@@ -170,10 +153,7 @@ class Recipe(models.Model):
         managed = True
         db_table = "recipes"
 
-
-# -----------------------------
 # PRODUCTS ↔ RECIPES
-# -----------------------------
 class RecipeProduct(models.Model):
     recipe_product_id = models.AutoField(primary_key=True)
 
@@ -198,10 +178,7 @@ class RecipeProduct(models.Model):
             models.UniqueConstraint(fields=["recipe", "product"], name="unique_recipe_product_link")
         ]
 
-
-# -----------------------------
 # SAVED RECIPES (Customer Favourites)
-# -----------------------------
 class SavedRecipe(models.Model):
     saved_id = models.AutoField(primary_key=True)
 
@@ -228,9 +205,7 @@ class SavedRecipe(models.Model):
         ]
 
 
-# -----------------------------
 # EDUCATIONAL CONTENT
-# -----------------------------
 class EducationalContent(models.Model):
     article_id = models.AutoField(primary_key=True)
     title = models.CharField(max_length=255)

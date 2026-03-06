@@ -1,0 +1,543 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block head %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'shopping_cart.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+{% endblock %}
+
+{% block nav %}
+    <nav class="nav-links">
+        <a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">Home</a>
+        <a href="{% url 'about' %}" class="{% if request.resolver_match.url_name == 'about' %}active{% endif %}">About Us</a>
+        
+        <div class="nav-icons">
+            <a href="javascript:void(0);" onclick="goToCartWithToken()" class="cart-icon {% if request.resolver_match.url_name == 'cart_view' %}active{% endif %}">
+                <i class="fa-solid fa-cart-shopping"></i>
+                {% if total_items > 0 %}
+                    <span class="cart-badge" id="cart-badge">{{ total_items }}</span>
+                {% endif %}
+            </a>
+            <a href="#"><i class="fa-solid fa-bell"></i></a>
+            <a href="{% url 'user_profile' %}"><i class="fa-solid fa-user"></i></a>
+        </div>
+    </nav>
+{% endblock %}
+
+{% block content %}
+<div class="cart-container">
+    <h1 class="cart-title">Your Shopping Cart</h1>
+    
+    {% if cart_items and cart_items|length > 0 %}
+    <!-- Cart Header -->
+    <div class="cart-header">
+        <div class="header-product">Product</div>
+        <div class="header-price">Price</div>
+        <div class="header-quantity">Quantity</div>
+        <div class="header-total">Total</div>
+        <div class="header-action"></div>
+    </div>
+    
+    <!-- Producer Groups -->
+    {% for producer in producers %}
+    <div class="producer-group">
+        <h3 class="producer-name">
+            <i class="fa-solid fa-store"></i> {{ producer.name }}
+        </h3>
+        
+        {% for item in producer.items %}
+        <div class="cart-item" data-item-id="{{ item.cart_item_id }}" data-price="{{ item.product.price }}">
+            <div class="item-product">
+                {% if item.product.image %}
+                    <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="item-image">
+                {% else %}
+                    <img src="{% static 'images/default-product.png' %}" alt="{{ item.product.name }}" class="item-image">
+                {% endif %}
+                <div class="item-details">
+                    <h4 class="item-name">{{ item.product.name }}</h4>
+                    {% if item.organic_certified %}
+                        <span class="organic-badge">
+                            <img src="{% static 'images/organic.png' %}" alt="Organic" class="organic-icon">
+                            Organic
+                        </span>
+                    {% endif %}
+                    <p class="item-unit">{{ item.product.unit }}</p>
+                </div>
+            </div>
+            
+            <div class="item-price">£{{ item.product.price|floatformat:2 }}</div>
+            
+            <div class="item-quantity">
+                <button class="quantity-btn minus" onclick="updateQuantity({{ item.cart_item_id }}, -1)">
+                    <i class="fa-solid fa-minus"></i>
+                </button>
+                <input type="number" class="quantity-input" id="qty-{{ item.cart_item_id }}" 
+                       value="{{ item.quantity }}" min="1" max="{{ item.product.stock_quantity }}"
+                       onchange="changeQuantity({{ item.cart_item_id }}, this.value)">
+                <button class="quantity-btn plus" onclick="updateQuantity({{ item.cart_item_id }}, 1)">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+            </div>
+            
+            <div class="item-total" id="total-{{ item.cart_item_id }}">
+                £{{ item.subtotal|floatformat:2 }}
+            </div>
+            
+            <div class="item-action">
+                <button class="remove-btn" onclick="removeItem({{ item.cart_item_id }})">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+        
+        <!-- Producer Subtotal -->
+        <div class="producer-subtotal">
+            <span>Producer Subtotal:</span>
+            <span class="producer-total">£{{ producer.subtotal|floatformat:2 }}</span>
+        </div>
+    </div>
+    {% endfor %}
+    
+    <!-- Cart Footer with Totals -->
+    <div class="cart-footer">
+        <div class="cart-totals">
+            <div class="total-row">
+                <span>Subtotal ({{ total_items }} items):</span>
+                <span class="total-amount" id="cart-subtotal">£{{ subtotal|floatformat:2 }}</span>
+            </div>
+            
+            <div class="total-row">
+                <span>Network Fee (5%):</span>
+                <span class="fee-amount" id="cart-fee">£{{ network_fee|floatformat:2 }}</span> 
+            </div>
+            
+            <div class="total-row grand-total">
+                <span>Total:</span>
+                <span class="grand-total-amount" id="cart-total">£{{ total|floatformat:2 }}</span>
+            </div>
+            
+            <div class="cart-actions">
+                <a href="/customer/home/category/Vegetables/" class="continue-shopping">
+                    <i class="fa-solid fa-arrow-left"></i> Continue Shopping
+                </a>
+                <a href="/orders/checkout/multi/" class="checkout-btn">
+                    Proceed to Checkout <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+{% else %}
+    <!-- Empty Cart -->
+    <div class="empty-cart">
+        <div class="empty-cart-icon">
+            <i class="fa-solid fa-cart-shopping"></i>
+        </div>
+        <h2>Your cart is empty</h2>
+        <p>Looks like you haven't added any products yet</p>
+        <a href="{% url 'home' %}" class="shop-now-btn">
+            <i class="fa-solid fa-store"></i> Start Shopping
+        </a>
+    </div>
+{% endif %}
+</div>
+
+<script>
+    // Get JWT token from localStorage
+    function getToken() {
+        return localStorage.getItem("access") || sessionStorage.getItem("access");
+    }
+    // Function to go to cart with token
+    function goToCartWithToken() {
+        const token = getToken();
+        if (!token) {
+            window.location.href = "/login/";
+            return;
+        }
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/cart/';
+        
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+        
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = 'token';
+        tokenInput.value = token;
+        
+        form.appendChild(csrfInput);
+        form.appendChild(tokenInput);
+        document.body.appendChild(form);
+        form.submit();
+    }
+    
+    // CSRF Token setup
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+    
+    // Update producer subtotal function
+    function updateProducerSubtotal(itemId, newItemSubtotal) {
+        const itemRow = document.querySelector(`.cart-item[data-item-id="${itemId}"]`);
+        if (!itemRow) return;
+        
+        const producerGroup = itemRow.closest('.producer-group');
+        if (!producerGroup) return;
+        
+        const producerSubtotalEl = producerGroup.querySelector('.producer-total');
+        if (!producerSubtotalEl) return;
+        
+        // Get all items in this producer group and recalculate total
+        let total = 0;
+        producerGroup.querySelectorAll('.cart-item').forEach(item => {
+            const itemTotalEl = item.querySelector('.item-total');
+            if (itemTotalEl) {
+                const value = parseFloat(itemTotalEl.textContent.replace('£', ''));
+                if (!isNaN(value)) total += value;
+            }
+        });
+        
+        producerSubtotalEl.textContent = `£${total.toFixed(2)}`;
+    }
+    
+    // Show notification function
+    function showNotification(message, type) {
+        const existing = document.querySelector('.notification');
+        if (existing) existing.remove();
+        
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.style.position = 'fixed';
+        notification.style.top = '20px';
+        notification.style.right = '20px';
+        notification.style.padding = '15px 25px';
+        notification.style.background = 'white';
+        notification.style.borderRadius = '6px';
+        notification.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        notification.style.zIndex = '1000';
+        notification.style.display = 'flex';
+        notification.style.alignItems = 'center';
+        notification.style.gap = '15px';
+        notification.style.animation = 'slideIn 0.3s';
+        notification.style.borderLeft = `4px solid ${type === 'success' ? '#28a745' : '#dc3545'}`;
+        
+        notification.innerHTML = `
+            <span>${message}</span>
+            <button onclick="this.parentElement.remove()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #999;">×</button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
+    
+    // Update cart icon badge
+    function updateCartIcon(count) {
+        const badge = document.getElementById('cart-badge');
+        if (badge) {
+            if (count > 0) {
+                badge.textContent = count;
+                badge.style.display = 'inline';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    }
+    
+    // Update quantity via +/- buttons
+    function updateQuantity(itemId, change) {
+        const token = getToken();
+        if (!token) {
+            showNotification('Please log in again', 'error');
+            window.location.href = "/login/";
+            return;
+        }
+        
+        const input = document.getElementById(`qty-${itemId}`);
+        let newValue = parseInt(input.value) + change;
+        
+        if (newValue < 1) {
+            if (confirm('Remove this item from cart?')) {
+                removeItem(itemId);
+            }
+            return;
+        }
+        
+        const max = parseInt(input.max);
+        if (newValue > max) {
+            showNotification(`Only ${max} items available in stock`, 'error');
+            return;
+        }
+        
+        // Send update to server
+        fetch(`/cart/api/item/${itemId}/`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ quantity: newValue })
+        })
+        .then(response => {
+            if (response.status === 401) {
+                throw new Error('Session expired. Please login again.');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                input.value = newValue;
+                document.getElementById(`total-${itemId}`).textContent = `£${data.item_subtotal.toFixed(2)}`;
+                document.getElementById('cart-subtotal').textContent = `£${data.cart_subtotal.toFixed(2)}`;
+                
+                // Update producer subtotal
+                updateProducerSubtotal(itemId, data.item_subtotal);
+                
+                updateCartIcon(data.cart_total_items);
+                document.getElementById('cart-fee').textContent = `£${(data.cart_subtotal * 0.05).toFixed(2)}`;
+                document.getElementById('cart-total').textContent = `£${(data.cart_subtotal * 1.05).toFixed(2)}`;
+                
+                const cartBadge = document.querySelector('.cart-badge');
+                if (cartBadge) {
+                    cartBadge.textContent = data.cart_total_items;
+                }
+                
+                showNotification('Cart updated', 'success');
+            } else {
+                showNotification('Error: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification(error.message, 'error');
+            
+            if (error.message.includes('Session expired')) {
+                setTimeout(() => {
+                    window.location.href = '/login/';
+                }, 2000);
+            }
+        });
+    }
+    
+    // Handle manual quantity input change
+    function changeQuantity(itemId, newValue) {
+        const token = getToken();
+        if (!token) {
+            showNotification('Please log in again', 'error');
+            window.location.href = "/login/";
+            return;
+        }
+        
+        newValue = parseInt(newValue);
+        if (newValue < 1) {
+            document.getElementById(`qty-${itemId}`).value = 1;
+            return;
+        }
+        
+        fetch(`/cart/api/item/${itemId}/`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ quantity: newValue })
+        })
+        .then(response => {
+            if (response.status === 401) {
+                throw new Error('Session expired. Please login again.');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                document.getElementById(`total-${itemId}`).textContent = `£${data.item_subtotal.toFixed(2)}`;
+                document.getElementById('cart-subtotal').textContent = `£${data.cart_subtotal.toFixed(2)}`;
+                
+                // Update producer subtotal
+                updateProducerSubtotal(itemId, data.item_subtotal);
+                
+                updateCartIcon(data.cart_total_items);
+                document.getElementById('cart-fee').textContent = `£${(data.cart_subtotal * 0.05).toFixed(2)}`;
+                document.getElementById('cart-total').textContent = `£${(data.cart_subtotal * 1.05).toFixed(2)}`;
+                showNotification('Quantity updated', 'success');
+            } else {
+                showNotification('Error: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification(error.message, 'error');
+            
+            if (error.message.includes('Session expired')) {
+                setTimeout(() => {
+                    window.location.href = '/login/';
+                }, 2000);
+            }
+        });
+    }
+    
+    // Remove item from cart
+    function removeItem(itemId) {
+        const token = getToken();
+        if (!token) {
+            showNotification('Please log in again', 'error');
+            window.location.href = "/login/";
+            return;
+        }
+        
+        if (!confirm('Remove this item from cart?')) {
+            return;
+        }
+        
+        fetch(`/cart/api/item/${itemId}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => {
+            if (response.status === 401) {
+                throw new Error('Session expired. Please login again.');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                const itemRow = document.querySelector(`.cart-item[data-item-id="${itemId}"]`);
+                const producerGroup = itemRow.closest('.producer-group');
+                
+                // Remove item row from DOM
+                itemRow.remove();
+                
+                // Update producer subtotal by recalculating all items in this group
+                let producerTotal = 0;
+                producerGroup.querySelectorAll('.cart-item').forEach(item => {
+                    const itemTotalEl = item.querySelector('.item-total');
+                    if (itemTotalEl) {
+                        const value = parseFloat(itemTotalEl.textContent.replace('£', ''));
+                        if (!isNaN(value)) producerTotal += value;
+                    }
+                });
+                
+                const producerSubtotalEl = producerGroup.querySelector('.producer-total');
+                if (producerSubtotalEl) {
+                    producerSubtotalEl.textContent = `£${producerTotal.toFixed(2)}`;
+                }
+                
+                // Update totals
+                document.getElementById('cart-subtotal').textContent = `£${data.cart_subtotal.toFixed(2)}`;
+                document.getElementById('cart-fee').textContent = `£${(data.cart_subtotal * 0.05).toFixed(2)}`;
+                document.getElementById('cart-total').textContent = `£${(data.cart_subtotal * 1.05).toFixed(2)}`;
+                updateCartIcon(data.cart_total_items);
+                
+                // Check if producer group is empty
+                if (producerGroup.querySelectorAll('.cart-item').length === 0) {
+                    producerGroup.remove();
+                }
+                
+                // Check if cart is empty
+                if (document.querySelectorAll('.cart-item').length === 0) {
+                    location.reload();
+                }
+                
+                showNotification('Item removed from cart', 'success');
+            } else {
+                showNotification('Error: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification(error.message, 'error');
+            
+            if (error.message.includes('Session expired')) {
+                setTimeout(() => {
+                    window.location.href = '/login/';
+                }, 2000);
+            }
+        });
+    }
+    
+    // Add animation keyframes
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Logout function
+    function logoutUser() {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = "/login/";
+    }
+</script>
+
+<style>
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    animation: slideIn 0.3s;
+    border-left: 4px solid;
+}
+
+.notification.success {
+    border-left-color: #28a745;
+}
+
+.notification.error {
+    border-left-color: #dc3545;
+}
+
+.notification button {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #999;
+}
+
+.notification button:hover {
+    color: #333;
+}
+</style>
+{% endblock %}
