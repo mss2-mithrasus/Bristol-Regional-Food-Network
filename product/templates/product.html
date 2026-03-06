@@ -31,8 +31,6 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
         <a href="{%url 'home'%}"
             class="{%if request.resolver_match.url_name == 'home'%}active{%endif%}">Home</a>
 
-        <a href="{% url 'multi_checkout' %}"
-             class="{% if request.resolver_match.url_name == 'multi_checkout' %}active{% endif %}">Checkout</a>
         <!--add order back in-->
 
         <a href="{% url 'about' %}"
