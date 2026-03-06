@@ -1,0 +1,33 @@
+<h3>Order Summary</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th>Quantity</th>
+            <th>Price</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in summary_items %}
+        <tr>
+            <td>{{ item.product.name }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>£{{ item.price }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr>
+            <td colspan="2">Subtotal</td>
+            <td>£{{ subtotal }}</td>
+        </tr>
+        <tr>
+            <td colspan="2">Network Commission (5%)</td>
+            <td>£{{ commission }}</td>
+        </tr>
+        <tr>
+            <td colspan="2">Total</td>
+            <td>£{{ total }}</td>
+        </tr>
+    </tfoot>
+</table>

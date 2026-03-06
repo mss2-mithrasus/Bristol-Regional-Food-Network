@@ -1,0 +1,388 @@
+{% extends "product.html" %}
+{% load static %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'checkout.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="checkout-wrapper">
+    <h2 class="page-title">Multi‑Producer Checkout</h2>
+    
+    <!-- Address Section (Always visible now) -->
+    <div class="address-card">
+        <div class="address-header">
+            <i class="fa-solid fa-location-dot"></i>
+            <h3>Delivery Address</h3>
+        </div>
+        
+        <div class="address-details">
+            <div class="address-item address-full">
+                <span class="address-label">Full Name</span>
+                <span class="address-value">John Doe</span>
+            </div>
+            
+            <div class="address-item address-full">
+                <span class="address-label">Email</span>
+                <span class="address-value">john@example.com</span>
+            </div>
+            
+            <div class="address-item">
+                <span class="address-label">Phone</span>
+                <span class="address-value">+44 7700 900123</span>
+            </div>
+            
+            <div class="address-item address-full">
+                <span class="address-label">Street Address</span>
+                <span class="address-value">123 Test Street</span>
+            </div>
+            
+            <div class="address-item">
+                <span class="address-label">City</span>
+                <span class="address-value">London</span>
+            </div>
+            
+            <div class="address-item">
+                <span class="address-label">Postcode</span>
+                <span class="address-value">SW1A 1AA</span>
+            </div>
+            
+            <div class="address-item">
+                <span class="address-label">Country</span>
+                <span class="address-value">United Kingdom</span>
+            </div>
+        </div>
+    
+        <div class="edit-address">
+            <a href="#">
+                <i class="fa-solid fa-pen"></i> Edit Address
+            </a>
+        </div>
+    </div>
+    
+    <!-- Producer Sections -->
+    {% if producer_groups %}
+        {% for group in producer_groups %}
+        <div class="producer-checkout-card" id="producer-{{ group.producer.id }}">
+            <!-- Producer Header -->
+            <div class="producer-header">
+                <h3>{{ group.producer.name }}</h3>
+            </div>
+            
+            <div class="producer-content">
+                <!-- Left Column - Products -->
+                <div class="products-section">
+                    <h4>Your Items</h4>
+                    <ul class="product-list">
+                        {% for item in group.items %}
+                        <li class="product-row">
+                            <span class="p-name">{{ item.product.name }}</span>
+                            <span class="p-qty">x{{ item.quantity }}</span>
+                            <span class="p-price">£{{ item.price }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                
+                <!-- Right Column - Producer Summary -->
+                <div class="producer-summary-section">
+                    <h4>Order Summary</h4>
+                    
+                    <!-- Producer-specific totals -->
+                    <div class="summary-details">
+                        {% for item in group.items %}
+                        <div class="summary-row">
+                            <span class="summary-label">{{ item.product.name }} x{{ item.quantity }}</span>
+                            <span class="summary-value">£{{ item.price }}</span>
+                        </div>
+                        {% endfor %}
+                        
+                        <div class="summary-row">
+                            <span class="summary-label">Subtotal:</span>
+                            <span class="summary-value">£{{ group.subtotal }}</span>
+                        </div>
+                        
+                        <div class="summary-row">
+                            <span class="summary-label">Commission (5%):</span>
+                            <span class="summary-value">£{{ group.commission }}</span>
+                        </div>
+                        
+                        <div class="summary-row total">
+                            <span class="summary-label">Total:</span>
+                            <span class="summary-value">£{{ group.total }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Delivery / Collect Toggle for this producer -->
+                    <div class="producer-delivery-options">
+                        <button class="producer-option-btn producer-delivery active" 
+                                data-producer="{{ group.producer.id }}"
+                                onclick="setProducerMode('{{ group.producer.id }}', true)">
+                            🚚 Delivery
+                        </button>
+                        <button class="producer-option-btn producer-collect" 
+                                data-producer="{{ group.producer.id }}"
+                                onclick="setProducerMode('{{ group.producer.id }}', false)">
+                            🏪 Collect
+                        </button>
+                    </div>
+                    
+                    <!-- Delivery Date Section (only visible in delivery mode) -->
+                    <div class="delivery-section producer-delivery-section" 
+                         id="delivery-section-{{ group.producer.id }}">
+                        <label for="date-{{ group.producer.id }}">
+                            📅 Select delivery date (48h minimum):
+                        </label>
+                        <input type="date" 
+                               id="date-{{ group.producer.id }}"
+                               name="delivery_date_{{ group.producer.id }}"
+                               min="{{ group.min_delivery_date|date:'Y-m-d' }}"
+                               class="delivery-date"
+                               data-producer="{{ group.producer.id }}"
+                               onchange="validateProducerDate('{{ group.producer.id }}')"
+                               required>
+                        <div class="delivery-helper">
+                            <i>⏰</i> Earliest: {{ group.min_delivery_date|date:"D, j M Y" }}
+                        </div>
+                    </div>
+                    
+                    <!-- Warning for missing date -->
+                    <div class="producer-warning" id="warning-{{ group.producer.id }}">
+                        ⚠️ Please select delivery date
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        
+        <!-- Global Order Summary with Single Payment Button -->
+        <div class="global-summary-card">
+            <h3>Complete Order Summary</h3>
+            
+            <!-- List all producers with their totals -->
+            {% for group in producer_groups %}
+            <div class="summary-row">
+                <span class="summary-label">{{ group.producer.name }}:</span>
+                <span class="summary-value">£{{ group.total }}</span>
+            </div>
+            {% endfor %}
+            
+            <div class="summary-row total">
+                <span class="summary-label">Order Total:</span>
+                <span class="summary-value">£{{ total }}</span>
+            </div>
+            
+            <div class="summary-row">
+                <span class="summary-label">Total Items:</span>
+                <span class="summary-value">{{ summary_items|length }}</span>
+            </div>
+            
+            <div class="summary-row">
+                <span class="summary-label">Producers:</span>
+                <span class="summary-value">{{ producer_groups|length }}</span>
+            </div>
+            
+            <!-- Global Warning Message -->
+            <div id="globalWarning" class="warning-message" style="margin: 15px 0;">
+                ⚠️ Please select delivery dates for all producers in delivery mode
+            </div>
+            
+            <!-- Single Payment Button for Entire Order -->
+            <form method="POST" action="{% url 'payment_page' %}" id="globalPaymentForm" onsubmit="return validateGlobalPayment()">
+                {% csrf_token %}
+                
+                <!-- Hidden inputs for all producers -->
+                {% for group in producer_groups %}
+                <input type="hidden" name="producer_{{ group.producer.id }}_delivery_date" 
+                       id="global-hidden-{{ group.producer.id }}" value="">
+                <input type="hidden" name="producer_{{ group.producer.id }}_method" 
+                       id="global-method-{{ group.producer.id }}" value="delivery">
+                {% endfor %}
+                
+                <button type="submit" class="btn-primary full-width" id="globalPayBtn">
+                    💳 Pay Total: £{{ total }}
+                </button>
+            </form>
+        </div>
+        
+    {% else %}
+    <!-- Empty cart message -->
+    <div class="empty-cart-message">
+        <h3>Your cart is empty</h3>
+        <p>Add some items to your cart before checkout</p>
+        <a href="/">Browse Products</a>
+    </div>
+    {% endif %}
+    
+    <div class="bottom-spacer"></div>
+</div>
+
+<script>
+// Store delivery modes and dates for each producer
+const producerStates = {};
+
+// Initialize states for all producers
+document.addEventListener("DOMContentLoaded", function() {
+    {% for group in producer_groups %}
+    producerStates['{{ group.producer.id }}'] = {
+        isDelivery: true,
+        dateSelected: false,
+        dateValue: ''
+    };
+    {% endfor %}
+    
+    // Check global payment button state
+    updateGlobalPaymentButton();
+});
+
+// Set delivery/collect mode for a specific producer
+function setProducerMode(producerId, isDelivery) {
+    const deliveryBtn = document.querySelector(`.producer-delivery[data-producer="${producerId}"]`);
+    const collectBtn = document.querySelector(`.producer-collect[data-producer="${producerId}"]`);
+    const deliverySection = document.getElementById(`delivery-section-${producerId}`);
+    const methodInput = document.getElementById(`global-method-${producerId}`);
+    const dateInput = document.getElementById(`date-${producerId}`);
+    const warning = document.getElementById(`warning-${producerId}`);
+    
+    if (isDelivery) {
+        // Delivery mode
+        deliveryBtn.classList.add('active');
+        collectBtn.classList.remove('active');
+        if (methodInput) methodInput.value = 'delivery';
+        
+        // Show delivery section
+        deliverySection.classList.remove('hidden');
+        dateInput.required = true;
+        dateInput.disabled = false;
+        
+        // Update state
+        producerStates[producerId].isDelivery = true;
+        
+        // Check if date was previously selected
+        if (producerStates[producerId].dateSelected) {
+            warning.classList.remove('show');
+        } else {
+            warning.classList.add('show');
+        }
+    } else {
+        // Collect mode
+        collectBtn.classList.add('active');
+        deliveryBtn.classList.remove('active');
+        if (methodInput) methodInput.value = 'collect';
+        
+        // Hide delivery section
+        deliverySection.classList.add('hidden');
+        dateInput.required = false;
+        dateInput.disabled = true;
+        dateInput.value = '';
+        
+        // Update state
+        producerStates[producerId].isDelivery = false;
+        producerStates[producerId].dateSelected = false;
+        producerStates[producerId].dateValue = '';
+        warning.classList.remove('show');
+        
+        // Clear hidden input
+        const hiddenInput = document.getElementById(`global-hidden-${producerId}`);
+        if (hiddenInput) hiddenInput.value = '';
+    }
+    
+    // Update global payment button
+    updateGlobalPaymentButton();
+}
+
+// Validate date for a specific producer
+function validateProducerDate(producerId) {
+    const dateInput = document.getElementById(`date-${producerId}`);
+    const hiddenInput = document.getElementById(`global-hidden-${producerId}`);
+    const warning = document.getElementById(`warning-${producerId}`);
+    
+    if (dateInput.value) {
+        const selectedDate = new Date(dateInput.value);
+        const minAllowedDate = new Date(dateInput.min);
+        
+        if (selectedDate < minAllowedDate) {
+            alert('Please select a date at least 48 hours from now');
+            dateInput.value = '';
+            if (hiddenInput) hiddenInput.value = '';
+            
+            producerStates[producerId].dateSelected = false;
+            producerStates[producerId].dateValue = '';
+            warning.classList.add('show');
+        } else {
+            // Valid date selected
+            if (hiddenInput) hiddenInput.value = dateInput.value;
+            
+            producerStates[producerId].dateSelected = true;
+            producerStates[producerId].dateValue = dateInput.value;
+            warning.classList.remove('show');
+        }
+    } else {
+        if (hiddenInput) hiddenInput.value = '';
+        producerStates[producerId].dateSelected = false;
+        producerStates[producerId].dateValue = '';
+        warning.classList.add('show');
+    }
+    
+    // Update global payment button
+    updateGlobalPaymentButton();
+}
+
+// Check if all producers in delivery mode have dates selected
+function allDeliveryDatesSelected() {
+    for (const [producerId, state] of Object.entries(producerStates)) {
+        if (state.isDelivery && !state.dateSelected) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Update global payment button state
+function updateGlobalPaymentButton() {
+    const globalPayBtn = document.getElementById('globalPayBtn');
+    const globalWarning = document.getElementById('globalWarning');
+    
+    if (allDeliveryDatesSelected()) {
+        globalPayBtn.disabled = false;
+        globalPayBtn.classList.remove('disabled');
+        globalWarning.style.display = 'none';
+        console.log('✅ All delivery dates selected - payment enabled');
+    } else {
+        globalPayBtn.disabled = true;
+        globalPayBtn.classList.add('disabled');
+        globalWarning.style.display = 'block';
+        console.log('⚠️ Missing delivery dates - payment disabled');
+    }
+}
+
+// Validate before global payment
+function validateGlobalPayment() {
+    if (!allDeliveryDatesSelected()) {
+        alert('Please select delivery dates for all producers in delivery mode before proceeding to payment.');
+        return false;
+    }
+    
+    // Log all producer data before submission
+    console.log('Submitting order with:');
+    for (const [producerId, state] of Object.entries(producerStates)) {
+        console.log(`Producer ${producerId}:`, {
+            method: state.isDelivery ? 'delivery' : 'collect',
+            date: state.dateValue || 'N/A'
+        });
+    }
+    
+    return true;
+}
+
+// Show calendar on click
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('delivery-date')) {
+        if (e.target.showPicker) {
+            e.target.showPicker();
+        }
+    }
+});
+</script>
+
+{% endblock %}

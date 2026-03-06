@@ -1,0 +1,48 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Bristol Regional Food Network</title>
+        <link rel="stylesheet" href="{% static 'base.css' %}?v={% now 'U' %}">
+        <!-- Add Font Awesome here in base -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+        
+        {% block head %}
+        {% endblock %}
+    </head>
+    
+    <body> 
+        <header class="navbar">
+            <div class="nav-left">
+                <img src="{% static 'images/leaf.png' %}" alt="Leaf logo" class="logo">
+                <span class="title">Bristol Regional Food Network</span>
+            </div>
+
+            <nav class="nav-links">
+                <a href="{% url 'home' %}"
+                   class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">Home</a>
+
+                <a href="{% url 'about' %}"
+                   class="{% if request.resolver_match.url_name == 'about' %}active{% endif %}">About Us</a>
+
+                <!-- Add icons directly here - they will inherit existing styles -->
+                <a href="#"><i class="fa-solid fa-cart-shopping"></i></a>
+                 <a href="#">CART</a>
+                <a href="#"><i class="fa-solid fa-bell"></i></a>
+                <a href="{% url 'user_profile' %}"><i class="fa-solid fa-user"></i></a>
+                <a href="#">Login</a>
+            </nav>
+        </header>
+
+        <main>
+            {% block content %}
+            {% endblock %}
+        </main>
+
+        <footer class="footer">
+            <p>Local Food Marketplace | Supporting Local Farmers</p>
+        </footer>
+    </body>
+</html>
