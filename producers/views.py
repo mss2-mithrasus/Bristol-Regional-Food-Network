@@ -228,7 +228,7 @@ class ProductUpdateView(APIView):
 
         serializer = ProductSerializer(product, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()  # this will save image too if it is in request.FILES
+            serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)   

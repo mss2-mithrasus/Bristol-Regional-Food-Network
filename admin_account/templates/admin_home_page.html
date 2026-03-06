@@ -8,21 +8,14 @@
 
     <link rel="stylesheet" href="{% static 'base.css' %}">
     <link rel="stylesheet" href="{% static 'admin_home_page.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 
-<body>
-
 <header class="navbar">
-    <div class="nav-left">
-        <img src="{% static 'images/leaf.png' %}" class="logo" alt="Logo">
-        <span class="title">Admin Dashboard</span>
-    </div>
-
-    <nav class="nav-links">
-        <a href="{% url 'admin_home' %}" class="active">Dashboard</a>
-        <a href="{% url 'home' %}" onclick="adminLogout()">Logout</a>
-    </nav>
+    {% include "header.html" %}
 </header>
+
+<body>
 
 <div class="admin_container">
 
@@ -42,11 +35,13 @@
         <h2>Producers</h2>
         <div id="producerContainer"></div>
     </section>
+
     <h1>Failed Login Attempts Record</h1>
     <section class="admin_section">
         <h2>Failed Login Attempts</h2>
         <div id="failedLoginContainer"></div>
     </section>
+
     <h1>Deleted Accounts Record</h1>
     <section class="admin_section">
         <h2>Deleted Accounts</h2>
@@ -60,30 +55,71 @@
 </footer>
 
 <script>
-window.onload = function () {
 
-    function getToken() {
-        return localStorage.getItem("access") || sessionStorage.getItem("access");
-    }
+window.getToken = function () {
+    return localStorage.getItem("access") || sessionStorage.getItem("access");
+};
+
+window.approveAccount = async function(userId, roleType) {
+    await fetch("/admin-dashboard/approve/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + getToken()
+        },
+        body: JSON.stringify({ user_id: userId, role: roleType })
+    });
+    loadPendingAccounts();
+};
+
+window.rejectAccount = async function(userId) {
+    await fetch("/admin-dashboard/reject/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + getToken()
+        },
+        body: JSON.stringify({ user_id: userId })
+    });
+    loadPendingAccounts();
+};
+
+window.onload = function () {
 
     if (!getToken()) {
         window.location.href = "{% url 'login' %}";
     }
 
-    async function loadPendingAccounts() {
-        const response = await fetch("/api/admin/pending/", {
+    loadPendingAccounts();
+    loadFailedLogins();
+    loadDeletedAccounts();
+};
+// Load pending accounts
+async function loadPendingAccounts() {
+    const communityContainer = document.getElementById("communityContainer");
+    const restaurantContainer = document.getElementById("restaurantContainer");
+    const producerContainer = document.getElementById("producerContainer");
+
+    communityContainer.innerHTML = "";
+    restaurantContainer.innerHTML = "";
+    producerContainer.innerHTML = "";
+
+    try {
+        const response = await fetch("/admin-dashboard/pending/", {
             headers: { "Authorization": "Bearer " + getToken() }
         });
 
+        if (!response.ok) {
+            const text = await response.text();
+            const msg = `Error loading pending accounts (${response.status}).`;
+            communityContainer.innerHTML = `<p class="empty-message">${msg}</p>`;
+            restaurantContainer.innerHTML = `<p class="empty-message">${msg}</p>`;
+            producerContainer.innerHTML = `<p class="empty-message">${msg}</p>`;
+            console.error("Pending API error:", response.status, text);
+            return;
+        }
+
         const payload = await response.json();
-
-        const communityContainer = document.getElementById("communityContainer");
-        const restaurantContainer = document.getElementById("restaurantContainer");
-        const producerContainer = document.getElementById("producerContainer");
-
-        communityContainer.innerHTML = "";
-        restaurantContainer.innerHTML = "";
-        producerContainer.innerHTML = "";
 
         const customers = Array.isArray(payload.customers) ? payload.customers : [];
         const producers = Array.isArray(payload.producers) ? payload.producers : [];
@@ -95,62 +131,73 @@ window.onload = function () {
         renderAccountList(communityAccounts, communityContainer, "customer", "No pending community group approvals.");
         renderAccountList(restaurantAccounts, restaurantContainer, "customer", "No pending restaurant approvals.");
         renderAccountList(producerAccounts, producerContainer, "producer", "No pending producer approvals.");
+    } catch (err) {
+        console.error("Pending accounts JS error:", err);
+        const msg = "Error loading pending accounts (JS error). Check console.";
+        communityContainer.innerHTML = `<p class="empty-message">${msg}</p>`;
+        restaurantContainer.innerHTML = `<p class="empty-message">${msg}</p>`;
+        producerContainer.innerHTML = `<p class="empty-message">${msg}</p>`;
+    }
+}
+
+function renderAccountList(list, container, roleType, emptyMessage) {
+    if (!Array.isArray(list) || list.length === 0) {
+        container.innerHTML = `<p class="empty-message">${emptyMessage}</p>`;
+        return;
     }
 
-    function renderAccountList(list, container, roleType, emptyMessage) {
-        if (!Array.isArray(list) || list.length === 0) {
-            container.innerHTML = `<p class="empty-message">${emptyMessage}</p>`;
-            return;
+    list.forEach(entry => {
+
+        let nameLine = "";
+        let contactLine = "";
+
+        if (entry.account_type === "community") {
+            nameLine = `<p><strong>Name:</strong> ${entry.organisation_name}</p>`;
         }
 
-        list.forEach(entry => {
-            container.innerHTML += `
-                <div class="admin_card">
-                    <p><strong>Name:</strong> ${entry.organisation_name || entry.business_name}</p>
-                    <p><strong>Contact:</strong> ${(entry.first_name || "") + " " + (entry.last_name || "")}</p>
-                    <p><strong>Email:</strong> ${entry.email}</p>
-                    <p><strong>Phone:</strong> ${entry.phone || "N/A"}</p>
+        else if (entry.account_type === "restaurant") {
+            nameLine = `<p><strong>Name:</strong> ${entry.organisation_name}</p>`;
+        }
 
-                    <button class="approve_btn" onclick="approveAccount('${entry.user_id}', '${roleType}')">Approve</button>
-                    <button class="reject_btn" onclick="rejectAccount('${entry.user_id}')">Reject</button>
-                </div>
-            `;
-        });
-    }
+        else if (roleType === "producer") {
+            nameLine = `<p><strong>Business:</strong> ${entry.business_name}</p>`;
+            contactLine = `<p><strong>Contact:</strong> ${entry.name}</p>`;
+        }
 
-    async function approveAccount(userId, roleType) {
-        await fetch("/api/admin/approve/", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": "Bearer " + getToken()
-            },
-            body: JSON.stringify({ user_id: userId, role: roleType })
-        });
-        loadPendingAccounts();
-    }
+        else {
+            nameLine = `<p><strong>Name:</strong> ${entry.name}</p>`;
+        }
 
-    async function rejectAccount(userId) {
-        await fetch("/api/admin/reject/", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": "Bearer " + getToken()
-            },
-            body: JSON.stringify({ user_id: userId })
-        });
-        loadPendingAccounts();
-    }
+        container.innerHTML += `
+            <div class="admin_card">
+                ${nameLine}
+                ${contactLine}
+                <p><strong>Email:</strong> ${entry.email}</p>
+                <p><strong>Phone:</strong> ${entry.phone || "N/A"}</p>
 
-    async function loadFailedLogins() {
-        const response = await fetch("/api/admin/failed-logins/", {
+                <button class="approve_btn" onclick="approveAccount('${entry.user_id}', '${roleType}')">Approve</button>
+                <button class="reject_btn" onclick="rejectAccount('${entry.user_id}')">Reject</button>
+            </div>
+        `;
+    });
+}
+
+// Failed login attempts
+async function loadFailedLogins() {
+    const container = document.getElementById("failedLoginContainer");
+    container.innerHTML = "";
+
+    try {
+        const response = await fetch("/admin-dashboard/failed-logins/", {
             headers: { "Authorization": "Bearer " + getToken() }
         });
 
-        const list = await response.json();
-        const container = document.getElementById("failedLoginContainer");
-        container.innerHTML = "";
+        if (!response.ok) {
+            container.innerHTML = "<p class='empty-message'>No failed login attempts found.</p>";
+            return;
+        }
 
+        const list = await response.json();
         const safeList = Array.isArray(list) ? list : [];
 
         if (safeList.length === 0) {
@@ -168,17 +215,30 @@ window.onload = function () {
                 </div>
             `;
         });
-    }
 
-    async function loadDeletedAccounts() {
-        const response = await fetch("/api/admin/deleted-accounts/", {
+    } catch (err) {
+        console.error("Failed logins JS error:", err);
+        container.innerHTML = "<p class='empty-message'>No failed login attempts found.</p>";
+    }
+}
+
+// Deleted accounts
+
+async function loadDeletedAccounts() {
+    const container = document.getElementById("deletedAccountsContainer");
+    container.innerHTML = "";
+
+    try {
+        const response = await fetch("/admin-dashboard/deleted-accounts/", {
             headers: { "Authorization": "Bearer " + getToken() }
         });
 
-        const list = await response.json();
-        const container = document.getElementById("deletedAccountsContainer");
-        container.innerHTML = "";
+        if (!response.ok) {
+            container.innerHTML = "<p class='empty-message'>No deleted account records found.</p>";
+            return;
+        }
 
+        const list = await response.json();
         const safeList = Array.isArray(list) ? list : [];
 
         if (safeList.length === 0) {
@@ -196,12 +256,12 @@ window.onload = function () {
                 </div>
             `;
         });
-    }
 
-    loadPendingAccounts();
-    loadFailedLogins();
-    loadDeletedAccounts();
-};
+    } catch (err) {
+        console.error("Deleted accounts JS error:", err);
+        container.innerHTML = "<p class='empty-message'>No deleted account records found.</p>";
+    }
+}
 </script>
 
 </body>

@@ -12,7 +12,8 @@ urlpatterns = [
     path("admin-dashboard/", include("admin_account.urls")),
     path('cart/', include('shopping_cart.urls')), 
     path('admin/', admin.site.urls),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),  
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'), 
+    path("orders/", include("order_management.urls")), 
     path('api/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),  
 ]
 

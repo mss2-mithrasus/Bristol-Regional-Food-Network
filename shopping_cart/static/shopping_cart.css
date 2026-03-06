@@ -410,7 +410,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding-left: 85px; /* Align with image width + gap */
+        padding-left: 85px;
     }
     
     .item-price::before {

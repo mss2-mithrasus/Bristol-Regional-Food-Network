@@ -58,4 +58,3 @@ class ProducerAccountAdmin(admin.ModelAdmin):
     def verify_producers(self, request, queryset):
         queryset.update(account_verified=True)
     verify_producers.short_description = "Set selected producers as verified"
-
