@@ -13,18 +13,14 @@
 
 <body>
 
+<!-- Added for dynamically loading buttons and removed the old header section -->
 <header class="navbar">
-    <div class="nav-left">
-        <img src="{% static 'images/leaf.png' %}" class="logo">
-        <span class="title">Bristol Regional Food Network</span>
-    </div>
-
-    <nav class="nav-links">
-        <!-- <a href="{% url 'home' %}">Home</a> -->
-        <a href="{% url 'user_profile' %}"><i class="fa-solid fa-user"></i></a>
-        <!-- <a href="{% url 'user_profile' %}" class="active">Profile</a> -->
-    </nav>
+    {% include "header.html" %}
 </header>
+
+
+
+
 
 <main class="user_profile_container">
 
@@ -129,7 +125,7 @@ if (!getAccessToken()) {
 function logoutUser() {
     localStorage.clear();
     sessionStorage.clear();
-    window.location.href = "/login/";
+    window.location.href = "/";
 }
 
 let profileData = {};
@@ -145,6 +141,8 @@ async function loadProfile() {
     }
 
     profileData = await response.json();
+    localStorage.setItem("role", profileData.role);
+
 
     for (const key in profileData) {
         const el = document.getElementById(key);
@@ -257,6 +255,5 @@ async function confirmHardDelete() {
 
 
 </script>
-
 </body>
 </html>

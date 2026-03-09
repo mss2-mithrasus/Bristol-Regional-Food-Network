@@ -27,13 +27,21 @@
 
 
     <h3>Allergens</h3>
-    {% if product.allergens.exists %}
-        <ul class="allergens-list">
-            {% for allergen in product.allergens.all %}
-                <li class="allergen-name">{{ allergen.name }}</li>
-            {% endfor %}
-        </ul>
-        {% else %}
+    {%if product.productallergen_set.all %}
+    <ul class="allergens-list">
+        {# looping through each allergen the product has#}
+         {% for pa in product.productallergen_set.all%}
+        <li>
+            <span class="allergen-name">{{ pa.allergen.name}}</span>
+            {# displaying allergen description #}
+            {% if pa.description%} - Description: {{ pa.description}}
+            {%endif%}
+        </li>
+        {%endfor%}
+    </ul>
+
+    {# if no allergens are present then message is displayed#}
+    {%else%}
         <p>No allergens are present.</p>
         {% endif %}
     <h3>Farm miles: </h3>

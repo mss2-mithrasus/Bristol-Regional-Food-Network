@@ -52,7 +52,7 @@
         <!-- REGISTRATION FORM -->
         <form id="registerForm" class="register-form">
             
-            <!-- CUSTOMER: NOEMAL CUSTOMER -->
+            <!-- CUSTOMER: NORMAL CUSTOMER -->
             <div id="custIndividualFields">
                 <div class="input_row">
                     <label>First Name:</label>
@@ -439,9 +439,6 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         }
 
-
-
-
         // Cannot be numeric only
         if (/^\d+$/.test(password)) {
             errorBox.innerHTML = "Password cannot be entirely numeric.";
@@ -472,7 +469,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         // Similarity to user info
-        // Similarity to user info
         const emailValue = getVisibleValue("email");
         const phoneValue = getVisibleValue("phone");
         const postcodeValue = getVisibleValue("postcode");
@@ -497,7 +493,7 @@ document.addEventListener("DOMContentLoaded", function () {
             errorBox.innerHTML = "Password is too similar to your personal information.";
             return;
         }
-        // hecsk if phone number is valid and only included digits
+        // check if phone number is valid and only included digits
         if (phoneValue && !/^[0-9]+$/.test(phoneValue)) {
             errorBox.innerHTML = "Phone number must contain digits only.";
             return;
@@ -542,6 +538,12 @@ document.addEventListener("DOMContentLoaded", function () {
             password: password,
             password2: confirmPassword,
             role: role,
+            // Account type 
+            account_type:
+                custCommunityBtn.classList.contains("active") ? "community" :
+                custRestaurantBtn.classList.contains("active") ? "restaurant" :
+                "normal",
+
             // These are role depenedent
             contact_first_name: getVisibleValue("contact_first_name"),
             contact_last_name: getVisibleValue("contact_last_name"),
