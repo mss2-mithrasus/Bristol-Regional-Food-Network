@@ -84,10 +84,6 @@ window.rejectAccount = async function(userId) {
     loadPendingAccounts();
 };
 
-/* ---------------------------
-   PAGE LOAD
-   --------------------------- */
-
 window.onload = function () {
 
     if (!getToken()) {
@@ -143,10 +139,6 @@ async function loadPendingAccounts() {
         producerContainer.innerHTML = `<p class="empty-message">${msg}</p>`;
     }
 }
-
-/* ---------------------------
-   RENDER ACCOUNT LIST
-   --------------------------- */
 
 function renderAccountList(list, container, roleType, emptyMessage) {
     if (!Array.isArray(list) || list.length === 0) {

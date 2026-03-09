@@ -192,7 +192,7 @@ class LoginSerializer(serializers.Serializer):
                 user_agent=request.META.get("HTTP_USER_AGENT", "")
             )
             raise serializers.ValidationError({"error": "Invalid credentials"})
-        # Stops user who have soft deleted their account from loggin in
+        # Stops user who have soft deleted their account from logging in
         if not user.is_active:
             raise serializers.ValidationError({"error": "This account has been deactivated."})
         # Stops unverified producers from loggin in
@@ -227,4 +227,3 @@ class DeletionAuditSerializer(serializers.ModelSerializer):
     class Meta:
         model = DeletionAudit
         fields = ["hashed_user_identifier", "role", "reason", "deleted_at"]
-

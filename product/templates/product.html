@@ -1,4 +1,3 @@
-
 <!--
 
 ADD LINE LIKE WELCOME CUSTOMER NAME 
@@ -11,7 +10,7 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
 -->
 
 
-   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 {%extends "base.html"%}
 
@@ -21,17 +20,45 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
 
     {{ block.super }}
     <link rel="stylesheet" href="{% static 'product.css' %}">
+    <script>
+        function getToken() {
+            return localStorage.getItem("access") || sessionStorage.getItem("access");
+        }
+        function goToCartWithToken(event) {
+            event.preventDefault();
+            const token = getToken();
+            if (!token) {
+                window.location.href = "/login/";
+                return;
+            }
+            // Create a hidden form and POST the token instead of showing it in URL
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/cart/';
+            
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+            
+            const tokenInput = document.createElement('input');
+            tokenInput.type = 'hidden';
+            tokenInput.name = 'token';
+            tokenInput.value = token;
+            
+            form.appendChild(csrfInput);
+            form.appendChild(tokenInput);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    </script>
 {% endblock %}
 
 {%block nav%}
 
     <nav class="nav-links">
-                <!--we want the buttons styling to be active if we are on that page to make it clear what page the user is currently on
-                which is what is being done here-->
         <a href="{%url 'home'%}"
             class="{%if request.resolver_match.url_name == 'home'%}active{%endif%}">Home</a>
-
-        <!--add order back in-->
 
         <a href="{% url 'about' %}"
             class="{% if request.resolver_match.url_name == 'about'%}active{%endif%}">
@@ -39,13 +66,14 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
         </a>
 
         <div class="nav-icons">
-                
-                <a href="#"><i class="fa-solid fa-cart-shopping"></i></a>
-                <a href="#"><i class="fa-solid fa-bell"></i></a>
-                <a href="{% url 'user_profile' %}"><i class="fa-solid fa-user"></i></a>
-            </div>
-
-
+            <!-- Cart icon with token handling -->
+            <a href="#" onclick="goToCartWithToken(event)" class="cart-icon" id="cart-icon-link">
+                <i class="fa-solid fa-cart-shopping"></i>
+                <span class="cart-badge" id="cart-badge" style="display: none;">0</span>
+            </a>
+            <a href="#"><i class="fa-solid fa-bell"></i></a>
+            <a href="{% url 'user_profile' %}"><i class="fa-solid fa-user"></i></a>
+        </div>
     </nav>
 
 {%endblock%}
@@ -65,107 +93,317 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
 {% if query %} 
 <h2 class="search-title">Search results for "{{ query}}"</h2>
 
-
-
     <div class="product-container">
         {% if products %}
             {% for product in products%}
-                <div class="product-card">
+                <div class="product-card" data-product-id="{{ product.product_id }}">
                     {% if product.image %}
                         <img src="{{ product.image.url }}" alt="{{ product.name }}">
                     {% else %}
                         <img src="{% static 'images/default-product.png' %}" alt="{{ product.name }}">
                     {% endif %}
 
-       
                     <div class="field-row">
-
                         <h4 class="field"><span class="label">Product:</span> {{product.name}}</h4>
-
                         {%if product.organic_certified%}
                             <img src="{% static 'images/organic.png'%}" alt='organic badge' class="organic-badge">
                         {%endif%}
                     </div>
 
                     <h4 class="field"><span class="label">Producer:</span> {{product.producer_name}}</h4>
-
                     <h4 class="field"><span class="label">Price:</span> {{product.price}}</h4>
-
                     <h4 class="field"><span class="label">Status:</span> {{product.availability_status|yesno:"Available, Out of stock"}}</h4>
-
-         
 
                     <div class="button-group">
                         <div class="quantity">
                             <button class="plus">+</button>
                             <button class="minus">-</button>
                         </div>
-
-        
                         <button class="add-cart">Add to Cart</button>
-            
-            
                     </div>
+                    
                     <a href="{% url 'product_detail' product_id=product.product_id%}">
                         <button class="product-details">View Product Details</button>
                     </a>
-    
                 </div>
-       
             {% endfor %}
         {% else%}
-        <p>No products available for this query</p>
+            <p>No products available for this query</p>
         {%endif%}
-
-
-
-
 
 {%else%}
 
 <div class="category">
-
     {% for category in categories %}
-
-    
-    <a href="{% url 'products_category' category.category_name%}" class="category-card">
-
-        {% if category.image_path %}
-            <img src="{% static category.image_path %}" alt="{{category.category_name}}">
-        {% endif%}
-
-        <p> {{ category.category_name}}</p>
-        
-
-    </a>
-
-{%empty %}
-
-    <p>No categories found</p>
-   
-
-{% endfor %}
-
+        <a href="{% url 'products_category' category.category_name%}" class="category-card">
+            {% if category.image_path %}
+                <img src="{% static category.image_path %}" alt="{{category.category_name}}">
+            {% endif%}
+            <p> {{ category.category_name}}</p>
+        </a>
+    {%empty %}
+        <p>No categories found</p>
+    {% endfor %}
 </div>
 
 {%endif%}
 
 {% endblock %}
 
-<!-- Login and Logout Sessions -->
-<!-- Micaiah Palha - 23033423 -->
 <script>
-    // Get token from either storage
-    function getAccessToken() {
+    // Get JWT token from storage
+    function getToken() {
         return localStorage.getItem("access") || sessionStorage.getItem("access");
     }
+    
+    // CSRF Token setup
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+    
 
-    // Protect this page
-    if (!getAccessToken()) {
+    const token = getToken();
+    if (!token) {
         window.location.href = "/login/";
     }
-
-    // Logout function (used by user_profile.html)
+    
+    // Function to go to cart with token
+    function goToCartWithToken(event) {
+        event.preventDefault();
+        const token = getToken();
+        if (!token) {
+            window.location.href = "/login/";
+            return;
+        }
+        window.location.href = "/cart/?token=" + token;
+    }
+    
+    // Show notification function
+    function showNotification(message, type) {
+        const existing = document.querySelector('.notification');
+        if (existing) existing.remove();
+        
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.style.position = 'fixed';
+        notification.style.top = '20px';
+        notification.style.right = '20px';
+        notification.style.padding = '15px 25px';
+        notification.style.background = 'white';
+        notification.style.borderRadius = '6px';
+        notification.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        notification.style.zIndex = '1000';
+        notification.style.display = 'flex';
+        notification.style.alignItems = 'center';
+        notification.style.gap = '15px';
+        notification.style.animation = 'slideIn 0.3s';
+        notification.style.borderLeft = `4px solid ${type === 'success' ? '#28a745' : '#dc3545'}`;
+        
+        notification.innerHTML = `
+            <span>${message}</span>
+            <button onclick="this.parentElement.remove()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #999;">×</button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
+    
+    // Update cart badge
+    function updateCartBadge(count) {
+        const badge = document.getElementById('cart-badge');
+        if (badge) {
+            if (count > 0) {
+                badge.textContent = count;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    }
+    
+    // Add to cart function with JWT
+    function addToCart(productId, quantity = 1, button) {
+        const token = getToken();
+        if (!token) {
+            showNotification('Please log in', 'error');
+            window.location.href = '/login/';
+            return;
+        }
+        
+        if (button) {
+            button.textContent = 'Adding...';
+            button.disabled = true;
+        }
+        
+        fetch('/cart/api/add/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({
+                product_id: parseInt(productId),
+                quantity: quantity
+            })
+        })
+        .then(response => {
+            if (response.status === 401) {
+                throw new Error('Session expired');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                updateCartBadge(data.cart_total_items);
+                
+                const display = button?.closest('.product-card')?.querySelector('.quantity-display');
+                if (display) {
+                    display.textContent = '1';
+                }
+            } else {
+                showNotification('Error: ' + (data.error || 'Could not add to cart'), 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification(error.message, 'error');
+            if (error.message === 'Session expired') {
+                setTimeout(() => window.location.href = '/login/', 2000);
+            }
+        })
+        .finally(() => {
+            if (button) {
+                button.textContent = 'Add to Cart';
+                button.disabled = false;
+            }
+        });
+    }
+    
+    // Initialize quantity controls
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.product-card').forEach(card => {
+            // Add quantity display
+            const quantityDiv = card.querySelector('.quantity');
+            if (quantityDiv) {
+                let quantityDisplay = card.querySelector('.quantity-display');
+                if (!quantityDisplay) {
+                    quantityDisplay = document.createElement('span');
+                    quantityDisplay.className = 'quantity-display';
+                    quantityDisplay.textContent = '1';
+                    quantityDisplay.style.minWidth = '30px';
+                    quantityDisplay.style.textAlign = 'center';
+                    quantityDisplay.style.fontWeight = 'bold';
+                    quantityDisplay.style.color = '#406083';
+                    
+                    const minusBtn = quantityDiv.querySelector('.minus');
+                    const plusBtn = quantityDiv.querySelector('.plus');
+                    if (minusBtn && plusBtn) {
+                        quantityDiv.insertBefore(quantityDisplay, plusBtn);
+                    }
+                }
+            }
+            
+            // Plus button
+            const plusBtn = card.querySelector('.plus');
+            if (plusBtn) {
+                plusBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const display = card.querySelector('.quantity-display');
+                    if (display) {
+                        let currentQty = parseInt(display.textContent);
+                        if (currentQty < 10) {
+                            display.textContent = currentQty + 1;
+                        }
+                    }
+                });
+            }
+            
+            // Minus button
+            const minusBtn = card.querySelector('.minus');
+            if (minusBtn) {
+                minusBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const display = card.querySelector('.quantity-display');
+                    if (display) {
+                        let currentQty = parseInt(display.textContent);
+                        if (currentQty > 1) {
+                            display.textContent = currentQty - 1;
+                        }
+                    }
+                });
+            }
+            
+            // Add to cart button
+            const addToCartBtn = card.querySelector('.add-cart');
+            if (addToCartBtn) {
+                addToCartBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    const productId = card.dataset.productId;
+                    if (!productId) {
+                        showNotification('Error: Product ID not found', 'error');
+                        return;
+                    }
+                    
+                    const quantityDisplay = card.querySelector('.quantity-display');
+                    const quantity = quantityDisplay ? parseInt(quantityDisplay.textContent) : 1;
+                    
+                    addToCart(productId, quantity, this);
+                });
+            }
+        });
+        
+        // Get initial cart count with token
+        const token = getToken();
+        if (token) {
+            fetch('/cart/api/icon/', {
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.total_items > 0) {
+                    updateCartBadge(data.total_items);
+                }
+            })
+            .catch(error => console.error('Error fetching cart count:', error));
+        }
+    });
+    
+    // Animation keyframes
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Logout function
     function logoutUser() {
         localStorage.clear();
         sessionStorage.clear();
@@ -173,7 +411,81 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
     }
 </script>
 
+<style>
+.quantity {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
 
+.quantity-display {
+    min-width: 30px;
+    text-align: center;
+    font-weight: bold;
+    color: #406083;
+}
 
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    animation: slideIn 0.3s;
+    border-left: 4px solid;
+}
 
+.notification.success {
+    border-left-color: #28a745;
+}
 
+.notification.error {
+    border-left-color: #dc3545;
+}
+
+.notification button {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #999;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.cart-icon {
+    position: relative;
+}
+
+.cart-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #dc3545;
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+}
+</style>

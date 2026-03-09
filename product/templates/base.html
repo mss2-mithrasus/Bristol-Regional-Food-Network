@@ -41,6 +41,47 @@
         <footer class="footer">
             <p>Local Food Marketplace | Supporting Local Farmers</p>
         </footer>
+        <script>
+            (function() {
+                const token = localStorage.getItem("access") || sessionStorage.getItem("access");
+                if (!token) return;
 
+                fetch('/cart/api/icon/', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                })
+                .then(r => {
+                    if (r.status === 401) {
+                        // Try refresh
+                        const refresh = localStorage.getItem("refresh") || sessionStorage.getItem("refresh");
+                        if (!refresh) return null;
+                        return fetch('/api/token/refresh/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ refresh })
+                        })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (localStorage.getItem("access")) localStorage.setItem("access", data.access);
+                            else sessionStorage.setItem("access", data.access);
+                            return fetch('/cart/api/icon/', {
+                                headers: { 'Authorization': 'Bearer ' + data.access }
+                            });
+                        });
+                    }
+                    return r;
+                })
+                .then(r => r ? r.json() : null)
+                .then(data => {
+                    if (data && data.total_items > 0) {
+                        const badge = document.getElementById('cart-badge');
+                        if (badge) {
+                            badge.textContent = data.total_items;
+                            badge.style.display = 'flex';
+                        }
+                    }
+                })
+                .catch(() => {});
+            })();
+        </script>
     </body>
     </html>

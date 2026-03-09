@@ -1,0 +1,178 @@
+/* Order management page */
+
+.orders-table {
+    width: 100%;
+}
+
+.order-warning {
+    background: #fff4cc;
+    color: #7a5c00;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-weight: 700;
+    display: inline-block;
+}
+
+/* Order status colours */
+
+.status-pending {
+    background: #ec4f4f;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+.status-confirmed {
+    background: #39c57c;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+.status-ready {
+    background: #e1b738;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+.status-delivered {
+    background: #2f5b77;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+/* Order details modal */
+
+.order-details {
+    margin-top: 15px;
+}
+
+.order-items {
+    margin-top: 10px;
+}
+
+.order-items li {
+    padding: 5px 0;
+    border-bottom: 1px solid #eee;
+}
+
+/* Lead time warning */
+
+.lead-warning {
+    color: #ec4f4f;
+    font-weight: bold;
+    margin-top: 8px;
+}
+.order-modal {
+  display: none !important;             
+}
+
+.order-modal-content {
+  width: min(900px, 92vw);
+  max-height: 85vh;            /* prevent it going off-screen */
+  overflow-y: auto;            /* scroll inside modal */
+}
+
+.order-modal-header {
+  margin-bottom: 8px;
+}
+
+.order-modal-title {
+  margin: 0;
+}
+
+.order-modal-meta {
+  margin-bottom: 10px;
+  font-weight: 700;
+  color: #406083;
+}
+
+.order-lead-warn {
+  display: inline-block;       /* when JS shows it */
+  margin-bottom: 12px;
+}
+
+.order-detail-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.order-items-head,
+#itemsRows .prod-table.row {
+  grid-template-columns: 2fr 0.7fr 0.9fr 0.9fr;
+}
+
+/* Total alignment */
+.order-total-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+/* Mobile: stack fields */
+@media (max-width: 700px) {
+  .order-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Orders table */
+.orders-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1.6fr 1.1fr 1.1fr 1.8fr 0.9fr 1fr 0.9fr;
+  gap: 10px;
+  align-items: center;
+}
+
+/* header */
+.orders-grid.head {
+  background: rgba(0,0,0,0.18);
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  font-weight: 800;
+}
+
+/* rows */
+.orders-grid.row {
+  background: #f7f7f7;
+  color: #406083;
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+/* IMPORTANT: override global .prod-table row div alignment */
+.orders-grid > div {
+  text-align: left;
+  font-weight: 700;
+}
+
+.orders-grid > div:nth-child(3),
+.orders-grid > div:nth-child(4),
+.orders-grid > div:nth-child(6),
+.orders-grid > div:nth-child(7),
+.orders-grid > div:nth-child(8) {
+  text-align: center;
+}
+
+.prod-table.orders {
+  grid-template-columns: 1.1fr 1.6fr 1.1fr 1.1fr 2fr 0.9fr 1fr 0.9fr !important;
+}
+
+/* Alignment like products, but Items left-aligned */
+.prod-table.orders.row div { text-align: center; }
+.prod-table.orders.row div:first-child { text-align: left; }
+.prod-table.orders.row div:nth-child(2) { text-align: left; }  /* Customer */
+.prod-table.orders.row div:nth-child(5) { text-align: left; }  /* Items */
+
+/* Keep items readable */
+.order-items {
+  line-height: 1.2;
+  word-break: break-word;
+}
