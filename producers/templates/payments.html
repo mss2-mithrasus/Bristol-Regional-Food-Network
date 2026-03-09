@@ -1,0 +1,353 @@
+{% extends "producer_base.html" %}
+{% load static %}
+
+{% block head %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'payments.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="welcome">
+  <h1>Payments</h1>
+  <p>Weekly settlement summaries, reports, and audit trails.</p>
+</div>
+
+<!-- Top summary -->
+<section class="panel">
+  <div class="panel-header-row">
+    <h2>Weekly Settlement Summary</h2>
+
+    <div class="right-controls">
+      <select id="weekSelect" class="button-pill" style="border-radius:10px; padding:8px 12px;">
+        <!-- later: fill from backend -->
+        <option value="2026-W09">Week 09 (23/02/2026 – 01/03/2026)</option>
+        <option value="2026-W10" selected>Week 10 (02/03/2026 – 08/03/2026)</option>
+        <option value="2026-W11">Week 11 (09/03/2026 – 15/03/2026)</option>
+      </select>
+
+      <label class="toggle">
+        <input type="checkbox" id="anonymiseToggle" checked>
+        <span>Anonymise customers</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="pill-row">
+    <div class="pill">
+      <span>Total Orders Value</span>
+      <strong id="totalValue">£0.00</strong>
+    </div>
+    <div class="pill">
+      <span>Network Commission (5%)</span>
+      <strong id="commissionValue">£0.00</strong>
+    </div>
+    <div class="pill">
+      <span>Producer Payment (95%)</span>
+      <strong id="payoutValue">£0.00</strong>
+    </div>
+    <div class="pill">
+      <span>Status</span>
+      <strong id="settlementStatus">—</strong>
+    </div>
+  </div>
+
+  <div class="meta-row">
+    <div><strong>Settlement Reference:</strong> <span id="settlementRef">—</span></div>
+    <div><strong>Settlement Week End:</strong> <span id="weekEnd">—</span></div>
+    <div><strong>Processed At:</strong> <span id="processedAt">—</span></div>
+  </div>
+
+  <div class="download-row">
+    <button class="button-pill" type="button" id="downloadPdfBtn">Download PDF</button>
+    <button class="button-pill secondary" type="button" id="downloadCsvBtn">Download CSV</button>
+  </div>
+
+  <div id="downloadHint" class="hint" style="display:none;">
+    This is a frontend placeholder. Later you’ll connect these buttons to a Django URL that streams a PDF/CSV.
+  </div>
+</section>
+
+<!-- Running total -->
+<section class="panel">
+  <div class="panel-header-row">
+    <h2>Tax Year Running Total</h2>
+  </div>
+
+  <div class="pill-row">
+    <div class="pill">
+      <span>Tax Year</span>
+      <strong id="taxYear">2025/26</strong>
+    </div>
+    <div class="pill">
+      <span>Total Paid To Date</span>
+      <strong id="taxYearPaid">£0.00</strong>
+    </div>
+    <div class="pill">
+      <span>Total Commission To Date</span>
+      <strong id="taxYearCommission">£0.00</strong>
+    </div>
+  </div>
+</section>
+
+<!-- Breakdown table -->
+<section class="panel">
+  <div class="panel-header-row">
+    <h2>Order Breakdown</h2>
+    <div class="small-note">Only Delivered/Completed orders should be included in settlements.</div>
+  </div>
+
+  <div id="paymentError" style="color:#b00020; font-weight:800; margin: 8px 0;"></div>
+
+  <div class="table-wrap">
+    <div class="pay-table head" style="grid-template-columns: 1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr 0.8fr;">
+      <div>Order #</div>
+      <div>Customer</div>
+      <div>Delivered</div>
+      <div>Items</div>
+      <div>Order Value</div>
+      <div>Commission (5%)</div>
+      <div>Payout (95%)</div>
+      <div>Audit</div>
+    </div>
+
+    <div id="paymentRows"></div>
+  </div>
+</section>
+
+<!-- History -->
+<section class="panel">
+  <div class="panel-header-row">
+    <h2>Historical Settlements</h2>
+  </div>
+
+  <div class="table-wrap">
+    <div class="history-table head">
+      <div>Week</div>
+      <div>Reference</div>
+      <div>Total Value</div>
+      <div>Payout</div>
+      <div>Status</div>
+      <div>Report</div>
+    </div>
+
+    <div id="historyRows"></div>
+  </div>
+</section>
+
+<!-- Optional details modal -->
+<div id="orderAuditModal" class="modal order-modal" style="display:none;">
+  <div class="modal-content order-modal-content" role="dialog" aria-modal="true">
+    <div class="panel-header-row">
+      <h2 style="margin:0;">Audit Trail</h2>
+      <button class="button-pill" type="button" id="closeAuditBtn">Close</button>
+    </div>
+
+    <div class="audit-box">
+      <div><strong>Settlement Ref:</strong> <span id="aRef">—</span></div>
+      <div><strong>Order #:</strong> <span id="aOrder">—</span></div>
+      <div><strong>Status:</strong> <span id="aStatus">—</span></div>
+      <div><strong>Processed At:</strong> <span id="aProcessed">—</span></div>
+      <div class="hint">Later you can link this to <code>order_status_history</code> and a payment transaction record.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   Frontend-only data shape (replace later with DB/API)
+   - Accurate to 2dp
+   - Only delivered orders should appear
+========================================================= */
+const SETTLEMENTS = {
+  "2026-W10": {
+    weekLabel: "Week 10 (02/03/2026 – 08/03/2026)",
+    weekEnd: "08/03/2026 23:59",
+    settlementRef: "SET-2026W10-PRD-00192",
+    processedAt: "09/03/2026 08:10",
+    status: "Processed", // or "Pending Bank Transfer"
+    taxYear: "2025/26",
+    taxYearPaid: 1842.55,
+    taxYearCommission: 96.98,
+    orders: [
+      {
+        order_no: 12041,
+        customer_name: "Aisha Khan",
+        delivered_date: "07/03/2026",
+        items: "Organic Apples x3, Eggs (12) x1",
+        order_value: 11.70
+      },
+      {
+        order_no: 12055,
+        customer_name: "Tom Davies",
+        delivered_date: "08/03/2026",
+        items: "Sourdough Loaf x2",
+        order_value: 7.60
+      },
+      {
+        order_no: 12060,
+        customer_name: "Mina Patel",
+        delivered_date: "08/03/2026",
+        items: "Strawberries x2, Honey (Jar) x1, Yoghurt x4",
+        order_value: 15.50
+      }
+    ]
+  }
+};
+
+// History list (keep light)
+const HISTORY = [
+  { weekKey:"2026-W09", weekLabel:"Week 09 (23/02/2026 – 01/03/2026)", ref:"SET-2026W09-PRD-00192", total: 42.10, payout: 39.99, status:"Processed" },
+  { weekKey:"2026-W10", weekLabel:"Week 10 (02/03/2026 – 08/03/2026)", ref:"SET-2026W10-PRD-00192", total: 34.80, payout: 33.06, status:"Processed" },
+];
+
+function money(n){ return "£" + Number(n || 0).toFixed(2); }
+
+function commissionOf(value){
+  // 5% commission, accurate to 2dp
+  return +(Number(value || 0) * 0.05).toFixed(2);
+}
+
+function payoutOf(value){
+  // 95% payout, accurate to 2dp
+  return +(Number(value || 0) * 0.95).toFixed(2);
+}
+
+function statusTag(status){
+  if(status === "Processed") return `<span class="tag green">Processed</span>`;
+  if(status === "Pending Bank Transfer") return `<span class="tag amber">Pending Bank Transfer</span>`;
+  return `<span class="tag red">${status || "Unknown"}</span>`;
+}
+
+function anonymise(name){
+  // "Aisha Khan" -> "A*** K***"
+  const parts = String(name || "").trim().split(/\s+/);
+  return parts.map(p => p ? (p[0] + "***") : "").join(" ");
+}
+
+function renderHistory(){
+  const wrap = document.getElementById("historyRows");
+  wrap.innerHTML = "";
+
+  HISTORY.forEach(h => {
+    const row = document.createElement("div");
+    row.className = "history-table row";
+    row.innerHTML = `
+      <div>${h.weekLabel}</div>
+      <div><strong>${h.ref}</strong></div>
+      <div>${money(h.total)}</div>
+      <div><strong>${money(h.payout)}</strong></div>
+      <div>${statusTag(h.status)}</div>
+      <div class="actions">
+        <button class="mini-btn" type="button" data-week="${h.weekKey}">Open</button>
+      </div>
+    `;
+    row.querySelector("button").addEventListener("click", () => {
+      document.getElementById("weekSelect").value = h.weekKey;
+      renderWeek(h.weekKey);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+    wrap.appendChild(row);
+  });
+}
+
+function renderWeek(weekKey){
+  const data = SETTLEMENTS[weekKey];
+  const err = document.getElementById("paymentError");
+  err.textContent = "";
+
+  if(!data){
+    err.textContent = "No settlement data for the selected week (frontend placeholder).";
+    document.getElementById("paymentRows").innerHTML = "";
+    return;
+  }
+
+  const anonymiseOn = document.getElementById("anonymiseToggle").checked;
+
+  // totals
+  const totalValue = data.orders.reduce((acc, o) => acc + Number(o.order_value || 0), 0);
+  const totalCommission = +(totalValue * 0.05).toFixed(2);
+  const totalPayout = +(totalValue * 0.95).toFixed(2);
+
+  document.getElementById("totalValue").textContent = money(totalValue);
+  document.getElementById("commissionValue").textContent = money(totalCommission);
+  document.getElementById("payoutValue").textContent = money(totalPayout);
+  document.getElementById("settlementStatus").innerHTML = statusTag(data.status);
+
+  document.getElementById("settlementRef").textContent = data.settlementRef;
+  document.getElementById("weekEnd").textContent = data.weekEnd;
+  document.getElementById("processedAt").textContent = data.processedAt || "—";
+
+  document.getElementById("taxYear").textContent = data.taxYear;
+  document.getElementById("taxYearPaid").textContent = money(data.taxYearPaid);
+  document.getElementById("taxYearCommission").textContent = money(data.taxYearCommission);
+
+  // table rows
+  const wrap = document.getElementById("paymentRows");
+  wrap.innerHTML = "";
+
+  if(!data.orders.length){
+    wrap.innerHTML = `<div style="padding:10px; font-weight:800;">No delivered orders in this week.</div>`;
+    return;
+  }
+
+  data.orders.forEach(o => {
+    const comm = commissionOf(o.order_value);
+    const pay = payoutOf(o.order_value);
+    const cname = anonymiseOn ? anonymise(o.customer_name) : o.customer_name;
+
+    const row = document.createElement("div");
+    row.className = "pay-table row";
+    //row.style.gridTemplateColumns = "1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr 0.8fr";
+    row.innerHTML = `
+      <div><strong>#${o.order_no}</strong></div>
+      <div>${cname}</div>
+      <div>${o.delivered_date}</div>
+      <div class="items-cell">${o.items}</div>
+      <div>${money(o.order_value)}</div>
+      <div>${money(comm)}</div>
+      <div><strong>${money(pay)}</strong></div>
+      <div class="actions">
+        <button class="mini-btn" type="button">Audit</button>
+      </div>
+    `;
+
+    row.querySelector("button").addEventListener("click", () => openAudit(data, o));
+    wrap.appendChild(row);
+  });
+}
+
+/* Downloads: placeholder */
+function showDownloadHint(){
+  const hint = document.getElementById("downloadHint");
+  hint.style.display = "block";
+  setTimeout(() => hint.style.display = "none", 3500);
+}
+document.getElementById("downloadPdfBtn").addEventListener("click", showDownloadHint);
+document.getElementById("downloadCsvBtn").addEventListener("click", showDownloadHint);
+
+/* Audit modal */
+function openAudit(settlement, order){
+  document.getElementById("aRef").textContent = settlement.settlementRef;
+  document.getElementById("aOrder").textContent = "#" + order.order_no;
+  document.getElementById("aStatus").innerHTML = statusTag(settlement.status);
+  document.getElementById("aProcessed").textContent = settlement.processedAt || "—";
+  document.getElementById("orderAuditModal").style.display = "flex";
+}
+function closeAudit(){
+  document.getElementById("orderAuditModal").style.display = "none";
+}
+document.getElementById("closeAuditBtn").addEventListener("click", closeAudit);
+document.getElementById("orderAuditModal").addEventListener("click",(e)=>{ if(e.target.id==="orderAuditModal") closeAudit(); });
+document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") closeAudit(); });
+
+/* Events */
+document.getElementById("weekSelect").addEventListener("change",(e)=> renderWeek(e.target.value));
+document.getElementById("anonymiseToggle").addEventListener("change", ()=> renderWeek(document.getElementById("weekSelect").value));
+
+/* Init */
+renderHistory();
+renderWeek(document.getElementById("weekSelect").value);
+</script>
+
+{% endblock %}

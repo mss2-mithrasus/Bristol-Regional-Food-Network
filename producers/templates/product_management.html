@@ -31,7 +31,7 @@
   </div>
 </section>
 
-<!-- ✅ EDIT MODAL -->
+<!--  EDIT MODAL -->
 <div id="editModal" class="modal" style="display:none;">
   <div class="modal-content">
     <h3 style="margin:0 0 10px;">Edit Product</h3>
@@ -79,7 +79,7 @@
 </div>
 
 <style>
-/* ✅ Modal styling */
+/* Modal styling */
 .modal{
   position: fixed;
   inset: 0;
@@ -145,7 +145,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   cancelEditBtn.addEventListener("click", closeEditModal);
   editModal.addEventListener("click", (e) => { if (e.target === editModal) closeEditModal(); });
 
-  // ✅ Load products
+  //  Load products
   try {
     const res = await fetch("/producer/api/products/", {
       method: "GET",
@@ -191,7 +191,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       `;
     }).join("");
 
-    // ✅ One click handler for edit + delete
+    //  One click handler for edit + delete
     rowsBox.addEventListener("click", async (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
@@ -199,7 +199,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const action = btn.dataset.action;
       const id = btn.dataset.id;
 
-      // ✅ EDIT
+      //  EDIT
       if (action === "edit") {
         editErrors.textContent = "";
 
@@ -224,7 +224,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
 
-      // ✅ DELETE
+      //  DELETE
       if (action === "delete") {
         const confirmDelete = confirm("Are you sure you want to delete this product?");
         if (!confirmDelete) return;
@@ -258,7 +258,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
 
-    // ✅ SAVE EDIT (PUT)
+    //  SAVE EDIT (PUT)
     saveEditBtn.addEventListener("click", async () => {
       editErrors.textContent = "";
 

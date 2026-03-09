@@ -1,0 +1,120 @@
+/* Payments page specific styles */
+.right-controls{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.toggle{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  font-weight:800;
+  color:#406083;
+  background:#f2f2f2;
+  padding:8px 12px;
+  border-radius:999px;
+}
+
+.meta-row{
+  display:flex;
+  gap:16px;
+  flex-wrap:wrap;
+  margin-top:10px;
+  font-weight:700;
+  color:#406083;
+}
+
+.download-row{
+  display:flex;
+  gap:10px;
+  margin-top:12px;
+  justify-content:flex-end;
+}
+
+.hint{
+  margin-top:10px;
+  background:#f2f2f2;
+  padding:10px 12px;
+  border-radius:10px;
+  color:#406083;
+  font-weight:700;
+}
+
+/* Settlement breakdown table (8 columns) */
+.pay-table{
+  display:grid;
+  grid-template-columns: 1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr 0.8fr !important;
+  gap:10px;
+  align-items:center;
+}
+.pay-table.head{
+  font-weight:800;
+  background:rgba(0,0,0,0.18);
+  padding:10px 12px;
+  border-radius:10px;
+  margin-bottom:8px;
+}
+.pay-table.row{
+  background:#f2f2f2;
+  color:#406083;
+  padding:10px 12px;
+  border-radius:10px;
+  margin-bottom:8px;
+}
+.pay-table.row > div{
+  font-weight:700;
+  text-align:center;
+}
+.pay-table.row > div:nth-child(2),
+.pay-table.row > div:nth-child(4){
+  text-align:left;
+}
+.items-cell{
+  line-height:1.2;
+  word-break:break-word;
+}
+
+/* History table (6 columns) */
+.history-table{
+  display:grid;
+  grid-template-columns: 2fr 1.5fr 1fr 1fr 1.2fr 0.8fr;
+  gap:10px;
+  align-items:center;
+}
+.history-table.head{
+  font-weight:800;
+  background:rgba(0,0,0,0.18);
+  padding:10px 12px;
+  border-radius:10px;
+  margin-bottom:8px;
+}
+.history-table.row{
+  background:#f2f2f2;
+  color:#406083;
+  padding:10px 12px;
+  border-radius:10px;
+  margin-bottom:8px;
+}
+.history-table.row > div{
+  font-weight:700;
+  text-align:center;
+}
+.history-table.row > div:nth-child(1),
+.history-table.row > div:nth-child(2){
+  text-align:left;
+}
+
+/* Audit modal box */
+.audit-box{
+  margin-top:10px;
+  background:#f2f2f2;
+  padding:12px;
+  border-radius:12px;
+  color:#406083;
+  font-weight:700;
+}
+.audit-box .hint{
+  margin-top:10px;
+}

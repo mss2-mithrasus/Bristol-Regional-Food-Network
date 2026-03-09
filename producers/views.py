@@ -32,6 +32,21 @@ class ProducerDashboardAPI(APIView):
             return Response({"error": "Producer account not found"}, status=status.HTTP_404_NOT_FOUND)
 
         producer_name = producer.business_name
+        products = Product.objects.filter(producer=producer)
+        total_products = products.count()
+        low_stock = products.filter(stock_quantity__lt=5).count()
+        recent_products = products.order_by("-product_id")[:5]
+        recent_orders = []
+        available_products = products.filter(availability_status=True).count()
+        out_of_stock_products = products.filter(stock_quantity=0).count()
+        low_stock_products = products.filter(stock_quantity__lt=5, stock_quantity__gt=0).count()
+        for p in recent_products:
+            recent_orders.append({
+                "id": p.product_id,
+                "customer": p.name,
+                "items": f"Stock: {p.stock_quantity}",
+                "status": "Available" if p.availability_status else "Out of stock"
+            })
 
         return Response(
             {
@@ -42,11 +57,17 @@ class ProducerDashboardAPI(APIView):
                     if producer.contact_person else None
                 ),
                 "email": request.user.email,
-                "total_products": 0,
+                "total_products": total_products,
                 "active_orders": 0,
                 "revenue": 0,
-                "low_stock": 0,
-                "recent_orders": [],
+                "low_stock": low_stock,
+                "recent_orders": recent_orders,
+
+                "product_status": {
+                    "available": available_products,
+                    "out_of_stock": out_of_stock_products,
+                    "low_stock": low_stock_products,
+                }
             },
             status=status.HTTP_200_OK,
         )
@@ -77,6 +98,12 @@ def add_product(request):
             "allergens": allergens,
         },
     )
+def order_management(request):
+    orders = []  # TODO: get orders for this producer from DB
+    return render(request, "order_management.html", {"orders": orders})
+
+def payments(request):
+    return render(request, "payments.html")
 
 
 class ProducerCreateProductAPI(APIView):
@@ -196,3 +223,32 @@ class ProductUpdateView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)   
+    
+class ProducerOrdersAPI(APIView):
+    permission_classes = [IsAuthenticated, IsProducer]
+
+    def get(self, request):
+        producer = ProducerAccount.objects.filter(user=request.user).first()
+        if not producer:
+            return Response({"error": "Producer account not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # TODO: replace Order with your actual model and filter
+        orders = []  # Order.objects.filter(producer=producer).order_by("-created_at")
+
+        data = []
+        for o in orders:
+            data.append({
+                "order_id": o.order_id,
+                "customer_name": o.customer_name,
+                "customer_contact": o.customer_contact,
+                "delivery_address": o.delivery_address,
+                "created_at": o.created_at.strftime("%d/%m/%Y"),
+                "delivery_date": o.delivery_date.strftime("%d/%m/%Y") if o.delivery_date else "",
+                "special_instruction": o.special_instruction or "None",
+                "items": o.items_json,  # list of dicts
+                "items_summary": o.items_summary,
+                "total_value": str(o.total_value),
+                "status": o.status,
+            })
+
+        return Response({"orders": data}, status=status.HTTP_200_OK)

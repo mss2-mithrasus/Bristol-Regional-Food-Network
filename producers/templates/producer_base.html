@@ -33,8 +33,10 @@
       </a>
       <a class="sidebar-link {% if '/producer/product_management/' in request.path %}active{% endif %}"
         href="/producer/product_management/">Products</a>
-      <a class="sidebar-link" href="#">Orders</a>
-      <a class="sidebar-link" href="#">Payments</a>
+      <a class="sidebar-link {% if '/producer/order_management/' in request.path %}active{% endif %}"
+        href="/producer/order_management/">Orders</a>
+      <a class="sidebar-link {% if '/producer/payments/' in request.path %}active{% endif %}"
+        href="/producer/payments/">Payments</a>
       <a class="sidebar-link" href="#">Content</a>
     </aside>
 
