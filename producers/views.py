@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework import request, status
 from rest_framework.permissions import IsAuthenticated
 
-from product.models import Product, ProductCategory, Allergen
+from product.models import Product, ProductCategory, Allergen,ProductAllergen
 from product.serializers import ProductSerializer
 from user_accounts.permissions import IsProducer
 from user_accounts.models import ProducerAccount
@@ -47,6 +47,21 @@ class ProducerDashboardAPI(APIView):
                 "items": f"Stock: {p.stock_quantity}",
                 "status": "Available" if p.availability_status else "Out of stock"
             })
+        products = Product.objects.filter(producer=producer)
+        total_products = products.count()
+        low_stock = products.filter(stock_quantity__lt=5).count()
+        recent_products = products.order_by("-product_id")[:5]
+        recent_orders = []
+        available_products = products.filter(availability_status=True).count()
+        out_of_stock_products = products.filter(stock_quantity=0).count()
+        low_stock_products = products.filter(stock_quantity__lt=5, stock_quantity__gt=0).count()
+        for p in recent_products:
+            recent_orders.append({
+                "id": p.product_id,
+                "customer": p.name,
+                "items": f"Stock: {p.stock_quantity}",
+                "status": "Available" if p.availability_status else "Out of stock"
+            })
 
         return Response(
             {
@@ -57,6 +72,7 @@ class ProducerDashboardAPI(APIView):
                     if producer.contact_person else None
                 ),
                 "email": request.user.email,
+                "total_products": total_products,
                 "total_products": total_products,
                 "active_orders": 0,
                 "revenue": 0,
@@ -117,6 +133,17 @@ class ProducerCreateProductAPI(APIView):
         serializer = ProductCreateSerializer(data=request.data, context={"request": request})
         if serializer.is_valid():
             product = serializer.save()
+            #list of allergens
+            allergens_id = request.data.getlist("allergens")
+            for allergen_id in allergens_id:
+                description = request.data.get(f"allergendescription{allergen_id}", "")
+                if description or description == "":
+                    ProductAllergen.objects.create(
+                        product=product,
+                        allergen_id=allergen_id,
+                        description=description
+
+                    )
             return Response(
                 {"message": "Product added successfully!", "product_id": product.product_id},
                 status=status.HTTP_201_CREATED
@@ -219,7 +246,7 @@ class ProductUpdateView(APIView):
 
         serializer = ProductSerializer(product, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()  # this will save image too if it is in request.FILES
+            serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)   

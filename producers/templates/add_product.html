@@ -52,7 +52,7 @@
           <option value="l">l</option>
           <option value="ml">ml</option>
           <option value="each">each</option>
-          <option value="dozen">dozen</option>   
+          <option value="dozen">dozen</option>
           <option value="pack">pack</option>
           <option value="bunch">bunch</option>
           <option value="box">box</option>
@@ -83,6 +83,7 @@
         </select>
         <small>Hold Ctrl (Windows) / Cmd (Mac) to select multiple.</small>
       </div>
+      <div id="allergenDescriptions" class=form-group form-group-full></div>
 
       <div class="form-group">
         <label>Harvest date</label>
@@ -220,6 +221,26 @@
       }
     });
   });
+
+  // allergen description
+
+  const alrg = document.getElementById("allergens");
+  const descp = document.getElementById("allergenDescriptions");
+
+  alrg.addEventListener("change", () => {
+    descp.innerHTML = "";
+    Array.from(alrg.selectedOptions).forEach(opt => {
+      const id = opt.value, name = opt.text;
+      descp.innerHTML += `
+      <div class="form-group">
+        <label>Allergen description for ${name}</label>
+        <textarea name="allergen_description_${id}" rows="2"></textarea>
+        </div>
+        `;
+    });
+  });
+
+
 </script>
 
 {% endblock %}

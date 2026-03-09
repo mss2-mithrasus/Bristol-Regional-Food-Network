@@ -69,9 +69,8 @@
     font-weight: bold;
     margin-top: 8px;
 }
-/* Orders modal: use your existing .modal + .modal-content but refine for orders */
 .order-modal {
-  display: none !important;               /* JS toggles to flex */
+  display: none !important;             
 }
 
 .order-modal-content {
@@ -103,7 +102,6 @@
   grid-template-columns: 1fr 1fr;
 }
 
-/* Itemised table columns (avoid inline grid-template-columns) */
 .order-items-head,
 #itemsRows .prod-table.row {
   grid-template-columns: 2fr 0.7fr 0.9fr 0.9fr;
@@ -123,7 +121,7 @@
   }
 }
 
-/* ===== Orders table: keep header aligned with rows ===== */
+/* Orders table */
 .orders-grid {
   display: grid;
   grid-template-columns: 1.1fr 1.6fr 1.1fr 1.1fr 1.8fr 0.9fr 1fr 0.9fr;
@@ -155,7 +153,6 @@
   font-weight: 700;
 }
 
-/* Keep numeric-ish columns centered (optional) */
 .orders-grid > div:nth-child(3),
 .orders-grid > div:nth-child(4),
 .orders-grid > div:nth-child(6),
@@ -164,7 +161,6 @@
   text-align: center;
 }
 
-/* ===== Orders table uses same look as product table, but 8 columns ===== */
 .prod-table.orders {
   grid-template-columns: 1.1fr 1.6fr 1.1fr 1.1fr 2fr 0.9fr 1fr 0.9fr !important;
 }

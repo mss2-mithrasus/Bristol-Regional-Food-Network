@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from django.contrib.auth import login
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import login
 from .serializers import RegistrationSerializer, LoginSerializer, FailedLoginAttemptSerializer, DeletionAuditSerializer
@@ -52,7 +53,8 @@ class LoginView(APIView):
         if serializer.is_valid():
             tokens = serializer.validated_data
             user = tokens["user"]
-
+            
+            # Create Django session
             login(request, user)
             if user.role == "admin":
                 homepage = "/admin-dashboard/home/"

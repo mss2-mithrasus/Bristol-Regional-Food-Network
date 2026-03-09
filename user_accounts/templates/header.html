@@ -1,0 +1,84 @@
+{% load static %}
+
+<div class="nav-left">
+    <img src="{% static 'images/leaf.png' %}" alt="Leaf logo" class="logo">
+    <span class="title">Bristol Regional Food Network</span>
+</div>
+
+<nav class="nav-links"></nav>
+
+<script>
+function getAccessToken() {
+    return localStorage.getItem("access") || sessionStorage.getItem("access");
+}
+
+function logoutUser() {
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.href = "/";
+}
+
+async function buildNav() {
+    const nav = document.querySelector(".nav-links");
+    if (!nav) return;
+
+    const token = getAccessToken();
+    const currentPath = window.location.pathname;
+
+    // Not logged in → public nav
+    if (!token) {
+        nav.innerHTML = `
+            <a href="/" class="${currentPath === '/' ? 'active' : ''}">Home</a>
+            <a href="/login/" class="${currentPath === '/login/' ? 'active' : ''}">Login</a>
+            <a href="/register/" class="${currentPath === '/register/' ? 'active' : ''}">Register</a>
+            <a href="/about/" class="${currentPath === '/about/' ? 'active' : ''}">About us</a>
+        `;
+        return;
+    }
+
+    // Logged in → fetch role directly
+    let role = null;
+    try {
+        const resp = await fetch("/api/user/profile/", {
+            headers: { "Authorization": "Bearer " + token }
+        });
+
+        if (resp.ok) {
+            const data = await resp.json();
+            role = data.role;
+        }
+    } catch (err) {
+        role = null;
+    }
+
+    // Default fallback
+    let dashboardUrl = "/";
+
+    if (role === "customer") dashboardUrl = "/customer/home/";
+    if (role === "producer") dashboardUrl = "/producer/home/";
+    if (role === "admin") dashboardUrl = "/admin/home/";
+
+    let customerIcons = "";
+    if (role === "customer") {
+        customerIcons = `
+            <a href="/cart/" class="${currentPath === '/cart/' ? 'active' : ''}">
+                <i class="fa-solid fa-cart-shopping"></i>
+            </a>
+            <a href="/notifications/" class="${currentPath === '/notifications/' ? 'active' : ''}">
+                <i class="fa-solid fa-bell"></i>
+            </a>
+        `;
+    }
+
+    nav.innerHTML = `
+        <a href="${dashboardUrl}" class="${currentPath.startsWith(dashboardUrl) ? 'active' : ''}">Home</a>
+        <a href="/user_profile/" class="${currentPath === '/user_profile/' ? 'active' : ''}">
+            <i class="fa-solid fa-user"></i>
+        </a>
+        ${customerIcons}
+        <a href="#" onclick="logoutUser()">Logout</a>
+    `;
+}
+
+document.addEventListener("DOMContentLoaded", buildNav);
+</script>
