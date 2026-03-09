@@ -66,6 +66,30 @@ def multi_checkout(request):
         producer_subtotal = float(data['subtotal'])
         producer_commission = round(producer_subtotal * 0.05, 2)
         producer_total = round(producer_subtotal * 1.05, 2)
+
+        # ===== GET PRODUCER ADDRESS (SIMPLIFIED - JUST ADDRESS) =====
+        producer_address = None
+        try:
+            # Check what type 'producer' is and get address accordingly
+            if hasattr(producer, 'produceraccount'):
+                # producer is a User with produceraccount relation
+                producer_account = producer.produceraccount
+            elif hasattr(producer, 'address'):
+                # producer is already a ProducerAccount
+                producer_account = producer
+            else:
+                # Try to get by user ID
+                producer_account = ProducerAccount.objects.get(user=producer)
+            
+            if producer_account and hasattr(producer_account, 'address') and producer_account.address:
+                producer_address = {
+                    'street': producer_account.address.address_line,
+                    'postcode': producer_account.address.postcode,
+                }
+        except Exception as e:
+            print(f"Error getting producer address: {e}")
+            producer_address = None
+        # ===== END PRODUCER ADDRESS =====
         
         # Format items for template with MORE DETAILS
         formatted_items = []
@@ -110,6 +134,7 @@ def multi_checkout(request):
                 "id": data['producer_id'],
                 "name": data['producer_name']  # Now using the fixed name
             },
+            "producer_address": producer_address,  # Just street and postcode
             "items": formatted_items,
             "min_delivery_date": min_delivery_date,
             "subtotal": producer_subtotal,
@@ -121,21 +146,13 @@ def multi_checkout(request):
     
     overall_total = round(overall_subtotal * 1.05, 2)
     
-    # Get user address - FIXED to match your Address model
+    # Get user address - SIMPLIFIED - JUST ADDRESS (NO PERSONAL INFO)
     user_address = None
     if user.is_authenticated:
         try:
             customer = CustomerAccount.objects.get(user=user)
             
-            # Get person name
-            if customer.person:
-                full_name = f"{customer.person.first_name} {customer.person.last_name}"
-                phone = customer.person.phone or ""
-            else:
-                full_name = user.email
-                phone = ""
-            
-            # Get address - only fields that exist
+            # Get address - ONLY address fields, no personal info
             if customer.address:
                 street = customer.address.address_line
                 postcode = customer.address.postcode
@@ -144,17 +161,11 @@ def multi_checkout(request):
                 postcode = ""
             
             user_address = {
-                'full_name': full_name,
-                'email': user.email,
-                'phone': phone,
                 'street': street,
                 'postcode': postcode,
             }
         except CustomerAccount.DoesNotExist:
             user_address = {
-                'full_name': user.email,
-                'email': user.email,
-                'phone': '',
                 'street': 'Please create a customer profile',
                 'postcode': '',
             }
@@ -163,7 +174,7 @@ def multi_checkout(request):
         "producer_groups": producer_groups,
         "total": overall_total,
         "user_address": user_address,
-        "total_quantity": total_quantity,  # ADD THIS LINE
+        "total_quantity": total_quantity,
         "summary_items": [],
     }
     

@@ -3,80 +3,13 @@
 
 {% block head %}
 <link rel="stylesheet" href="{% static 'checkout.css' %}">
+
 {% endblock %}
 
 {% block content %}
 <div class="checkout-wrapper">
-    <h2 class="page-title"> Checkout Page</h2>
+    <h2 class="page-title">Checkout Page</h2>
     
-    <!-- Address Section -->
-    <!-- Address Section -->
-    <div class="address-card">
-        <div class="address-header">
-            <i class="fa-solid fa-location-dot"></i>
-            <h3>Delivery Address</h3>
-        </div>
-        
-        <!-- Display user name/email if available -->
-        {% if user_address.full_name %}
-        <div class="address-item address-full">
-            <span class="address-label">Full Name</span>
-            <span class="address-value">{{ user_address.full_name }}</span>
-        </div>
-        {% endif %}
-        
-        {% if user_address.email %}
-        <div class="address-item address-full">
-            <span class="address-label">Email</span>
-            <span class="address-value">{{ user_address.email }}</span>
-        </div>
-        {% endif %}
-        
-        {% if user_address.phone %}
-        <div class="address-item">
-            <span class="address-label">Phone</span>
-            <span class="address-value">{{ user_address.phone }}</span>
-        </div>
-        {% endif %}
-        
-        <!-- Display Mode -->
-        <div id="addressDisplay" class="address-details">
-            <div class="address-item address-full">
-                <span class="address-label">Street Address</span>
-                <span class="address-value" id="displayStreet">{{ user_address.street|default:"123 Test Street" }}</span>
-            </div>
-            
-            <div class="address-item">
-                <span class="address-label">Postcode</span>
-                <span class="address-value" id="displayPostcode">{{ user_address.postcode|default:"SW1A 1AA" }}</span>
-            </div>
-        
-            <div class="edit-address">
-                <button onclick="enableAddressEdit()" class="edit-address-btn">
-                    <i class="fa-solid fa-pen"></i> Edit Address
-                </button>
-            </div>
-        </div>
-        
-        <!-- Edit Mode -->
-        <div id="addressEdit" class="address-details" style="display: none;">
-            <div class="address-item address-full">
-                <span class="address-label">Street Address</span>
-                <input type="text" id="editStreet" class="address-input" value="{{ user_address.street|default:'123 Test Street' }}">
-            </div>
-            
-            <div class="address-item">
-                <span class="address-label">Postcode</span>
-                <input type="text" id="editPostcode" class="address-input" value="{{ user_address.postcode|default:'SW1A 1AA' }}">
-            </div>
-            
-            <div class="edit-actions">
-                <button onclick="saveAddress()" class="save-btn">Save</button>
-                <button onclick="cancelAddressEdit()" class="cancel-btn">Cancel</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Producer Sections -->
     {% if producer_groups %}
         {% for group in producer_groups %}
@@ -116,10 +49,9 @@
                     </ul>
                 </div>
                 
-                <!-- Right Column - Producer aryary -->
+                <!-- Right Column - Producer Summary -->
                 <div class="producer-summary-section">
                     <h4>Order Summary</h4>
-                    
                     <div class="summary-details">
                         {% for item in group.items %}
                         <div class="summary-row">
@@ -158,9 +90,49 @@
                         </button>
                     </div>
                     
-                    <!-- Delivery Date Section -->
+                    <!-- Delivery Section (shown for Delivery mode) -->
                     <div class="delivery-section" id="delivery-section-{{ group.producer.id }}">
-                        <label for="date-{{ group.producer.id }}">
+                        <!-- Customer Address -->
+                        <div class="address-card customer-address" id="customer-address-{{ group.producer.id }}">
+                            <div class="address-header">
+                                <i class="fa-solid fa-location-dot"></i>
+                                <h4>Your Delivery Address</h4>
+                            </div>
+                            
+                            <!-- Display Mode -->
+                            <div id="customer-address-display-{{ group.producer.id }}" class="address-details">
+                                <div class="address-item address-full">
+                                    <span class="address-label">Street</span>
+                                    <span class="address-value" id="customer-street-{{ group.producer.id }}">{{ user_address.street|default:"No address saved" }}</span>
+                                </div>
+                                <div class="address-item">
+                                    <span class="address-label">Postcode</span>
+                                    <span class="address-value" id="customer-postcode-{{ group.producer.id }}">{{ user_address.postcode|default:"" }}</span>
+                                </div>
+                                <button onclick="enableCustomerAddressEdit('{{ group.producer.id }}')" class="edit-address-btn">
+                                    <i class="fa-solid fa-pen"></i> Edit Address
+                                </button>
+                            </div>
+                            
+                            <!-- Edit Mode -->
+                            <div id="customer-address-edit-{{ group.producer.id }}" class="address-details hidden">
+                                <div class="address-item address-full">
+                                    <span class="address-label">Street</span>
+                                    <input type="text" id="edit-customer-street-{{ group.producer.id }}" class="address-input" value="{{ user_address.street|default:'' }}">
+                                </div>
+                                <div class="address-item">
+                                    <span class="address-label">Postcode</span>
+                                    <input type="text" id="edit-customer-postcode-{{ group.producer.id }}" class="address-input" value="{{ user_address.postcode|default:'' }}">
+                                </div>
+                                <div class="edit-actions">
+                                    <button onclick="saveCustomerAddress('{{ group.producer.id }}')" class="save-btn">Save</button>
+                                    <button onclick="cancelCustomerAddressEdit('{{ group.producer.id }}')" class="cancel-btn">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Delivery Date -->
+                        <label for="date-{{ group.producer.id }}" style="margin-top: 15px; display: block;">
                             📅 Select delivery date (48h minimum):
                         </label>
                         <input type="date" 
@@ -176,9 +148,33 @@
                         </div>
                     </div>
                     
+                    <!-- Collection Section (shown for Collect mode) -->
+                    <div class="delivery-section hidden" id="collection-section-{{ group.producer.id }}">
+                        <div class="address-header" style="color: #2b7a2b; border-bottom-color: #2b7a2b;">
+                            <i class="fa-solid fa-store"></i>
+                            <h4>Collection Address - {{ group.producer.name }}</h4>
+                        </div>
+                        <div class="address-details">
+                            {% if group.producer_address %}
+                                <div class="address-item address-full">
+                                    <span class="address-label">Street</span>
+                                    <span class="address-value">{{ group.producer_address.street }}</span>
+                                </div>
+                                <div class="address-item">
+                                    <span class="address-label">Postcode</span>
+                                    <span class="address-value">{{ group.producer_address.postcode }}</span>
+                                </div>
+                            {% else %}
+                                <div class="address-item">
+                                    <span class="address-value">No collection address available</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
                     <!-- Warning -->
-                    <div class="producer-warning" id="warning-{{ group.producer.id }}">
-                        ⚠️ Please select delivery date
+                    <div class="producer-warning hidden" id="warning-{{ group.producer.id }}">
+                        ⚠️ Please select a delivery date
                     </div>
                 </div>
             </div>
@@ -203,9 +199,7 @@
             
             <div class="summary-row">
                 <span class="summary-label">Total Items:</span>
-                <span class="summary-value">
-                    {{total_quantity}}
-                </span>
+                <span class="summary-value">{{ total_quantity }}</span>
             </div>
             
             <div class="summary-row">
@@ -214,7 +208,7 @@
             </div>
             
             <!-- Global Warning -->
-            <div id="globalWarning" class="warning-message">
+            <div id="globalWarning" class="warning-message hidden">
                 ⚠️ Please select delivery dates for all producers in delivery mode
             </div>
             
@@ -231,7 +225,7 @@
                 
                 <input type="hidden" name="total" value="{{ total }}">
                 
-                <button type="submit" class="btn-primary" id="globalPayBtn" {% if not producer_groups %}disabled{% endif %}>
+                <button type="submit" class="btn-primary" id="globalPayBtn" disabled>
                     💳 Pay Total: £{{ total }}
                 </button>
             </form>
@@ -259,43 +253,70 @@ document.addEventListener("DOMContentLoaded", function() {
         dateValue: ''
     };
     {% endfor %}
+    
+    // Initialize all producers to Delivery mode
+    {% for group in producer_groups %}
+    setProducerMode('{{ group.producer.id }}', true);
+    {% endfor %}
+    
+    // Initial check for payment button
     updateGlobalPaymentButton();
 });
 
 function setProducerMode(producerId, isDelivery) {
+    console.log(`Setting producer ${producerId} to ${isDelivery ? 'Delivery' : 'Collect'}`);
+    
     const deliveryBtn = document.querySelector(`.producer-delivery[data-producer="${producerId}"]`);
     const collectBtn = document.querySelector(`.producer-collect[data-producer="${producerId}"]`);
     const deliverySection = document.getElementById(`delivery-section-${producerId}`);
+    const collectionSection = document.getElementById(`collection-section-${producerId}`);
     const methodInput = document.getElementById(`global-method-${producerId}`);
     const dateInput = document.getElementById(`date-${producerId}`);
     const warning = document.getElementById(`warning-${producerId}`);
+    const hiddenInput = document.getElementById(`global-hidden-${producerId}`);
     
     if (isDelivery) {
+        // Delivery mode
         deliveryBtn.classList.add('active');
         collectBtn.classList.remove('active');
         if (methodInput) methodInput.value = 'delivery';
-        deliverySection.style.display = 'block';
+        
+        // Show delivery section, hide collection section
+        if (deliverySection) deliverySection.classList.remove('hidden');
+        if (collectionSection) collectionSection.classList.add('hidden');
+        
         dateInput.required = true;
         dateInput.disabled = false;
+        
+        // Update state
         producerStates[producerId].isDelivery = true;
+        
+        // Check if date is already selected
         if (producerStates[producerId].dateSelected) {
-            warning.classList.remove('show');
+            if (warning) warning.classList.add('hidden');
         } else {
-            warning.classList.add('show');
+            if (warning) warning.classList.remove('hidden');
         }
     } else {
+        // Collect mode
         collectBtn.classList.add('active');
         deliveryBtn.classList.remove('active');
         if (methodInput) methodInput.value = 'collect';
-        deliverySection.style.display = 'none';
+        
+        // Hide delivery section, show collection section
+        if (deliverySection) deliverySection.classList.add('hidden');
+        if (collectionSection) collectionSection.classList.remove('hidden');
+        
         dateInput.required = false;
         dateInput.disabled = true;
         dateInput.value = '';
+        
+        // Update state - Collect mode is always valid
         producerStates[producerId].isDelivery = false;
-        producerStates[producerId].dateSelected = false;
+        producerStates[producerId].dateSelected = true; // Collect mode doesn't need date
         producerStates[producerId].dateValue = '';
-        warning.classList.remove('show');
-        const hiddenInput = document.getElementById(`global-hidden-${producerId}`);
+        
+        if (warning) warning.classList.add('hidden');
         if (hiddenInput) hiddenInput.value = '';
     }
     updateGlobalPaymentButton();
@@ -305,6 +326,8 @@ function validateProducerDate(producerId) {
     const dateInput = document.getElementById(`date-${producerId}`);
     const hiddenInput = document.getElementById(`global-hidden-${producerId}`);
     const warning = document.getElementById(`warning-${producerId}`);
+    
+    console.log(`Validating date for producer ${producerId}:`, dateInput.value);
     
     if (dateInput.value) {
         const selectedDate = new Date(dateInput.value);
@@ -316,28 +339,34 @@ function validateProducerDate(producerId) {
             if (hiddenInput) hiddenInput.value = '';
             producerStates[producerId].dateSelected = false;
             producerStates[producerId].dateValue = '';
-            warning.classList.add('show');
+            if (warning) warning.classList.remove('hidden');
         } else {
             if (hiddenInput) hiddenInput.value = dateInput.value;
             producerStates[producerId].dateSelected = true;
             producerStates[producerId].dateValue = dateInput.value;
-            warning.classList.remove('show');
+            if (warning) warning.classList.add('hidden');
         }
     } else {
         if (hiddenInput) hiddenInput.value = '';
         producerStates[producerId].dateSelected = false;
         producerStates[producerId].dateValue = '';
-        warning.classList.add('show');
+        if (warning) warning.classList.remove('hidden');
     }
+    
     updateGlobalPaymentButton();
 }
 
 function allDeliveryDatesSelected() {
     for (const [producerId, state] of Object.entries(producerStates)) {
+        console.log(`Producer ${producerId}: isDelivery=${state.isDelivery}, dateSelected=${state.dateSelected}`);
+        
+        // If in delivery mode, need date selected
         if (state.isDelivery && !state.dateSelected) {
+            console.log(`❌ Producer ${producerId} needs date`);
             return false;
         }
     }
+    console.log('✅ All requirements satisfied');
     return true;
 }
 
@@ -348,11 +377,13 @@ function updateGlobalPaymentButton() {
     if (allDeliveryDatesSelected()) {
         globalPayBtn.disabled = false;
         globalPayBtn.classList.remove('disabled');
-        globalWarning.style.display = 'none';
+        if (globalWarning) globalWarning.classList.add('hidden');
+        console.log('💰 Payment button ENABLED');
     } else {
         globalPayBtn.disabled = true;
         globalPayBtn.classList.add('disabled');
-        globalWarning.style.display = 'block';
+        if (globalWarning) globalWarning.classList.remove('hidden');
+        console.log('💰 Payment button DISABLED');
     }
 }
 
@@ -364,27 +395,28 @@ function validateGlobalPayment() {
     return true;
 }
 
-function enableAddressEdit() {
-    document.getElementById('addressDisplay').style.display = 'none';
-    document.getElementById('addressEdit').style.display = 'block';
+// Address edit functions for each producer
+function enableCustomerAddressEdit(producerId) {
+    document.getElementById(`customer-address-display-${producerId}`).classList.add('hidden');
+    document.getElementById(`customer-address-edit-${producerId}`).classList.remove('hidden');
 }
 
-function cancelAddressEdit() {
-    document.getElementById('addressDisplay').style.display = 'block';
-    document.getElementById('addressEdit').style.display = 'none';
+function cancelCustomerAddressEdit(producerId) {
+    document.getElementById(`customer-address-display-${producerId}`).classList.remove('hidden');
+    document.getElementById(`customer-address-edit-${producerId}`).classList.add('hidden');
 }
 
-function saveAddress() {
-    const street = document.getElementById('editStreet').value;
-    const postcode = document.getElementById('editPostcode').value;
+function saveCustomerAddress(producerId) {
+    const street = document.getElementById(`edit-customer-street-${producerId}`).value;
+    const postcode = document.getElementById(`edit-customer-postcode-${producerId}`).value;
     
-    document.getElementById('displayStreet').textContent = street;
-    document.getElementById('displayPostcode').textContent = postcode;
+    document.getElementById(`customer-street-${producerId}`).textContent = street || 'No address saved';
+    document.getElementById(`customer-postcode-${producerId}`).textContent = postcode || '';
     
-    document.getElementById('addressDisplay').style.display = 'block';
-    document.getElementById('addressEdit').style.display = 'none';
+    document.getElementById(`customer-address-display-${producerId}`).classList.remove('hidden');
+    document.getElementById(`customer-address-edit-${producerId}`).classList.add('hidden');
     
-    alert('Address updated!');
+    alert('Address updated for this order!');
 }
 </script>
 {% endblock %}
