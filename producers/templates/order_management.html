@@ -203,3 +203,208 @@ document.querySelectorAll(".view-btn").forEach(btn => {
 </script>
 
 {% endblock %}
+{% extends "producer_base.html" %}
+{% load static %}
+
+{% block head %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'order_management.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="welcome">
+  <h1>Order Management</h1>
+  <p>View and manage your orders here.</p>
+</div>
+
+<section class="panel">
+  <div class="panel-header-row">
+    <h2>Incoming Orders</h2>
+
+    <select id="statusFilter" class="button-pill" style="border-radius:10px; padding:8px 12px;">
+      <option value="">All statuses</option>
+      <option value="Pending">Pending</option>
+      <option value="Confirmed">Confirmed</option>
+      <option value="Ready">Ready</option>
+      <option value="Delivered">Delivered</option>
+    </select>
+  </div>
+
+  <div class="table-wrap">
+
+    <div class="prod-table orders head" style="grid-template-columns: 1.1fr 1.6fr 1.1fr 1.1fr 2fr 0.9fr 1fr 0.9fr;">
+      <div>Order #</div>
+      <div>Customer</div>
+      <div>Order Date</div>
+      <div>Delivery Date</div>
+      <div>Items</div>
+      <div>Total</div>
+      <div>Status</div>
+      <div>Actions</div>
+    </div>
+
+    
+    {% if orders %}
+      {% for o in orders %}
+        <div class="prod-table orders row order-row"
+             data-status="{{ o.status }}"
+             data-order-id="{{ o.order_id }}"
+             data-customer-name="{{ o.customer_name }}"
+             data-customer-contact="{{ o.customer_contact }}"
+             data-delivery-address="{{ o.delivery_address }}"
+             data-order-date="{{ o.created_at|date:'d/m/Y' }}"
+             data-delivery-date="{{ o.delivery_date|date:'d/m/Y' }}"
+             data-special-instruction="{{ o.special_instruction|default:'None' }}"
+             data-items='{{ o.items_json|escapejs }}'
+             data-total="{{ o.total_value }}">
+
+          <div><strong>#{{ o.order_id }}</strong></div>
+          <div>{{ o.customer_name }}</div>
+          <div>{{ o.created_at|date:"d/m/Y" }}</div>
+          <div><strong>{{ o.delivery_date|date:"d/m/Y" }}</strong></div>
+          <div class="order-items">{{ o.items_summary }}</div>
+          <div><strong>£{{ o.total_value }}</strong></div>
+          <div>
+            <span class="tag {% if o.status == 'Pending' %}red{% elif o.status == 'Ready' %}amber{% else %}green{% endif %}">
+              {{ o.status }}
+            </span>
+          </div>
+          <div class="actions">
+            <button class="mini-btn view-btn" type="button">View</button>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div style="padding:10px; font-weight:700;">No incoming orders yet.</div>
+    {% endif %}
+
+  </div>
+</section>
+
+<!-- Modal -->
+<div id="orderModal" class="modal order-modal" style="display:none;">
+  <div class="modal-content order-modal-content">
+    <div class="panel-header-row">
+      <h2 style="margin:0;">Order Details</h2>
+      <button class="button-pill" type="button" id="closeModalBtn">Close</button>
+    </div>
+
+    <div id="modalMeta" style="margin-bottom:10px; font-weight:700; color:#406083;"></div>
+
+    <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+
+      <div class="form-group">
+        <label>Customer Name</label>
+        <input id="dCustomerName" disabled>
+      </div>
+
+      <div class="form-group">
+        <label>Customer Contact</label>
+        <input id="dCustomerContact" disabled>
+      </div>
+
+      <div class="form-group form-group-full">
+        <label>Delivery Address</label>
+        <input id="dDeliveryAddress" disabled>
+      </div>
+
+      <div class="form-group">
+        <label>Order Date</label>
+        <input id="dOrderDate" disabled>
+      </div>
+
+      <div class="form-group">
+        <label>Delivery Date</label>
+        <input id="dDeliveryDate" disabled>
+      </div>
+
+      <div class="form-group form-group-full">
+        <label>Special Instructions</label>
+        <textarea id="dSpecialInstruction" rows="3" disabled></textarea>
+      </div>
+
+      <div class="form-group form-group-full">
+        <label>Itemised Products</label>
+
+        <div class="table-wrap">
+          <div class="prod-table head" style="grid-template-columns: 2fr 0.7fr 0.9fr 0.9fr;">
+            <div>Product</div>
+            <div>Qty</div>
+            <div>Price</div>
+            <div>Total</div>
+          </div>
+          <div id="itemsRows"></div>
+        </div>
+
+        <div class="order-total-row" style="display:flex; justify-content:flex-end; margin-top:10px;">
+          <div class="pill mini">
+            <span>Total</span>
+            <strong id="dTotalAmount">£0.00</strong>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- modal open/close ---------- */
+function openModal(){ document.getElementById("orderModal").style.display="flex"; }
+function closeModal(){ document.getElementById("orderModal").style.display="none"; }
+
+document.getElementById("closeModalBtn").addEventListener("click", closeModal);
+document.getElementById("orderModal").addEventListener("click",(e)=>{ if(e.target.id==="orderModal") closeModal(); });
+document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") closeModal(); });
+
+/* ---------- status filter (frontend only) ---------- */
+document.getElementById("statusFilter").addEventListener("change", () => {
+  const selected = document.getElementById("statusFilter").value;
+  document.querySelectorAll(".order-row").forEach(row => {
+    const status = row.dataset.status || "";
+    row.style.display = (!selected || status === selected) ? "grid" : "none";
+  });
+});
+
+/* ---------- open details from row dataset ---------- */
+document.querySelectorAll(".view-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const row = btn.closest(".order-row");
+
+    document.getElementById("modalMeta").innerHTML =
+      `Order <strong>#${row.dataset.orderId}</strong>`;
+
+    document.getElementById("dCustomerName").value = row.dataset.customerName || "";
+    document.getElementById("dCustomerContact").value = row.dataset.customerContact || "";
+    document.getElementById("dDeliveryAddress").value = row.dataset.deliveryAddress || "";
+    document.getElementById("dOrderDate").value = row.dataset.orderDate || "";
+    document.getElementById("dDeliveryDate").value = row.dataset.deliveryDate || "";
+    document.getElementById("dSpecialInstruction").value = row.dataset.specialInstruction || "None";
+    document.getElementById("dTotalAmount").textContent = "£" + (row.dataset.total || "0.00");
+
+    // items JSON (later you pass it from Django)
+    const itemsWrap = document.getElementById("itemsRows");
+    itemsWrap.innerHTML = "";
+    let items = [];
+    try { items = JSON.parse(row.dataset.items || "[]"); } catch(e){ items = []; }
+
+    items.forEach(it => {
+      const r = document.createElement("div");
+      r.className = "prod-table row";
+      r.style.gridTemplateColumns = "2fr 0.7fr 0.9fr 0.9fr";
+      r.innerHTML = `
+        <div style="text-align:left;">${it.product_name || ""}</div>
+        <div>${it.quantity || 0}</div>
+        <div>£${Number(it.price_at_purchase || 0).toFixed(2)}</div>
+        <div><strong>£${Number((it.quantity||0)*(it.price_at_purchase||0)).toFixed(2)}</strong></div>
+      `;
+      itemsWrap.appendChild(r);
+    });
+
+    openModal();
+  });
+});
+</script>
+
+{% endblock %}
