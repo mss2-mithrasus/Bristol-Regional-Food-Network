@@ -51,6 +51,8 @@ class ProducerDashboardAPI(APIView):
             status=status.HTTP_200_OK,
         )
 
+def dashboard(request):
+    return render(request, "dashboard.html")
 
 # Normal page renders (templates)
 def dashboard(request):
@@ -78,7 +80,7 @@ def add_product(request):
         },
     )
 
-
+ 
 class ProducerCreateProductAPI(APIView):
     """
     POST /producers/api/products/create/

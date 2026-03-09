@@ -7,10 +7,16 @@ from .serializers import ProductCategorySerializer, ProductCreateSerializer, Pro
 from rest_framework.permissions import AllowAny
 from rest_framework import generics
 from django.db.models import Q
+from rest_framework.permissions import IsAuthenticated
+from user_accounts.permissions import IsCustomer
+from django.contrib.auth.decorators import login_required
 
 
 # product home page
+@login_required(login_url='/login/')
 def home(request):
+    print("home view hit")
+    print("user authenticated", request.user.is_authenticated)
     # getting all the categories stored in the database
     categories = ProductCategory.objects.all()
     # debug to check categories
@@ -44,13 +50,16 @@ def home(request):
     return render(request, "product.html", {"categories": categories, "products": products, "query": query} )
 
 # THESE PAGES ARENT DONE YET
+@login_required(login_url='login')
 def orders(request):
     return render(request, "orders.html")
 
+@login_required(login_url='login')
 def about_us(request):
     return render(request, "about_us.html")
 
 
+@login_required(login_url='login')
 def products_category(request, category_name):
     # get category object
     category = get_object_or_404(ProductCategory, category_name=category_name)
@@ -76,7 +85,7 @@ def products_category(request, category_name):
     return render(request, "categories.html", context)
 
 
-
+@login_required(login_url='login')
 def product_detail(request, product_id):
     # getting product based on primary key
     product = get_object_or_404(Product, pk=product_id)
@@ -96,7 +105,7 @@ def product_detail(request, product_id):
 
 
 class ProductCategoryCreateAPIView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def post(self, request):
         # json data is converted to a serializer
@@ -111,16 +120,16 @@ class ProductCategoryCreateAPIView(APIView):
     
 
 class ProductCategoryListAPIView(generics.ListAPIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     queryset = ProductCategory.objects.all()
     serializer_class = ProductCategorySerializer
     
     
 # api end point for creating a new product
 class  ProductCreateAPIView(generics.CreateAPIView):
-    queryset = Product.objects.all()
+    queryset = Product.objects.all() 
     serializer_class = ProductCreateSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     # youre going to need this so that when a product is added it is linked to the producer loggedin 
     #def perform_create(self,serializer):
@@ -132,6 +141,6 @@ class  ProductCreateAPIView(generics.CreateAPIView):
 class ProductAllergenCreateAPIView(generics.CreateAPIView):
     queryset = ProductAllergen.objects.all()
     serializer_class = ProductAllergenSerializer
-    permission_classes= [AllowAny]
+    permission_classes= [IsAuthenticated]
     
     
