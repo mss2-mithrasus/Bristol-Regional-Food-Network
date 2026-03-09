@@ -42,7 +42,11 @@ class ProductCreateSerializer(serializers.Serializer):
         stock = validated_data.pop("stock")
         validated_data.pop("allergens", None)
         availability_text = (validated_data.pop("availability") or "").strip().lower()
-        
+        # allergens_value = validated_data.pop("allergens", "")
+        # In case request is multipart (image upload) and allergens were sent as repeated keys
+        # raw_list = request.data.getlist("allergens") if hasattr(request.data, "getlist") else []
+        # if raw_list:  # prefer multipart list if present
+        #   allergens_value = raw_list
         image = validated_data.pop("image", None)
 
         available_values = {"available", "in season (available)", "in season"}
@@ -56,9 +60,6 @@ class ProductCreateSerializer(serializers.Serializer):
             image=image,
             **validated_data
         )
-
-        
-        
 
         return product
     

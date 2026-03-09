@@ -53,8 +53,8 @@ class LoginView(APIView):
             tokens = serializer.validated_data
             user = tokens["user"]
             
+            # Create Django session
             login(request, user)
-
             if user.role == "admin":
                 homepage = "/admin-dashboard/home/"
             elif user.role == "producer":

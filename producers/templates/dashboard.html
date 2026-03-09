@@ -39,62 +39,6 @@
   </div>
 </section>
 
-<!-- <script>
-// const token = localStorage.getItem("access");
-
-// if (!token) {
-//   window.location.href = "/login/";
-// }
-const token = localStorage.getItem("access") || sessionStorage.getItem("access");
-
-if (!token) {
-  window.location.href = "/login/";
-}
-
-fetch("/producer/api/dashboard/", {
-  headers: {
-    "Authorization": "Bearer " + token
-  }
-})
-.then(response => {
-  if (!response.ok) throw new Error("Unauthorized");
-  return response.json();
-})
-.then(data => {
-
-  // Producer name
-  document.getElementById("producer-name").textContent =
-    "Welcome back, " + (data.producer_name || data.business_name)
-
-  // Overview stats
-  document.getElementById("total-products").textContent = data.total_products || 0;
-  document.getElementById("active-orders").textContent = data.active_orders || 0;
-  document.getElementById("revenue").textContent = "£" + (data.revenue || 0);
-  document.getElementById("low-stock").textContent = data.low_stock || 0;
-
-  // Recent Orders
-  const ordersContainer = document.getElementById("recent-orders-container");
-  ordersContainer.innerHTML = "";
-
-  if (data.recent_orders) {
-    data.recent_orders.forEach(order => {
-      ordersContainer.innerHTML += `
-        <div class="orders-grid row">
-          <div>${order.id}</div>
-          <div>${order.customer}</div>
-          <div>${order.items}</div>
-          <div>${order.status}</div>
-        </div>
-      `;
-    });
-  }
-
-})
-.catch(error => {
-  console.error(error);
-  window.location.href = "/login/";
-});
-</script> -->
 <script>
     // Shared auth helpers
     function getAccessToken() {
@@ -153,7 +97,32 @@ fetch("/producer/api/dashboard/", {
                 `;
             });
         }
+        const productStatusContainer = document.getElementById("product-status-container");
+    productStatusContainer.innerHTML = "";
 
+    if (data.product_status) {
+
+        productStatusContainer.innerHTML += `
+            <div class="pill">
+                <span>Available</span>
+                <strong>${data.product_status.available}</strong>
+            </div>
+        `;
+
+        productStatusContainer.innerHTML += `
+            <div class="pill">
+                <span>Low Stock</span>
+                <strong>${data.product_status.low_stock}</strong>
+            </div>
+        `;
+
+        productStatusContainer.innerHTML += `
+            <div class="pill">
+                <span>Out of Stock</span>
+                <strong>${data.product_status.out_of_stock}</strong>
+            </div>
+        `;
+    }
     })
     .catch(error => {
         console.error(error);
