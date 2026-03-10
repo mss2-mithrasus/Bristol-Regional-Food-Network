@@ -1,0 +1,270 @@
+{% extends "product.html" %}
+{% load static %}
+
+{% block head %}
+<style>
+    .detail-container {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+    
+    .back-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        color: #2b7a2b;
+        text-decoration: none;
+    }
+    
+    .back-link:hover {
+        text-decoration: underline;
+    }
+    
+    .order-header {
+        background: linear-gradient(135deg, #2b7a2b, #1e5a1e);
+        color: white;
+        padding: 30px;
+        border-radius: 12px 12px 0 0;
+    }
+    
+    .order-header h1 {
+        margin: 0;
+        font-size: 24px;
+    }
+    
+    .order-meta {
+        margin-top: 10px;
+        display: flex;
+        gap: 20px;
+        opacity: 0.9;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        background: white;
+        color: #2b7a2b;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-left: 10px;
+    }
+    
+    .info-card {
+        background: white;
+        padding: 25px;
+        border-radius: 0 0 12px 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+    
+    .info-item {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .info-label {
+        font-size: 12px;
+        color: #666;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+    }
+    
+    .info-value {
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .producer-section {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    
+    .producer-header {
+        background: #f8f9fa;
+        padding: 15px 20px;
+        border-bottom: 2px solid #2b7a2b;
+    }
+    
+    .producer-header h3 {
+        margin: 0;
+        color: #2b7a2b;
+    }
+    
+    .producer-meta {
+        display: flex;
+        gap: 20px;
+        margin-top: 8px;
+        font-size: 14px;
+        color: #666;
+    }
+    
+    .items-table {
+        width: 100%;
+        padding: 20px;
+    }
+    
+    .item-row {
+        display: flex;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .item-row:last-child {
+        border-bottom: none;
+    }
+    
+    .item-image {
+        width: 50px;
+        height: 50px;
+        border-radius: 6px;
+        overflow: hidden;
+        margin-right: 15px;
+    }
+    
+    .item-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .item-details {
+        flex: 1;
+    }
+    
+    .item-name {
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .item-quantity {
+        margin-right: 30px;
+        color: #666;
+    }
+    
+    .item-price {
+        font-weight: 600;
+        color: #2b7a2b;
+        min-width: 80px;
+        text-align: right;
+    }
+    
+    .producer-totals {
+        padding: 15px 20px;
+        background: #f8f9fa;
+        border-top: 1px solid #eee;
+        text-align: right;
+    }
+    
+    .order-total {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-top: 20px;
+    }
+    
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+    }
+    
+    .grand-total {
+        font-size: 20px;
+        font-weight: bold;
+        color: #2b7a2b;
+        border-top: 2px solid #333;
+        padding-top: 15px;
+        margin-top: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="detail-container">
+    <a href="{% url 'order_history' %}" class="back-link">← Back to Orders</a>
+    
+    <div class="order-header">
+        <h1>Order #{{ order.order_id }} <span class="status-badge">{{ order.status }}</span></h1>
+        <div class="order-meta">
+            <span>Placed on {{ order_date|date:"F j, Y" }}</span>
+        </div>
+    </div>
+    
+    <div class="info-card">
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">Delivery Address</span>
+                <span class="info-value">{{ delivery_address }}</span>
+                <span class="info-value">{{ delivery_postcode }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Payment Status</span>
+                <span class="info-value">Paid</span>
+            </div>
+        </div>
+    </div>
+    
+    {% for producer in producers %}
+    <div class="producer-section">
+        <div class="producer-header">
+            <h3>{{ producer.name }}</h3>
+            <div class="producer-meta">
+                <span>Delivery: {{ producer.delivery_date|date:"M j, Y" }}</span>
+                <span>Status: {{ producer.status }}</span>
+            </div>
+        </div>
+        
+        <div class="items-table">
+            {% for item in producer.items %}
+            <div class="item-row">
+                <div class="item-image">
+                    {% if item.image %}
+                        <img src="{{ item.image }}" alt="{{ item.name }}">
+                    {% else %}
+                        <img src="{% static 'images/default-product.png' %}" alt="{{ item.name }}">
+                    {% endif %}
+                </div>
+                <div class="item-details">
+                    <div class="item-name">{{ item.name }}</div>
+                </div>
+                <div class="item-quantity">x{{ item.quantity }}</div>
+                <div class="item-price">£{{ item.price }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="producer-totals">
+            <div>Subtotal: £{{ producer.subtotal|floatformat:2 }}</div>
+        </div>
+    </div>
+    {% endfor %}
+    
+    <div class="order-total">
+        <div class="total-row">
+            <span>Subtotal:</span>
+            <span>£{{ order.total_amount|add:commission|floatformat:2 }}</span>
+        </div>
+        <div class="total-row">
+            <span>Commission (5%):</span>
+            <span>£{{ commission|floatformat:2 }}</span>
+        </div>
+        <div class="total-row grand-total">
+            <span>Total Paid:</span>
+            <span>£{{ total|floatformat:2 }}</span>
+        </div>
+    </div>
+</div>
+{% endblock %}

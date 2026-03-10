@@ -1,0 +1,193 @@
+{% extends "product.html" %}
+{% load static %}
+
+{% block head %}
+<style>
+    .history-container {
+        max-width: 1000px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+    
+    .page-title {
+        text-align: center;
+        margin-bottom: 40px;
+        color: #333;
+    }
+    
+    .order-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        padding: 20px;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .order-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .order-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .order-number {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2b7a2b;
+    }
+    
+    .order-date {
+        color: #666;
+        font-size: 14px;
+    }
+    
+    .order-status {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .status-pending { background: #fff3cd; color: #856404; }
+    .status-confirmed { background: #cce5ff; color: #004085; }
+    .status-ready { background: #d4edda; color: #155724; }
+    .status-delivered { background: #d1e7dd; color: #0f5132; }
+    
+    .order-content {
+        display: flex;
+        gap: 20px;
+    }
+    
+    .order-preview {
+        flex: 1;
+    }
+    
+    .preview-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 5px 0;
+        color: #666;
+    }
+    
+    .more-items {
+        color: #2b7a2b;
+        font-size: 13px;
+        margin-top: 5px;
+    }
+    
+    .order-summary {
+        min-width: 200px;
+        text-align: right;
+    }
+    
+    .total {
+        font-size: 20px;
+        font-weight: bold;
+        color: #2b7a2b;
+        margin-bottom: 5px;
+    }
+    
+    .item-count {
+        color: #666;
+        font-size: 14px;
+        margin-bottom: 15px;
+    }
+    
+    .view-btn {
+        display: inline-block;
+        padding: 8px 20px;
+        background: #2b7a2b;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        transition: background 0.2s;
+    }
+    
+    .view-btn:hover {
+        background: #1e5a1e;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: #f8f9fa;
+        border-radius: 12px;
+    }
+    
+    .empty-icon {
+        font-size: 48px;
+        margin-bottom: 20px;
+        color: #999;
+    }
+    
+    .shop-btn {
+        display: inline-block;
+        margin-top: 20px;
+        padding: 12px 30px;
+        background: #2b7a2b;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="history-container">
+    <h1 class="page-title">📦 My Orders</h1>
+    
+    {% if orders %}
+        {% for order in orders %}
+        <div class="order-card">
+            <div class="order-header">
+                <div>
+                    <span class="order-number">Order #{{ order.order_id }}</span>
+                    <span class="order-date">{{ order.date|date:"F j, Y" }}</span>
+                </div>
+                <span class="order-status status-{{ order.status|lower }}">
+                    {{ order.status }}
+                </span>
+            </div>
+            
+            <div class="order-content">
+                <div class="order-preview">
+                    {% for item in order.items %}
+                    <div class="preview-item">
+                        <span>{{ item.name }}</span>
+                        <span>x{{ item.quantity }}</span>
+                    </div>
+                    {% endfor %}
+                    {% if order.more_items %}
+                    <div class="more-items">+ {{ order.item_count|add:"-3" }} more items</div>
+                    {% endif %}
+                </div>
+                
+                <div class="order-summary">
+                    <div class="total">£{{ order.total|floatformat:2 }}</div>
+                    <div class="item-count">{{ order.item_count }} items</div>
+                    <a href="{% url 'order_detail' order.order_id %}" class="view-btn">
+                        View Details →
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">🛒</div>
+        <h2>No orders yet</h2>
+        <p>Looks like you haven't placed any orders.</p>
+        <a href="/" class="shop-btn">Start Shopping</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

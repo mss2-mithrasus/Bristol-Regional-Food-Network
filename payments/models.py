@@ -16,9 +16,8 @@ class PaymentTransaction(models.Model):
     
     transaction_id = models.AutoField(primary_key=True)
     
-    # FIXED: Reference order_management.Order
     order = models.ForeignKey(
-        'order_management.Order',  # Add the app name!
+        'order_management.Order',
         on_delete=models.CASCADE,
         related_name='payments',
         db_column='order_id'
@@ -30,6 +29,10 @@ class PaymentTransaction(models.Model):
     payment_status = models.CharField(max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
     
     stripe_payment_intent_id = models.CharField(max_length=255, blank=True, null=True)
+    
+    # 👇 ADD THIS NEW FIELD HERE (right after stripe_payment_intent_id)
+    #stripe_customer_id = models.CharField(max_length=255, blank=True, null=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
@@ -49,9 +52,8 @@ class Commission(models.Model):
     
     commission_id = models.AutoField(primary_key=True)
     
-    # FIXED: Reference order_management.Order
     order = models.ForeignKey(
-        'order_management.Order',  # Add the app name!
+        'order_management.Order',
         on_delete=models.CASCADE,
         related_name='commissions',
         db_column='order_id'

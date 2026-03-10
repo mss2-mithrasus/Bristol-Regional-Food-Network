@@ -5,6 +5,8 @@ urlpatterns = [
     path("", views.order_home, name="orders_home"),
 
     path("checkout/multi/", views.multi_checkout, name="multi_checkout"),
-    path("payment/", views.payment, name="payment_page"),
+    path('history/', views.order_history, name='order_history'),
+    path('detail/<int:order_id>/', views.order_detail, name='order_detail'),
+    #path("payment/", views.payment, name="payment_page"),
 
 ]

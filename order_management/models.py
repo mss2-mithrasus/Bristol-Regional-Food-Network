@@ -1,7 +1,6 @@
 from django.db import models
-
-
-
+from user_accounts.models import CustomerAccount, ProducerAccount
+from product.models import Product
 
 # ============================================================
 # ORDER

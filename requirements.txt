@@ -7,3 +7,4 @@ PyJWT==2.11.0
 sqlparse==0.5.5
 tzdata==2025.3
 pillow==10.4.0
+stripe>=14.4.1

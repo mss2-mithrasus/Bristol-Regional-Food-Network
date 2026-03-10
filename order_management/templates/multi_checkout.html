@@ -213,7 +213,8 @@
             </div>
             
             <!-- Payment Form -->
-            <form method="POST" action="{% url 'payment_page' %}" id="globalPaymentForm" onsubmit="return validateGlobalPayment()">
+            
+            <form method="POST" action="{% url 'payments:payment_page' %}" id="globalPaymentForm" onsubmit="return validateGlobalPayment()">
                 {% csrf_token %}
                 
                 {% for group in producer_groups %}
