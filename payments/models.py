@@ -30,9 +30,6 @@ class PaymentTransaction(models.Model):
     
     stripe_payment_intent_id = models.CharField(max_length=255, blank=True, null=True)
     
-    # 👇 ADD THIS NEW FIELD HERE (right after stripe_payment_intent_id)
-    #stripe_customer_id = models.CharField(max_length=255, blank=True, null=True)
-    
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
@@ -61,14 +58,6 @@ class Commission(models.Model):
     
     commission_amount = models.DecimalField(max_digits=10, decimal_places=2)
     producer_payout = models.DecimalField(max_digits=10, decimal_places=2)
-    
-    payment = models.ForeignKey(
-        PaymentTransaction,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='commissions'
-    )
     
     status = models.CharField(max_length=20, choices=CommissionStatus.choices, default=CommissionStatus.PENDING)
     created_at = models.DateTimeField(auto_now_add=True)

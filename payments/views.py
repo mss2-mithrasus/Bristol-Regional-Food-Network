@@ -53,7 +53,7 @@ def payment_page(request):
         })
     return redirect('multi_checkout')
 
-# ❌ REMOVED: send_order_confirmation_email function
+#  REMOVED: send_order_confirmation_email function
 
 def payment_success(request):
     payment_intent_id = request.GET.get('payment_intent')
@@ -69,22 +69,38 @@ def payment_success(request):
     # Get the cart
     cart = Cart.objects.get(customer=request.user)
     
-    # Create Order
+    # 👇 CHECK IF ANY PRODUCER NEEDS DELIVERY FIRST
+    has_delivery = False
+    for group in producer_groups:
+        producer_id = group['producer']['id']
+        producer_data = checkout_data.get('producer_data', {})
+        method_key = f'producer_{producer_id}_method'
+        delivery_method = producer_data.get(method_key, 'delivery')
+        if delivery_method == 'delivery':
+            has_delivery = True
+            break
+    
+    # 👇 ONLY SAVE ADDRESS TO ORDER IF NEEDED
     order = Order.objects.create(
         customer=request.user.customeraccount,
         total_amount=total,
         commission_amount=commission,
-        delivery_address=user_address.get('street', ''),
-        delivery_postcode=user_address.get('postcode', ''),
+        delivery_address=user_address.get('street', '') if has_delivery else '',
+        delivery_postcode=user_address.get('postcode', '') if has_delivery else '',
         order_status='Pending'
     )
+    
+    print(f"Order created: #{order.order_id} - Delivery address saved: {has_delivery}")
     
     # Create SubOrders and collect items for receipt
     all_items = []
     for group in producer_groups:
         producer_id = group['producer']['id']
         producer_data = checkout_data.get('producer_data', {})
+        method_key = f'producer_{producer_id}_method'
         date_key = f'producer_{producer_id}_delivery_date'
+        
+        delivery_method = producer_data.get(method_key, 'delivery')
         delivery_date = producer_data.get(date_key, None)
         
         producer = ProducerAccount.objects.get(id=producer_id)
@@ -117,8 +133,6 @@ def payment_success(request):
                 'producer': producer.business_name
             })
     
-    # ❌ REMOVED: send_order_confirmation_email call
-    
     # Create PaymentTransaction
     PaymentTransaction.objects.create(
         order=order,
@@ -147,11 +161,12 @@ def payment_success(request):
     # Show success page with receipt
     return render(request, 'payment_success.html', {
         'order_id': order.order_id,
-        'total': total,
+        'total': float(order.total_amount),
         'items': all_items,
-        'order_date': timezone.now(),
+        'order_date': order.created_at,
         'customer_name': request.user.get_full_name() or request.user.email,
-        'delivery_address': user_address.get('street', ''),
-        'delivery_postcode': user_address.get('postcode', ''),
+        'delivery_address': order.delivery_address,  # From order (will be empty if no delivery)
+        'delivery_postcode': order.delivery_postcode,  # From order (will be empty if no delivery)
+        'show_address': has_delivery,
         'user_email': request.user.email
     })

@@ -8,6 +8,11 @@ import random
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from .models import Order, SubOrder, OrderItem
+from django.http import JsonResponse
+from django.views.decorators.csrf import ensure_csrf_cookie
+import json
+import traceback
+
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +48,7 @@ def multi_checkout(request):
     items_by_producer_dict = cart.get_items_grouped_by_producer()
     print(f" Producers in cart: {len(items_by_producer_dict)}")
     
-    # ===== FIX PRODUCER NAMES HERE =====
+    
     # If producer names are "Unknown Producer", try to get them from items
     for producer, data in items_by_producer_dict.items():
         if data['producer_name'] == "Unknown Producer" and data['items']:
@@ -52,7 +57,7 @@ def multi_checkout(request):
             if hasattr(first_item, 'producer_name'):
                 data['producer_name'] = first_item.producer_name
                 print(f"Fixed producer name: {data['producer_name']}")
-    # ===== END FIX =====
+    
     
     # Calculate 48‑hour minimum delivery date
     min_delivery_date = (timezone.now() + timedelta(hours=48)).date()
@@ -68,7 +73,7 @@ def multi_checkout(request):
         producer_commission = round(producer_subtotal * 0.05, 2)
         producer_total = round(producer_subtotal * 1.05, 2)
 
-        # ===== GET PRODUCER ADDRESS (SIMPLIFIED - JUST ADDRESS) =====
+        # ===== GET PRODUCER ADDRESS =====
         producer_address = None
         try:
             # Check what type 'producer' is and get address accordingly
@@ -165,6 +170,11 @@ def multi_checkout(request):
                 'street': street,
                 'postcode': postcode,
             }
+            #  OVERRIDE WITH SESSION IF EXISTS
+            session_address = request.session.get('user_address')
+            if session_address:
+                user_address = session_address
+                print(f"Using address from session: {user_address}")
         except CustomerAccount.DoesNotExist:
             user_address = {
                 'street': 'Please create a customer profile',
@@ -309,3 +319,61 @@ def order_detail(request, order_id):
         'order_date': order.created_at,
         'status': order.order_status
     })
+
+
+def update_checkout_address(request):
+    """Save edited address to session"""
+    print("=" * 50)
+    print("update_checkout_address view called")
+    print(f"Request method: {request.method}")
+    print(f"User authenticated: {request.user.is_authenticated}")
+    
+    if request.method == 'POST':
+        try:
+            print(f"Request body: {request.body}")
+            
+            # Try to parse JSON
+            try:
+                data = json.loads(request.body)
+                print(f"Parsed data: {data}")
+            except json.JSONDecodeError as e:
+                print(f"JSON decode error: {e}")
+                return JsonResponse({'success': False, 'error': f'Invalid JSON: {str(e)}'}, status=400)
+            
+            # Validate data
+            street = data.get('street')
+            postcode = data.get('postcode')
+            
+            if street is None or postcode is None:
+                return JsonResponse({'success': False, 'error': 'Missing street or postcode'}, status=400)
+            
+            # Save to session
+            print(f"Saving to session: street={street}, postcode={postcode}")
+            
+            # Make sure session is working
+            request.session['checkout_address'] = {
+                'street': street,
+                'postcode': postcode,
+            }
+            
+            request.session['user_address'] = {
+                'street': street,
+                'postcode': postcode,
+            }
+            
+            # Force session save
+            request.session.modified = True
+            
+            print(f"Session saved: {request.session.get('user_address')}")
+            print("=" * 50)
+            
+            return JsonResponse({'success': True})
+            
+        except Exception as e:
+            print(f"UNEXPECTED ERROR: {e}")
+            traceback.print_exc()
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+    print("Method not allowed")
+    print("=" * 50)
+    return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)

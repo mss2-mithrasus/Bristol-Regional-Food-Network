@@ -153,3 +153,40 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"OrderItem #{self.order_item_id}"
+    
+# ============================================================
+# RECURRING ORDER
+# ============================================================
+class RecurringOrder(models.Model):
+    class RecurrenceSchedule(models.TextChoices):
+        DAILY = 'daily', 'Daily'
+        WEEKLY = 'weekly', 'Weekly'
+        BIWEEKLY = 'biweekly', 'Every 2 Weeks'
+        MONTHLY = 'monthly', 'Monthly'
+        QUARTERLY = 'quarterly', 'Quarterly'
+        YEARLY = 'yearly', 'Yearly'
+
+    recurring_order_id = models.AutoField(primary_key=True)
+
+    customer = models.ForeignKey(
+        "user_accounts.CustomerAccount",
+        on_delete=models.CASCADE,
+        db_column="customer_id",
+        related_name="recurring_orders",
+    )
+
+    recurrence_schedule = models.CharField(
+        max_length=20,
+        choices=RecurrenceSchedule.choices,
+    )
+
+    next_order_date = models.DateField()
+
+    active_status = models.BooleanField(default=True)
+
+    class Meta:
+        managed = True
+        db_table = "recurring_order"
+
+    def __str__(self):
+        return f"RecurringOrder #{self.recurring_order_id}"

@@ -3,7 +3,6 @@
 
 {% block head %}
 <link rel="stylesheet" href="{% static 'checkout.css' %}">
-
 {% endblock %}
 
 {% block content %}
@@ -213,7 +212,6 @@
             </div>
             
             <!-- Payment Form -->
-            
             <form method="POST" action="{% url 'payments:payment_page' %}" id="globalPaymentForm" onsubmit="return validateGlobalPayment()">
                 {% csrf_token %}
                 
@@ -260,7 +258,6 @@ document.addEventListener("DOMContentLoaded", function() {
     setProducerMode('{{ group.producer.id }}', true);
     {% endfor %}
     
-    // Initial check for payment button
     updateGlobalPaymentButton();
 });
 
@@ -277,34 +274,28 @@ function setProducerMode(producerId, isDelivery) {
     const hiddenInput = document.getElementById(`global-hidden-${producerId}`);
     
     if (isDelivery) {
-        // Delivery mode
         deliveryBtn.classList.add('active');
         collectBtn.classList.remove('active');
         if (methodInput) methodInput.value = 'delivery';
         
-        // Show delivery section, hide collection section
         if (deliverySection) deliverySection.classList.remove('hidden');
         if (collectionSection) collectionSection.classList.add('hidden');
         
         dateInput.required = true;
         dateInput.disabled = false;
         
-        // Update state
         producerStates[producerId].isDelivery = true;
         
-        // Check if date is already selected
         if (producerStates[producerId].dateSelected) {
             if (warning) warning.classList.add('hidden');
         } else {
             if (warning) warning.classList.remove('hidden');
         }
     } else {
-        // Collect mode
         collectBtn.classList.add('active');
         deliveryBtn.classList.remove('active');
         if (methodInput) methodInput.value = 'collect';
         
-        // Hide delivery section, show collection section
         if (deliverySection) deliverySection.classList.add('hidden');
         if (collectionSection) collectionSection.classList.remove('hidden');
         
@@ -312,9 +303,8 @@ function setProducerMode(producerId, isDelivery) {
         dateInput.disabled = true;
         dateInput.value = '';
         
-        // Update state - Collect mode is always valid
         producerStates[producerId].isDelivery = false;
-        producerStates[producerId].dateSelected = true; // Collect mode doesn't need date
+        producerStates[producerId].dateSelected = true;
         producerStates[producerId].dateValue = '';
         
         if (warning) warning.classList.add('hidden');
@@ -327,8 +317,6 @@ function validateProducerDate(producerId) {
     const dateInput = document.getElementById(`date-${producerId}`);
     const hiddenInput = document.getElementById(`global-hidden-${producerId}`);
     const warning = document.getElementById(`warning-${producerId}`);
-    
-    console.log(`Validating date for producer ${producerId}:`, dateInput.value);
     
     if (dateInput.value) {
         const selectedDate = new Date(dateInput.value);
@@ -359,15 +347,10 @@ function validateProducerDate(producerId) {
 
 function allDeliveryDatesSelected() {
     for (const [producerId, state] of Object.entries(producerStates)) {
-        console.log(`Producer ${producerId}: isDelivery=${state.isDelivery}, dateSelected=${state.dateSelected}`);
-        
-        // If in delivery mode, need date selected
         if (state.isDelivery && !state.dateSelected) {
-            console.log(`❌ Producer ${producerId} needs date`);
             return false;
         }
     }
-    console.log('✅ All requirements satisfied');
     return true;
 }
 
@@ -379,12 +362,10 @@ function updateGlobalPaymentButton() {
         globalPayBtn.disabled = false;
         globalPayBtn.classList.remove('disabled');
         if (globalWarning) globalWarning.classList.add('hidden');
-        console.log('💰 Payment button ENABLED');
     } else {
         globalPayBtn.disabled = true;
         globalPayBtn.classList.add('disabled');
         if (globalWarning) globalWarning.classList.remove('hidden');
-        console.log('💰 Payment button DISABLED');
     }
 }
 
@@ -396,7 +377,6 @@ function validateGlobalPayment() {
     return true;
 }
 
-// Address edit functions for each producer
 function enableCustomerAddressEdit(producerId) {
     document.getElementById(`customer-address-display-${producerId}`).classList.add('hidden');
     document.getElementById(`customer-address-edit-${producerId}`).classList.remove('hidden');
@@ -407,17 +387,93 @@ function cancelCustomerAddressEdit(producerId) {
     document.getElementById(`customer-address-edit-${producerId}`).classList.add('hidden');
 }
 
+// ✅ UPDATED: Save address to session via AJAX
 function saveCustomerAddress(producerId) {
     const street = document.getElementById(`edit-customer-street-${producerId}`).value;
     const postcode = document.getElementById(`edit-customer-postcode-${producerId}`).value;
     
-    document.getElementById(`customer-street-${producerId}`).textContent = street || 'No address saved';
-    document.getElementById(`customer-postcode-${producerId}`).textContent = postcode || '';
+    console.log("Saving address:", {street, postcode});
     
-    document.getElementById(`customer-address-display-${producerId}`).classList.remove('hidden');
-    document.getElementById(`customer-address-edit-${producerId}`).classList.add('hidden');
+    fetch('/orders/update-checkout-address/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            street: street,
+            postcode: postcode
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update ALL address displays
+            document.querySelectorAll('[id^="customer-street-"]').forEach(el => {
+                el.textContent = street || 'No address saved';
+            });
+            
+            document.querySelectorAll('[id^="customer-postcode-"]').forEach(el => {
+                el.textContent = postcode || '';
+            });
+            
+            document.getElementById(`customer-address-display-${producerId}`).classList.remove('hidden');
+            document.getElementById(`customer-address-edit-${producerId}`).classList.add('hidden');
+            
+            // 👇 REPLACE ALERT WITH TOAST
+            showToast(
+                'Address Updated', 
+                'Your delivery address has been saved for this order',
+                'success',
+                4000
+            );
+        } else {
+            showToast(
+                'Update Failed', 
+                data.error || 'Could not save address',
+                'error',
+                5000
+            );
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast(
+            'Error', 
+            'Something went wrong while saving address',
+            'error',
+            5000
+        );
+    });
+}
+
+// Toast notification function
+function showToast(title, message, type = 'success', duration = 5000) {
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast-notification ${type}`;
     
-    alert('Address updated for this order!');
+    // Choose icon based on type
+    let icon = '✅';
+    if (type === 'error') icon = '❌';
+    if (type === 'info') icon = 'ℹ️';
+    
+    toast.innerHTML = `
+        <div class="toast-icon">${icon}</div>
+        <div class="toast-content">
+            <div class="toast-title">${title}</div>
+            <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto-remove after duration
+    setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
 }
 </script>
 {% endblock %}
