@@ -67,7 +67,7 @@ def payment_success(request):
         existing_payment = PaymentTransaction.objects.get(stripe_payment_intent_id=payment_intent_id)
         order = existing_payment.order
         
-        print(f"✅ Found existing order #{order.order_id} for payment {payment_intent_id}")
+        print(f" Found existing order #{order.order_id} for payment {payment_intent_id}")
         
         # Collect items from database
         all_items = []
@@ -99,7 +99,7 @@ def payment_success(request):
         
     except PaymentTransaction.DoesNotExist:
         # ===== NO EXISTING ORDER - CREATE NEW ONE =====
-        print(f"🆕 No existing order found for {payment_intent_id}, creating new order")
+        print(f" No existing order found for {payment_intent_id}, creating new order")
         
         # Get checkout data from session
         checkout_data = request.session.get('checkout_data', {})
@@ -136,7 +136,7 @@ def payment_success(request):
             order_status='Pending'
         )
         
-        print(f"✅ New order created: #{order.order_id}")
+        print(f" New order created: #{order.order_id}")
         
         # Create SubOrders and collect items
         all_items = []

@@ -3,6 +3,7 @@
 
 {% block head %}
 <link rel="stylesheet" href="{% static 'checkout.css' %}">
+<!-- Removed Font Awesome CDN -->
 {% endblock %}
 
 {% block content %}
@@ -38,7 +39,9 @@
                                 <span class="p-unit">{{ item.unit }}</span>
                                 {% endif %}
                                 {% if item.organic_certified %}
-                                <span class="organic-badge">🌱 Organic</span>
+                                    <img src="{% static 'images/organic.png' %}" 
+                                        alt="Organic" 
+                                        class="organic">
                                 {% endif %}
                             </div>
                             <span class="p-qty">x{{ item.quantity }}</span>
@@ -80,12 +83,12 @@
                         <button class="producer-option-btn producer-delivery active" 
                                 data-producer="{{ group.producer.id }}"
                                 onclick="setProducerMode('{{ group.producer.id }}', true)">
-                            🚚 Delivery
+                             Delivery
                         </button>
                         <button class="producer-option-btn producer-collect" 
                                 data-producer="{{ group.producer.id }}"
                                 onclick="setProducerMode('{{ group.producer.id }}', false)">
-                            🏪 Collect
+                             Collect
                         </button>
                     </div>
                     
@@ -94,7 +97,6 @@
                         <!-- Customer Address -->
                         <div class="address-card customer-address" id="customer-address-{{ group.producer.id }}">
                             <div class="address-header">
-                                <i class="fa-solid fa-location-dot"></i>
                                 <h4>Your Delivery Address</h4>
                             </div>
                             
@@ -109,7 +111,7 @@
                                     <span class="address-value" id="customer-postcode-{{ group.producer.id }}">{{ user_address.postcode|default:"" }}</span>
                                 </div>
                                 <button onclick="enableCustomerAddressEdit('{{ group.producer.id }}')" class="edit-address-btn">
-                                    <i class="fa-solid fa-pen"></i> Edit Address
+                                    Edit Address
                                 </button>
                             </div>
                             
@@ -132,7 +134,7 @@
                         
                         <!-- Delivery Date -->
                         <label for="date-{{ group.producer.id }}" style="margin-top: 15px; display: block;">
-                            📅 Select delivery date (48h minimum):
+                             Select delivery date (48h minimum):
                         </label>
                         <input type="date" 
                                id="date-{{ group.producer.id }}"
@@ -143,14 +145,13 @@
                                onchange="validateProducerDate('{{ group.producer.id }}')"
                                required>
                         <div class="delivery-helper">
-                            <i>⏰</i> Earliest: {{ group.min_delivery_date|date:"D, j M Y" }}
+                            Earliest: {{ group.min_delivery_date|date:"D, j M Y" }}
                         </div>
                     </div>
                     
                     <!-- Collection Section (shown for Collect mode) -->
                     <div class="delivery-section hidden" id="collection-section-{{ group.producer.id }}">
-                        <div class="address-header" style="color: #2b7a2b; border-bottom-color: #2b7a2b;">
-                            <i class="fa-solid fa-store"></i>
+                        <div class="address-header">
                             <h4>Collection Address - {{ group.producer.name }}</h4>
                         </div>
                         <div class="address-details">
@@ -173,7 +174,7 @@
                     
                     <!-- Warning -->
                     <div class="producer-warning hidden" id="warning-{{ group.producer.id }}">
-                        ⚠️ Please select a delivery date
+                         Please select a delivery date
                     </div>
                 </div>
             </div>
@@ -208,7 +209,7 @@
             
             <!-- Global Warning -->
             <div id="globalWarning" class="warning-message hidden">
-                ⚠️ Please select delivery dates for all producers in delivery mode
+                Please select delivery dates for all producers in delivery mode
             </div>
             
             <!-- Payment Form -->
@@ -225,7 +226,7 @@
                 <input type="hidden" name="total" value="{{ total }}">
                 
                 <button type="submit" class="btn-primary" id="globalPayBtn" disabled>
-                    💳 Pay Total: £{{ total }}
+                    Pay Total: £{{ total }}
                 </button>
             </form>
         </div>
@@ -365,7 +366,7 @@ function allDeliveryDatesSelected() {
         if (state.isDelivery) {
             hasDeliveryMode = true;
             if (!state.dateSelected) {
-                console.log(`❌ Producer ${producerId} in Delivery mode needs date`);
+                console.log(` Producer ${producerId} in Delivery mode needs date`);
                 return false; // Found a delivery producer without date
             }
         }
@@ -373,13 +374,14 @@ function allDeliveryDatesSelected() {
     
     // If no producers in Delivery mode, always return true (no warning needed)
     if (!hasDeliveryMode) {
-        console.log("✅ No producers in Delivery mode - all good");
+        console.log(" No producers in Delivery mode - all good");
         return true;
     }
     
-    console.log("✅ All delivery producers have dates");
+    console.log(" All delivery producers have dates");
     return true;
 }
+
 function updateGlobalPaymentButton() {
     const globalPayBtn = document.getElementById('globalPayBtn');
     const globalWarning = document.getElementById('globalWarning');
@@ -389,7 +391,7 @@ function updateGlobalPaymentButton() {
     console.log("globalWarning element:", globalWarning);
     
     if (!globalWarning) {
-        console.log("❌ globalWarning element not found! Check ID in HTML");
+        console.log(" globalWarning element not found! Check ID in HTML");
         return;
     }
     
@@ -400,12 +402,12 @@ function updateGlobalPaymentButton() {
         globalPayBtn.disabled = false;
         globalPayBtn.classList.remove('disabled');
         globalWarning.classList.add('hidden');
-        console.log("✅ Payment enabled - added 'hidden' class to warning");
+        console.log(" Payment enabled - added 'hidden' class to warning");
     } else {
         globalPayBtn.disabled = true;
         globalPayBtn.classList.add('disabled');
         globalWarning.classList.remove('hidden');
-        console.log("⚠️ Payment disabled - removed 'hidden' class from warning");
+        console.log(" Payment disabled - removed 'hidden' class from warning");
     }
     
     // Check what classes the warning has now
@@ -430,10 +432,7 @@ function cancelCustomerAddressEdit(producerId) {
     document.getElementById(`customer-address-edit-${producerId}`).classList.add('hidden');
 }
 
-// UPDATED: Save address to session via AJAX
-
-
-// Function for SAVING address
+// Save address to session via AJAX
 function saveCustomerAddress(producerId) {
     const street = document.getElementById(`edit-customer-street-${producerId}`).value;
     const postcode = document.getElementById(`edit-customer-postcode-${producerId}`).value;
@@ -466,7 +465,7 @@ function saveCustomerAddress(producerId) {
             document.getElementById(`customer-address-display-${producerId}`).classList.remove('hidden');
             document.getElementById(`customer-address-edit-${producerId}`).classList.add('hidden');
             
-            //  SAVE SUCCESS TOAST
+            // Save success toast
             showToast(
                 'Address Updated', 
                 'Your delivery address has been saved for this order',
@@ -474,7 +473,7 @@ function saveCustomerAddress(producerId) {
                 4000
             );
         } else {
-            //  SAVE FAILED TOAST
+            // Save failed toast
             showToast(
                 'Update Failed', 
                 data.error || 'Could not save address',
@@ -485,7 +484,7 @@ function saveCustomerAddress(producerId) {
     })
     .catch(error => {
         console.error('Error:', error);
-        //  ERROR TOAST
+        // Error toast
         showToast(
             'Error', 
             'Something went wrong while saving address',
@@ -495,12 +494,12 @@ function saveCustomerAddress(producerId) {
     });
 }
 
-// Function for CANCELLING address edit (SEPARATE FUNCTION)
+// Function for cancelling address edit
 function cancelCustomerAddressEdit(producerId) {
     document.getElementById(`customer-address-display-${producerId}`).classList.remove('hidden');
     document.getElementById(`customer-address-edit-${producerId}`).classList.add('hidden');
     
-    //  CANCEL TOAST (INFO)
+    // Cancel toast (info)
     showToast(
         'Edit Cancelled', 
         'Address changes were not saved',
@@ -509,24 +508,19 @@ function cancelCustomerAddressEdit(producerId) {
     );
 }
 
-// Toast notification function (same as before)
+// Toast notification function
 function showToast(title, message, type = 'success', duration = 5000) {
     // Create toast element
     const toast = document.createElement('div');
     toast.className = `toast-notification ${type}`;
     
-    // Choose icon based on type
-    let icon = '✅';
-    if (type === 'error') icon = '❌';
-    if (type === 'info') icon = 'ℹ️';
-    
+    // No icons - just text
     toast.innerHTML = `
-        <div class="toast-icon">${icon}</div>
         <div class="toast-content">
             <div class="toast-title">${title}</div>
             <div class="toast-message">${message}</div>
         </div>
-        <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+        <button class="toast-close" onclick="this.parentElement.remove()">×</button>
     `;
     
     document.body.appendChild(toast);

@@ -1,4 +1,3 @@
-
 {% load static %}
 
 <!DOCTYPE html>
@@ -7,6 +6,8 @@
         <meta charset="UTF-8">
         <title>Bristol Regional Food Network</title>
         <link rel="stylesheet" href="{% static 'base.css'%}">
+        <!-- Add Font Awesome for icons -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
         {% block head%}
         {%endblock%}
     </head>
@@ -15,22 +16,9 @@
     <body> 
 
         <header class="navbar">
-            <div class="nav-left">
-                <img src="{% static 'images/leaf.png' %}" alt="Leaf logo" class="logo">
-                <span class="title">Bristol Regional Food Network</span>
-            </div>
-            {%block nav%}
-
-            <nav class="nav-links">
-                <!--we want the buttons styling to be active if we are on that page to make it clear what page the user is currently on
-                which is what is being done here-->
-                <a href="{%url 'home'%}"
-                class="{%if request.resolver_match.url_name == 'home'%}active{%endif%}">Home</a>
-                <a href="#">Login</a>
-                {%block nav_extra%}{%endblock%}
-            </nav>
-            {%endblock%}
+            {% include "header.html" %}
         </header>
+
 
         <!--page content will go here e.g login form-->
         <main>
@@ -41,47 +29,94 @@
         <footer class="footer">
             <p>Local Food Marketplace | Supporting Local Farmers</p>
         </footer>
+        
         <script>
             (function() {
                 const token = localStorage.getItem("access") || sessionStorage.getItem("access");
-                if (!token) return;
-
-                fetch('/cart/api/icon/', {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                })
-                .then(r => {
-                    if (r.status === 401) {
-                        // Try refresh
-                        const refresh = localStorage.getItem("refresh") || sessionStorage.getItem("refresh");
-                        if (!refresh) return null;
-                        return fetch('/api/token/refresh/', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ refresh })
-                        })
-                        .then(r => r.json())
-                        .then(data => {
-                            if (localStorage.getItem("access")) localStorage.setItem("access", data.access);
-                            else sessionStorage.setItem("access", data.access);
-                            return fetch('/cart/api/icon/', {
-                                headers: { 'Authorization': 'Bearer ' + data.access }
-                            });
-                        });
+                
+                // 🛑 ADD THIS - Skip notifications on receipt page
+                if (window.location.pathname.includes('/payments/success/')) {
+                    console.log('Skipping notifications on receipt page');
+                    return; // Exit immediately, don't run any notification code
+                }
+                
+                const notificationContainer = document.getElementById('notification-container');
+                const notificationBadge = document.getElementById('notification-badge');
+                
+                if (token) {
+                    // Show notification container
+                    if (notificationContainer) {
+                        notificationContainer.style.display = 'inline-block';
                     }
-                    return r;
-                })
-                .then(r => r ? r.json() : null)
-                .then(data => {
-                    if (data && data.total_items > 0) {
-                        const badge = document.getElementById('cart-badge');
-                        if (badge) {
-                            badge.textContent = data.total_items;
-                            badge.style.display = 'flex';
+                    
+                    // Function to check for unread notifications
+                    async function checkNotifications() {
+                        try {
+                            const response = await fetch('/notifications/api/unread-count/', {
+                                headers: { 'Authorization': 'Bearer ' + token }
+                            });
+                            
+                            if (response.ok) {
+                                const data = await response.json();
+                                
+                                if (notificationBadge) {
+                                    if (data.unread_count > 0) {
+                                        notificationBadge.textContent = data.unread_count;
+                                        notificationBadge.style.display = 'flex';
+                                        console.log('🔔 Notification badge shown:', data.unread_count);
+                                    } else {
+                                        notificationBadge.style.display = 'none';
+                                    }
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Error checking notifications:', error);
                         }
                     }
-                })
-                .catch(() => {});
+                    
+                    // Check immediately
+                    checkNotifications();
+                    
+                    // Check every 2 seconds (more frequent for instant updates)
+                    setInterval(checkNotifications, 2000);
+                    
+                    // Cart badge (your existing code)
+                    fetch('/cart/api/icon/', {
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    })
+                    .then(r => {
+                        if (r.status === 401) {
+                            const refresh = localStorage.getItem("refresh") || sessionStorage.getItem("refresh");
+                            if (!refresh) return null;
+                            return fetch('/api/token/refresh/', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ refresh })
+                            })
+                            .then(r => r.json())
+                            .then(data => {
+                                if (localStorage.getItem("access")) localStorage.setItem("access", data.access);
+                                else sessionStorage.setItem("access", data.access);
+                                return fetch('/cart/api/icon/', {
+                                    headers: { 'Authorization': 'Bearer ' + data.access }
+                                });
+                            });
+                        }
+                        return r;
+                    })
+                    .then(r => r ? r.json() : null)
+                    .then(data => {
+                        if (data && data.total_items > 0) {
+                            const badge = document.getElementById('cart-badge');
+                            if (badge) {
+                                badge.textContent = data.total_items;
+                                badge.style.display = 'flex';
+                            }
+                        }
+                    })
+                    .catch(() => {});
+                }
             })();
         </script>
     </body>
-    </html>
+</html>

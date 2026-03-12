@@ -1,4 +1,4 @@
-{% extends "product.html" %}
+{% extends "base.html" %}
 {% load static %}
 
 {% block head %}
@@ -8,7 +8,7 @@
 {% block content %}
 <div class="receipt-container">
     <div class="receipt-header">
-        <div class="success-icon">✅</div>
+        <div class="success-icon">✓</div>
         <h1>Payment Successful!</h1>
         <p>Thank you for your order</p>
     </div>
@@ -64,21 +64,20 @@
         </div>
         
         <div style="text-align: center;">
-            <button onclick="window.print()" class="print-btn">🖨️ Print / Save as PDF</button>
+            <button onclick="window.print()" class="print-btn">Print / Save as PDF</button>
         </div>
         
         <div class="action-buttons">
-            <a href="/" class="btn btn-primary">Continue Shopping</a>
+            <a href="/customer/home/"  class="btn btn-primary">Continue Shopping</a>
             <a href="{% url 'order_history' %}" class="btn btn-secondary">View All Orders</a>
         </div>
         
-        
-        <!--  ADDED: Simple receipt note -->
         <div class="receipt-note">
-            📋 This receipt is also available in your <a href="{% url 'order_history' %}" style="color: #2b7a2b;">Order History</a>
+            This receipt is also available in your <a href="{% url 'order_history' %}" class="receipt-link">Order History</a>
         </div>
     </div>
 </div>
+
 <script>
 // Toast notification function
 function showToast(title, message, type = 'success', duration = 5000) {
@@ -86,13 +85,13 @@ function showToast(title, message, type = 'success', duration = 5000) {
     const toast = document.createElement('div');
     toast.className = `toast-notification ${type}`;
     
-    // Choose icon based on type
-    let icon = '✅';
-    if (type === 'error') icon = '❌';
-    if (type === 'info') icon = 'ℹ️';
+    // Choose text indicator based on type
+    let indicator = 'SUCCESS';
+    if (type === 'error') indicator = 'ERROR';
+    if (type === 'info') indicator = 'INFO';
     
     toast.innerHTML = `
-        <div class="toast-icon">${icon}</div>
+        <div class="toast-indicator">${indicator}</div>
         <div class="toast-content">
             <div class="toast-title">${title}</div>
             <div class="toast-message">${message}</div>

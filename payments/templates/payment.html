@@ -1,4 +1,4 @@
-{% extends "product.html" %}
+{% extends "base.html" %}
 {% load static %}
 
 {% block head %}
@@ -9,7 +9,7 @@
 {% block content %}
 <div class="payment-container">
     <div class="payment-box">
-        <h2 class="title">💳 Complete Payment</h2>
+        <h2 class="title"> Complete Payment</h2>
         
         <div class="order-summary">
             <div class="summary-row">
@@ -28,7 +28,7 @@
             <!-- Card Number Field -->
             <div class="card-field-container">
                 <label class="field-label">
-                    <i>💳</i> Card Number
+                    <i></i> Card Number
                 </label>
                 <div id="card-number-element" class="card-field">
                     <!-- Stripe Card Number Element will be mounted here -->
@@ -40,7 +40,7 @@
                 <!-- Expiry Field -->
                 <div class="card-field-container">
                     <label class="field-label">
-                        <i>📅</i> Expiry Date
+                        <i></i> Expiry Date
                     </label>
                     <div id="card-expiry-element" class="card-field"></div>
                 </div>
@@ -48,11 +48,11 @@
                 <!-- CVV Field with Help -->
                 <div class="card-field-container">
                     <label class="field-label">
-                        <i>🔒</i> CVV
+                        <i></i> CVV
                     </label>
                     <div class="cvv-wrapper">
                         <div id="card-cvc-element" class="card-field"></div>
-                        <span class="cvv-help" title="3-4 digit security code on your card">❓</span>
+                        <span class="cvv-help" title="3-4 digit security code on your card"></span>
                         <div class="cvv-tooltip">
                             Last 3 digits on back of card (Amex: 4 digits on front)
                         </div>
@@ -68,9 +68,9 @@
         </form>
         
         <div class="security-badge">
-            <span><i>🔒</i> Secure Payment by Stripe</span>
-            <span><i>🛡️</i> PCI Compliant</span>
-            <span><i>✓</i> Encrypted</span>
+            <span><i></i> Secure Payment by Stripe</span>
+            <span><i></i> PCI Compliant</span>
+            <span><i></i> Encrypted</span>
         </div>
     </div>
 </div>
