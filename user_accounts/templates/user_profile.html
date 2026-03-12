@@ -89,7 +89,10 @@
 
     <button id="saveBtn" class="submit_btn" style="display:none;" onclick="saveChanges()">Save Changes</button>
 
-    <button class="delete_btn" onclick="openDeleteForm()">Delete Account</button>
+    <p class="delete_text">
+    To delete your account 
+    <button class="delete_btn" onclick="openDeleteForm()">click here</button>
+    </p>
     <div id="deleteForm" class="delete_form" style="display:none;">
         <div class="delete_form_content">
             <h3>Delete Account</h3>
@@ -103,11 +106,24 @@
                 <option value="I am switching to another platform">I am switching to another platform</option>
             </select>
 
-            <button class="submit_btn" onclick="confirmSoftDelete()">Deactivate Account (Keep Data)</button>
-            <button class="delete_btn" onclick="confirmHardDelete()">Permanently Delete Account</button>
+            <button class="submit_btn" onclick="openFinalConfirm('soft')">Deactivate Account (Keep Data)</button>
+            <button class="perm_delete_btn" onclick="openFinalConfirm('hard')">Permanently Delete Account</button>
             <button class="edit_btn" onclick="closeDeleteForm()" style="margin-top: 10px">Close</button>
         </div>
     </div>
+    <!-- ADDED (10-03-26) - Double confirmation for delete -->
+    <div id="confirmFinalDelete" class="delete_form" style="display:none;">
+        <div class="delete_form_content">
+            <h3>Are you absolutely sure?</h3>
+            <p>This action cannot be undone.</p>
+
+            <button id="finalSoftDeleteBtn" class="submit_btn">Yes, deactivate my account</button>
+            <button id="finalHardDeleteBtn" class="perm_delete_btn">Yes, permanently delete my account</button>
+
+            <button class="edit_btn" onclick="closeFinalConfirm()" style="margin-top: 10px">Cancel</button>
+        </div>
+    </div>
+
     <button class="submit_btn" onclick="logoutUser()">Logout</button>
 </main>
 
@@ -252,6 +268,41 @@ async function confirmHardDelete() {
         alert(data.error);
     }
 }
+
+// Double-confirmation logic
+let deleteMode = null;
+
+function openFinalConfirm(mode) {
+    deleteMode = mode;
+
+    const softBtn = document.getElementById("finalSoftDeleteBtn");
+    const hardBtn = document.getElementById("finalHardDeleteBtn");
+
+    if (mode === "soft") {
+        softBtn.style.display = "block";
+        hardBtn.style.display = "none";
+    } else {
+        softBtn.style.display = "none";
+        hardBtn.style.display = "block";
+    }
+
+    document.getElementById("confirmFinalDelete").style.display = "flex";
+}
+
+function closeFinalConfirm() {
+    document.getElementById("confirmFinalDelete").style.display = "none";
+}
+
+// Final confirmation buttons
+document.getElementById("finalSoftDeleteBtn").addEventListener("click", () => {
+    closeFinalConfirm();
+    confirmSoftDelete();
+});
+
+document.getElementById("finalHardDeleteBtn").addEventListener("click", () => {
+    closeFinalConfirm();
+    confirmHardDelete();
+});
 
 
 </script>

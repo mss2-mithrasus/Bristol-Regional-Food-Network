@@ -28,9 +28,8 @@ h1 {
     border-radius: 10px;
     box-shadow: 0 0 15px rgba(64, 96, 131, 0.4);
 }
-
 .delete_form_content{
-    margin-top: 25px;
+    margin-top: 5px;
     background: #ffffff;
     padding: 20px;
     margin-bottom: 25px;
@@ -104,8 +103,32 @@ h1 {
 }
 
 /* Delete button */
+/* ADDED (10-03-26) - Made delete button less prominent to avoid confusion and stop users from miss clicking it. */
+.delete_text {
+    margin-top: 5px;
+    text-align: left;
+    color: black;
+    font-size: 0.95rem;
+}
 
 .delete_btn {
+    background: none;
+    color: #406083;
+    border: none;
+    padding: 4px 0;
+    font-size: 0.9rem;
+    text-decoration: underline;
+    cursor: pointer;
+    width: auto;
+    opacity: 0.7;
+}
+
+.delete_btn:hover {
+    color: grey;
+    opacity: 1;
+}
+
+.perm_delete_btn {
     background: #b02a37;
     color: white;
     border: none;
@@ -118,7 +141,7 @@ h1 {
     transition: 0.2s;
 }
 
-.delete_btn:hover {
+.perm_delete_btn:hover {
     background: #7a1d26;
 }
 
