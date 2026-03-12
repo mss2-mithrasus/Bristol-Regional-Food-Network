@@ -80,7 +80,36 @@
     </div>
 </div>
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
+// Toast notification function
+function showToast(title, message, type = 'success', duration = 5000) {
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast-notification ${type}`;
+    
+    // Choose icon based on type
+    let icon = '✅';
+    if (type === 'error') icon = '❌';
+    if (type === 'info') icon = 'ℹ️';
+    
+    toast.innerHTML = `
+        <div class="toast-icon">${icon}</div>
+        <div class="toast-content">
+            <div class="toast-title">${title}</div>
+            <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto-remove after duration
+    setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
+document.addEventListener("DOMContentLoaded", function() {
     showToast(
         'Payment Successful', 
         'Your order #{{ order_id }} has been confirmed',

@@ -384,7 +384,7 @@
     border-radius: 6px;
     border-left: 4px solid #ffc107;
     margin: 15px 0;
-    display: none;
+    display: block;
 }
 
 .warning-message.show {
@@ -395,6 +395,8 @@
 .hidden {
     display: none !important;
 }
+
+
 
 /* Global Summary Card */
 .global-summary-card {

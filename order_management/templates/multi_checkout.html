@@ -274,6 +274,7 @@ function setProducerMode(producerId, isDelivery) {
     const hiddenInput = document.getElementById(`global-hidden-${producerId}`);
     
     if (isDelivery) {
+        // Delivery mode
         deliveryBtn.classList.add('active');
         collectBtn.classList.remove('active');
         if (methodInput) methodInput.value = 'delivery';
@@ -284,14 +285,22 @@ function setProducerMode(producerId, isDelivery) {
         dateInput.required = true;
         dateInput.disabled = false;
         
-        producerStates[producerId].isDelivery = true;
+        // Check if date input has a value
+        const hasDateValue = dateInput.value ? true : false;
         
-        if (producerStates[producerId].dateSelected) {
+        // Update state
+        producerStates[producerId].isDelivery = true;
+        producerStates[producerId].dateSelected = hasDateValue;
+        producerStates[producerId].dateValue = dateInput.value || '';
+        
+        // Show/hide warning based on whether date is selected
+        if (hasDateValue) {
             if (warning) warning.classList.add('hidden');
         } else {
             if (warning) warning.classList.remove('hidden');
         }
     } else {
+        // Collect mode
         collectBtn.classList.add('active');
         deliveryBtn.classList.remove('active');
         if (methodInput) methodInput.value = 'collect';
@@ -303,8 +312,9 @@ function setProducerMode(producerId, isDelivery) {
         dateInput.disabled = true;
         dateInput.value = '';
         
+        // Update state - Collect mode is always valid
         producerStates[producerId].isDelivery = false;
-        producerStates[producerId].dateSelected = true;
+        producerStates[producerId].dateSelected = true; // Collect mode automatically valid
         producerStates[producerId].dateValue = '';
         
         if (warning) warning.classList.add('hidden');
@@ -346,27 +356,60 @@ function validateProducerDate(producerId) {
 }
 
 function allDeliveryDatesSelected() {
+    console.log("=== CHECKING PRODUCER STATES FOR GLOBAL WARNING ===");
+    
+    // First, check if ANY producer is in Delivery mode
+    let hasDeliveryMode = false;
+    
     for (const [producerId, state] of Object.entries(producerStates)) {
-        if (state.isDelivery && !state.dateSelected) {
-            return false;
+        if (state.isDelivery) {
+            hasDeliveryMode = true;
+            if (!state.dateSelected) {
+                console.log(`❌ Producer ${producerId} in Delivery mode needs date`);
+                return false; // Found a delivery producer without date
+            }
         }
     }
+    
+    // If no producers in Delivery mode, always return true (no warning needed)
+    if (!hasDeliveryMode) {
+        console.log("✅ No producers in Delivery mode - all good");
+        return true;
+    }
+    
+    console.log("✅ All delivery producers have dates");
     return true;
 }
-
 function updateGlobalPaymentButton() {
     const globalPayBtn = document.getElementById('globalPayBtn');
     const globalWarning = document.getElementById('globalWarning');
     
-    if (allDeliveryDatesSelected()) {
+    console.log("=== UPDATING GLOBAL PAYMENT BUTTON ===");
+    console.log("globalPayBtn element:", globalPayBtn);
+    console.log("globalWarning element:", globalWarning);
+    
+    if (!globalWarning) {
+        console.log("❌ globalWarning element not found! Check ID in HTML");
+        return;
+    }
+    
+    const allGood = allDeliveryDatesSelected();
+    console.log("allDeliveryDatesSelected result:", allGood);
+    
+    if (allGood) {
         globalPayBtn.disabled = false;
         globalPayBtn.classList.remove('disabled');
-        if (globalWarning) globalWarning.classList.add('hidden');
+        globalWarning.classList.add('hidden');
+        console.log("✅ Payment enabled - added 'hidden' class to warning");
     } else {
         globalPayBtn.disabled = true;
         globalPayBtn.classList.add('disabled');
-        if (globalWarning) globalWarning.classList.remove('hidden');
+        globalWarning.classList.remove('hidden');
+        console.log("⚠️ Payment disabled - removed 'hidden' class from warning");
     }
+    
+    // Check what classes the warning has now
+    console.log("Warning classes after update:", globalWarning.className);
 }
 
 function validateGlobalPayment() {
@@ -387,7 +430,10 @@ function cancelCustomerAddressEdit(producerId) {
     document.getElementById(`customer-address-edit-${producerId}`).classList.add('hidden');
 }
 
-// ✅ UPDATED: Save address to session via AJAX
+// UPDATED: Save address to session via AJAX
+
+
+// Function for SAVING address
 function saveCustomerAddress(producerId) {
     const street = document.getElementById(`edit-customer-street-${producerId}`).value;
     const postcode = document.getElementById(`edit-customer-postcode-${producerId}`).value;
@@ -420,7 +466,7 @@ function saveCustomerAddress(producerId) {
             document.getElementById(`customer-address-display-${producerId}`).classList.remove('hidden');
             document.getElementById(`customer-address-edit-${producerId}`).classList.add('hidden');
             
-            // 👇 REPLACE ALERT WITH TOAST
+            //  SAVE SUCCESS TOAST
             showToast(
                 'Address Updated', 
                 'Your delivery address has been saved for this order',
@@ -428,6 +474,7 @@ function saveCustomerAddress(producerId) {
                 4000
             );
         } else {
+            //  SAVE FAILED TOAST
             showToast(
                 'Update Failed', 
                 data.error || 'Could not save address',
@@ -438,6 +485,7 @@ function saveCustomerAddress(producerId) {
     })
     .catch(error => {
         console.error('Error:', error);
+        //  ERROR TOAST
         showToast(
             'Error', 
             'Something went wrong while saving address',
@@ -447,7 +495,21 @@ function saveCustomerAddress(producerId) {
     });
 }
 
-// Toast notification function
+// Function for CANCELLING address edit (SEPARATE FUNCTION)
+function cancelCustomerAddressEdit(producerId) {
+    document.getElementById(`customer-address-display-${producerId}`).classList.remove('hidden');
+    document.getElementById(`customer-address-edit-${producerId}`).classList.add('hidden');
+    
+    //  CANCEL TOAST (INFO)
+    showToast(
+        'Edit Cancelled', 
+        'Address changes were not saved',
+        'info',
+        3000
+    );
+}
+
+// Toast notification function (same as before)
 function showToast(title, message, type = 'success', duration = 5000) {
     // Create toast element
     const toast = document.createElement('div');

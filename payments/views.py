@@ -53,120 +53,163 @@ def payment_page(request):
         })
     return redirect('multi_checkout')
 
-#  REMOVED: send_order_confirmation_email function
+
 
 def payment_success(request):
     payment_intent_id = request.GET.get('payment_intent')
     
-    # Get checkout data from session
-    checkout_data = request.session.get('checkout_data', {})
-    user_address = request.session.get('user_address', {})
-    producer_groups = request.session.get('producer_groups', [])
+    if not payment_intent_id:
+        return redirect('/')
     
-    total = float(checkout_data.get('total', 0))
-    commission = round(total * 0.05, 2)
-    
-    # Get the cart
-    cart = Cart.objects.get(customer=request.user)
-    
-    # 👇 CHECK IF ANY PRODUCER NEEDS DELIVERY FIRST
-    has_delivery = False
-    for group in producer_groups:
-        producer_id = group['producer']['id']
-        producer_data = checkout_data.get('producer_data', {})
-        method_key = f'producer_{producer_id}_method'
-        delivery_method = producer_data.get(method_key, 'delivery')
-        if delivery_method == 'delivery':
-            has_delivery = True
-            break
-    
-    # 👇 ONLY SAVE ADDRESS TO ORDER IF NEEDED
-    order = Order.objects.create(
-        customer=request.user.customeraccount,
-        total_amount=total,
-        commission_amount=commission,
-        delivery_address=user_address.get('street', '') if has_delivery else '',
-        delivery_postcode=user_address.get('postcode', '') if has_delivery else '',
-        order_status='Pending'
-    )
-    
-    print(f"Order created: #{order.order_id} - Delivery address saved: {has_delivery}")
-    
-    # Create SubOrders and collect items for receipt
-    all_items = []
-    for group in producer_groups:
-        producer_id = group['producer']['id']
-        producer_data = checkout_data.get('producer_data', {})
-        method_key = f'producer_{producer_id}_method'
-        date_key = f'producer_{producer_id}_delivery_date'
+    # ===== TRY TO FIND EXISTING ORDER FIRST =====
+    try:
+        # Try to find existing payment transaction
+        existing_payment = PaymentTransaction.objects.get(stripe_payment_intent_id=payment_intent_id)
+        order = existing_payment.order
         
-        delivery_method = producer_data.get(method_key, 'delivery')
-        delivery_date = producer_data.get(date_key, None)
+        print(f"✅ Found existing order #{order.order_id} for payment {payment_intent_id}")
         
-        producer = ProducerAccount.objects.get(id=producer_id)
-        subtotal = float(group['subtotal'])
-        producer_total = float(group['total'])
+        # Collect items from database
+        all_items = []
+        for suborder in order.suborders.all():
+            for item in suborder.items.all():
+                all_items.append({
+                    'name': item.product.name,
+                    'quantity': item.quantity,
+                    'price': float(item.price_at_purchase),
+                    'unit': item.product.unit if hasattr(item.product, 'unit') else '',
+                    'image': item.product.image.url if item.product.image else None,
+                    'producer': suborder.producer.business_name
+                })
         
-        suborder = SubOrder.objects.create(
-            order=order,
-            producer=producer,
-            delivery_date=delivery_date if delivery_date else None,
-            subtotal=subtotal,
-            payout_amount=producer_total,
-            status='Pending',
+        # Check if any delivery was needed
+        has_delivery = any(sub.delivery_date for sub in order.suborders.all())
+        
+        return render(request, 'payment_success.html', {
+            'order_id': order.order_id,
+            'total': float(order.total_amount),
+            'items': all_items,
+            'order_date': order.created_at,
+            'customer_name': request.user.get_full_name() or request.user.email,
+            'delivery_address': order.delivery_address if has_delivery else '',
+            'delivery_postcode': order.delivery_postcode if has_delivery else '',
+            'show_address': has_delivery,
+            'user_email': request.user.email
+        })
+        
+    except PaymentTransaction.DoesNotExist:
+        # ===== NO EXISTING ORDER - CREATE NEW ONE =====
+        print(f"🆕 No existing order found for {payment_intent_id}, creating new order")
+        
+        # Get checkout data from session
+        checkout_data = request.session.get('checkout_data', {})
+        user_address = request.session.get('user_address', {})
+        producer_groups = request.session.get('producer_groups', [])
+        
+        if not producer_groups:
+            return redirect('multi_checkout')
+        
+        total = float(checkout_data.get('total', 0))
+        commission = round(total * 0.05, 2)
+        
+        # Check if any producer needs delivery
+        has_delivery = False
+        for group in producer_groups:
+            producer_id = group['producer']['id']
+            producer_data = checkout_data.get('producer_data', {})
+            method_key = f'producer_{producer_id}_method'
+            delivery_method = producer_data.get(method_key, 'delivery')
+            if delivery_method == 'delivery':
+                has_delivery = True
+                break
+        
+        # Get the cart
+        cart = Cart.objects.get(customer=request.user)
+        
+        # Create Order (only save address if needed)
+        order = Order.objects.create(
+            customer=request.user.customeraccount,
+            total_amount=total,
+            commission_amount=commission,
+            delivery_address=user_address.get('street', '') if has_delivery else '',
+            delivery_postcode=user_address.get('postcode', '') if has_delivery else '',
+            order_status='Pending'
         )
         
-        for item_data in group['items']:
-            product = Product.objects.get(product_id=item_data['product_id'])
-            OrderItem.objects.create(
-                suborder=suborder,
-                product=product,
-                quantity=item_data['quantity'],
-                price_at_purchase=item_data['price']
+        print(f"✅ New order created: #{order.order_id}")
+        
+        # Create SubOrders and collect items
+        all_items = []
+        for group in producer_groups:
+            producer_id = group['producer']['id']
+            producer_data = checkout_data.get('producer_data', {})
+            date_key = f'producer_{producer_id}_delivery_date'
+            delivery_date = producer_data.get(date_key, None)
+            
+            producer = ProducerAccount.objects.get(id=producer_id)
+            subtotal = float(group['subtotal'])
+            producer_total = float(group['total'])
+            
+            suborder = SubOrder.objects.create(
+                order=order,
+                producer=producer,
+                delivery_date=delivery_date if delivery_date else None,
+                subtotal=subtotal,
+                payout_amount=producer_total,
+                status='Pending',
             )
-            all_items.append({
-                'name': item_data['product_name'],
-                'quantity': item_data['quantity'],
-                'price': item_data['price'],
-                'unit': item_data.get('unit', ''),
-                'image': item_data.get('image', None),
-                'producer': producer.business_name
-            })
-    
-    # Create PaymentTransaction
-    PaymentTransaction.objects.create(
-        order=order,
-        amount=total,
-        currency='gbp',
-        payment_method='card',
-        payment_status='succeeded',
-        stripe_payment_intent_id=payment_intent_id
-    )
-    
-    # Create Commission
-    Commission.objects.create(
-        order=order,
-        commission_amount=commission,
-        producer_payout=total - commission,
-        status='pending'
-    )
-    
-    # Clear cart and session
-    cart.items.all().delete()
-    session_keys = ['checkout_data', 'user_address', 'producer_groups']
-    for key in session_keys:
-        if key in request.session:
-            del request.session[key]
-    
-    # Show success page with receipt
-    return render(request, 'payment_success.html', {
-        'order_id': order.order_id,
-        'total': float(order.total_amount),
-        'items': all_items,
-        'order_date': order.created_at,
-        'customer_name': request.user.get_full_name() or request.user.email,
-        'delivery_address': order.delivery_address,  # From order (will be empty if no delivery)
-        'delivery_postcode': order.delivery_postcode,  # From order (will be empty if no delivery)
-        'show_address': has_delivery,
-        'user_email': request.user.email
-    })
+            
+            for item_data in group['items']:
+                product = Product.objects.get(product_id=item_data['product_id'])
+                OrderItem.objects.create(
+                    suborder=suborder,
+                    product=product,
+                    quantity=item_data['quantity'],
+                    price_at_purchase=item_data['price']
+                )
+                all_items.append({
+                    'name': item_data['product_name'],
+                    'quantity': item_data['quantity'],
+                    'price': item_data['price'],
+                    'unit': item_data.get('unit', ''),
+                    'image': item_data.get('image', None),
+                    'producer': producer.business_name
+                })
+        
+        # Create PaymentTransaction
+        PaymentTransaction.objects.create(
+            order=order,
+            amount=total,
+            currency='gbp',
+            payment_method='card',
+            payment_status='succeeded',
+            stripe_payment_intent_id=payment_intent_id
+        )
+        
+        # Create Commission
+        Commission.objects.create(
+            order=order,
+            commission_amount=commission,
+            producer_payout=total - commission,
+            status='pending'
+        )
+        
+        # Clear cart and session
+        cart.items.all().delete()
+        session_keys = ['checkout_data', 'user_address', 'producer_groups']
+        for key in session_keys:
+            if key in request.session:
+                del request.session[key]
+        
+        # Return success page
+        return render(request, 'payment_success.html', {
+            'order_id': order.order_id,
+            'total': float(order.total_amount),
+            'items': all_items,
+            'order_date': order.created_at,
+            'customer_name': request.user.get_full_name() or request.user.email,
+            'delivery_address': order.delivery_address if has_delivery else '',
+            'delivery_postcode': order.delivery_postcode if has_delivery else '',
+            'show_address': has_delivery,
+            'user_email': request.user.email
+        })
