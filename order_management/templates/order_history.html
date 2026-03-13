@@ -1,0 +1,57 @@
+{% extends "product.html" %}
+{% load static %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'order_history.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="history-container">
+    <h1 class="page-title">📦 My Orders</h1>
+    
+    {% if orders %}
+        {% for order in orders %}
+        <div class="order-card">
+            <div class="order-header">
+                <div>
+                    <span class="order-number">Order #{{ order.order_id }}</span>
+                    <span class="order-date">{{ order.date|date:"F j, Y" }}</span>
+                </div>
+                <span class="order-status status-{{ order.status|lower }}">
+                    {{ order.status }}
+                </span>
+            </div>
+            
+            <div class="order-content">
+                <div class="order-preview">
+                    {% for item in order.items %}
+                    <div class="preview-item">
+                        <span>{{ item.name }}</span>
+                        <span>x{{ item.quantity }}</span>
+                    </div>
+                    {% endfor %}
+                    {% if order.more_items %}
+                    <div class="more-items">+ {{ order.item_count|add:"-3" }} more items</div>
+                    {% endif %}
+                </div>
+                
+                <div class="order-summary">
+                    <div class="total">£{{ order.total|floatformat:2 }}</div>
+                    <div class="item-count">{{ order.item_count }} items</div>
+                    <a href="{% url 'order_detail' order.order_id %}" class="view-btn">
+                        View Details →
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">🛒</div>
+        <h2>No orders yet</h2>
+        <p>Looks like you haven't placed any orders.</p>
+        <a href="/" class="shop-btn">Start Shopping</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
