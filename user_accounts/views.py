@@ -247,6 +247,9 @@ class SoftDeleteAccountView(APIView):
         user.deleted_by_user = True
         user.save()
 
+        # ADDED (10-03-26)
+        # Creates audit record
+        DeletionAudit.from_user(user, reason)
         return Response({"message": "Your account has been deactivated."}, status=200)
 
 class HardDeleteAccountView(APIView):
@@ -266,11 +269,9 @@ class HardDeleteAccountView(APIView):
             )
 
         hashed_id = hashlib.sha256(str(user.id).encode()).hexdigest()
-        DeletionAudit.objects.create(
-            hashed_user_identifier=hashed_id,
-            role=user.role,
-            reason=reason,
-        )
+        # ADDED (10-03-26)
+        # Creates audit record
+        DeletionAudit.from_user(user, reason)
 
         user.delete()
 

@@ -1,0 +1,580 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block head %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'notifications.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+{% endblock %}
+
+{% block nav %}
+    <nav class="nav-links">
+        <a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">Home</a>
+        <a href="{% url 'about' %}" class="{% if request.resolver_match.url_name == 'about' %}active{% endif %}">About Us</a>
+        
+        <div class="nav-icons">
+            <a href="javascript:void(0);" onclick="goToCartWithToken()" class="cart-icon" id="cart-icon-link">
+                <i class="fa-solid fa-cart-shopping"></i>
+                <span class="cart-badge" id="cart-badge" style="display: none;">0</span>
+            </a>
+            <a href="{% url 'notifications' %}" class="notifications-icon" id="notifications-icon">
+                <i class="fa-solid fa-bell"></i>
+                <span class="notification-badge" id="notification-badge" style="display: none;">0</span>
+            </a>
+            <a href="{% url 'user_profile' %}"><i class="fa-solid fa-user"></i></a>
+        </div>
+    </nav>
+{% endblock %}
+
+{% block content %}
+<div class="notifications-container">
+    <div class="notifications-header">
+        <h1 class="page-title">Notifications</h1>
+        <button class="mark-all-read" onclick="markAllRead()">Mark all as read</button>
+    </div>
+    
+    <div class="notifications-tabs">
+        <button class="tab-btn active" onclick="switchTab('all')">All</button>
+        <button class="tab-btn" onclick="switchTab('unread')">Unread</button>
+        <button class="tab-btn" onclick="switchTab('alerts')">Stock Alerts</button>
+    </div>
+    
+    <div id="notifications-list" class="notifications-list">
+        <!-- Notifications will be loaded here -->
+        <div class="loading">Loading notifications...</div>
+    </div>
+</div>
+
+<script>
+    function getToken() {
+        return localStorage.getItem("access") || sessionStorage.getItem("access");
+    }
+    function goToCartWithToken() {
+        const token = getToken();
+        if (!token) {
+            window.location.href = "/login/";
+            return;
+        }
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/cart/';
+        
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+        
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = 'token';
+        tokenInput.value = token;
+        
+        form.appendChild(csrfInput);
+        form.appendChild(tokenInput);
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    async function loadNotifications() {
+        const token = getToken();
+        if (!token) {
+            window.location.href = "/login/";
+            return;
+        }
+        
+        try {
+            const response = await fetch('/notifications/api/list/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            displayNotifications(data.notifications);
+            updateNotificationBadge(data.unread_count);
+            
+            // Reapply the current tab filter after loading
+            const activeTab = document.querySelector('.tab-btn.active')?.textContent.toLowerCase() || 'all';
+            filterNotifications(activeTab);
+            
+        } catch (error) {
+            console.error('Error loading notifications:', error);
+        }
+    }
+
+    function displayNotifications(notifications) {
+        const list = document.getElementById('notifications-list');
+        
+        if (notifications.length === 0) {
+            list.innerHTML = `
+                <div class="empty-notifications">
+                    <i class="fa-regular fa-bell"></i>
+                    <h3>No notifications</h3>
+                    <p>You're all caught up!</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        notifications.forEach(notif => {
+            // Determine the link based on notification type
+            let linkUrl = '/customer/home/'; // Default to products page
+            
+            if (notif.notification_type === 'stock_available') {
+                // Stock available notifications go to the products page
+                linkUrl = '/customer/home/';
+            } else if (notif.notification_type === 'order_update') {
+                // Order updates go to orders page
+                linkUrl = '/orders/';
+            }
+            
+            html += `
+                <a href="${linkUrl}" class="notification-link" style="text-decoration: none; color: inherit; display: block;" 
+                   onclick="markAsReadOnClick(event, ${notif.notification_id}, '${linkUrl}')">
+                    <div class="notification-item ${notif.is_read ? 'read' : 'unread'}" 
+                         data-id="${notif.notification_id}">
+                        <div class="notification-icon ${notif.notification_type}">
+                            <i class="fa-solid ${getIconForType(notif.notification_type)}"></i>
+                        </div>
+                        <div class="notification-content">
+                            <h4>${notif.title}</h4>
+                            <p>${notif.message}</p>
+                            <span class="notification-time">${notif.time_ago}</span>
+                        </div>
+                    </div>
+                </a>
+            `;
+        });
+        
+        list.innerHTML = html;
+    }
+
+    function getIconForType(type) {
+        const icons = {
+            'stock_available': 'fa-box-open',
+            'price_drop': 'fa-tag',
+            'order_update': 'fa-truck',
+            'general': 'fa-bell'
+        };
+        return icons[type] || 'fa-bell';
+    }
+
+    async function markAsRead(notificationId) {
+        const token = getToken();
+        if (!token) return;
+        
+        try {
+            await fetch(`/notifications/api/read/${notificationId}/`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            const item = document.querySelector(`.notification-item[data-id="${notificationId}"]`);
+            if (item) {
+                item.classList.remove('unread');
+                item.classList.add('read');
+            }
+            
+            updateUnreadCount();
+        } catch (error) {
+            console.error('Error marking as read:', error);
+        }
+    }
+
+    async function markAllRead() {
+        const token = getToken();
+        if (!token) return;
+        
+        try {
+            await fetch('/notifications/api/read-all/', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            document.querySelectorAll('.notification-item').forEach(item => {
+                item.classList.remove('unread');
+                item.classList.add('read');
+            });
+            
+            updateNotificationBadge(0);
+        } catch (error) {
+            console.error('Error marking all as read:', error);
+        }
+    }
+
+    async function updateUnreadCount() {
+        const token = getToken();
+        if (!token) return;
+        
+        try {
+            const response = await fetch('/notifications/api/unread-count/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            updateNotificationBadge(data.unread_count);
+        } catch (error) {
+            console.error('Error updating unread count:', error);
+        }
+    }
+
+    function updateNotificationBadge(count) {
+        const badge = document.getElementById('notification-badge');
+        if (badge) {
+            if (count > 0) {
+                badge.textContent = count;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    }
+    function markAsReadOnClick(event, notificationId, linkUrl) {
+        event.preventDefault(); // Prevent immediate navigation
+        
+        const token = getToken();
+        if (token) {
+            // Mark as read first
+            fetch(`/notifications/api/read/${notificationId}/`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(() => {
+                // After marking as read, navigate to the link
+                window.location.href = linkUrl;
+            })
+            .catch(() => {
+                // If error, still navigate
+                window.location.href = linkUrl;
+            });
+        } else {
+            window.location.href = linkUrl;
+        }
+    }
+    function switchTab(tab) {
+        // Update active tab styling
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+        
+        filterNotifications(tab);
+    }
+    
+    function filterNotifications(tab) {
+        const allNotifications = document.querySelectorAll('.notification-item');
+        const list = document.getElementById('notifications-list');
+        let visibleCount = 0;
+        
+        allNotifications.forEach(notif => {
+            let shouldShow = false;
+            const isRead = notif.classList.contains('read');
+            const icon = notif.querySelector('.notification-icon');
+            const isStockAlert = icon && icon.classList.contains('stock_available');
+            
+            if (tab === 'all') {
+                shouldShow = true;
+            } else if (tab === 'unread') {
+                shouldShow = !isRead; // Only show if NOT read
+            } else if (tab === 'alerts') {
+                // For stock alerts tab, show ONLY stock alerts that are NOT read
+                shouldShow = isStockAlert && !isRead;
+            }
+            
+            if (shouldShow) {
+                notif.style.display = 'flex';
+                visibleCount++;
+            } else {
+                notif.style.display = 'none';
+            }
+        });
+        
+        // Handle empty state
+        const emptyMessage = list.querySelector('.empty-notifications');
+        if (visibleCount === 0) {
+            if (!emptyMessage) {
+                const empty = document.createElement('div');
+                empty.className = 'empty-notifications';
+                empty.innerHTML = `
+                    <i class="fa-regular fa-bell"></i>
+                    <h3>No notifications</h3>
+                    <p>You're all caught up!</p>
+                `;
+                list.appendChild(empty);
+            }
+        } else if (emptyMessage) {
+            emptyMessage.remove();
+        }
+    }
+    
+    // Update the markAsRead function to refresh the current tab view
+    async function markAsRead(notificationId) {
+        const token = getToken();
+        if (!token) return;
+        
+        try {
+            await fetch(`/notifications/api/read/${notificationId}/`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            const item = document.querySelector(`.notification-item[data-id="${notificationId}"]`);
+            if (item) {
+                item.classList.remove('unread');
+                item.classList.add('read');
+            }
+            
+            updateUnreadCount();
+            
+            // Re-filter based on current tab
+            const activeTab = document.querySelector('.tab-btn.active')?.textContent.toLowerCase() || 'all';
+            filterNotifications(activeTab);
+            
+        } catch (error) {
+            console.error('Error marking as read:', error);
+        }
+    }
+    
+    // Update markAllRead similarly
+    async function markAllRead() {
+        const token = getToken();
+        if (!token) return;
+        
+        try {
+            await fetch('/notifications/api/read-all/', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            // Instead of just updating classes, reload all notifications from server
+            await loadNotifications();
+            
+            // Update the badge
+            updateNotificationBadge(0);
+            
+        } catch (error) {
+            console.error('Error marking all as read:', error);
+        }
+    }
+    // Add notification icon to product pages
+    function showStockAlertOption(productId, productName) {
+        if (confirm(`Get notified when ${productName} is back in stock?`)) {
+            createStockAlert(productId, 1);
+        }
+    }
+
+    async function createStockAlert(productId, quantity) {
+        const token = getToken();
+        if (!token) return;
+        
+        try {
+            const response = await fetch('/notifications/api/alerts/create/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    product_id: productId,
+                    quantity: quantity
+                })
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                alert(data.message);
+            }
+        } catch (error) {
+            console.error('Error creating stock alert:', error);
+        }
+    }
+
+    // Load notifications on page load
+    document.addEventListener('DOMContentLoaded', loadNotifications);
+    
+    // Periodically check for new notifications (every 30 seconds)
+    setInterval(() => {
+        if (window.location.pathname.includes('/notifications/')) {
+            loadNotifications();
+        } else {
+            updateUnreadCount();
+        }
+    }, 30000);
+</script>
+
+<style>
+.notifications-container {
+    max-width: 800px;
+    margin: 30px auto;
+    padding: 0 20px;
+}
+
+.page-title {
+    font-size: 32px;
+    color: #406083;
+    margin-bottom: 20px;
+}
+
+.notifications-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.mark-all-read {
+    padding: 8px 16px;
+    background: #f8f9fa;
+    border: 1px solid #406083;
+    color: #406083;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.mark-all-read:hover {
+    background: #406083;
+    color: white;
+}
+
+.notifications-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 10px;
+}
+
+.tab-btn {
+    padding: 8px 16px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: #666;
+}
+
+.tab-btn.active {
+    color: #406083;
+    font-weight: bold;
+    border-bottom: 2px solid #406083;
+}
+
+.notifications-list {
+    min-height: 400px;
+}
+
+.notification-item {
+    display: flex;
+    gap: 15px;
+    padding: 20px;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.notification-item:hover {
+    background: #f8f9fa;
+}
+
+.notification-item.unread {
+    border-left: 4px solid #406083;
+    background: #f0f7ff;
+}
+
+.notification-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.notification-icon.stock_available {
+    background: #d4edda;
+    color: #28a745;
+}
+
+.notification-icon.price_drop {
+    background: #fff3cd;
+    color: #ffc107;
+}
+
+.notification-icon.order_update {
+    background: #cce5ff;
+    color: #007bff;
+}
+
+.notification-content {
+    flex: 1;
+}
+
+.notification-content h4 {
+    margin: 0 0 5px 0;
+    color: #333;
+}
+
+.notification-content p {
+    margin: 0 0 5px 0;
+    color: #666;
+    font-size: 14px;
+}
+
+.notification-time {
+    font-size: 12px;
+    color: #999;
+}
+
+.empty-notifications {
+    text-align: center;
+    padding: 60px 20px;
+    color: #999;
+}
+
+.empty-notifications i {
+    font-size: 60px;
+    margin-bottom: 20px;
+}
+
+.notification-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #dc3545;
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+}
+
+.notifications-icon {
+    position: relative;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+}
+.notification-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    transition: opacity 0.2s;
+}
+
+.notification-link:hover {
+    opacity: 0.9;
+}
+
+.notification-link:hover .notification-item {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %}
