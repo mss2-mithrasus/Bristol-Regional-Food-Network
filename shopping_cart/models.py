@@ -2,6 +2,8 @@ from django.db import models
 
 # Create your models here.
 from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
 from product.models import Product
 
 class Cart(models.Model):
@@ -65,6 +67,7 @@ class CartItem(models.Model):
     quantity = models.PositiveIntegerField(default=1)
     added_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    reserved_until = models.DateTimeField(null=True, blank=True)  # When reservation expires
     
     class Meta:
         db_table = "cart_item"
@@ -77,7 +80,12 @@ class CartItem(models.Model):
     def subtotal(self):
         """Calculate item subtotal"""
         return self.quantity * self.product.price
-    
+    @property
+    def is_reservation_active(self):
+        """Check if reservation is still valid"""
+        if not self.reserved_until:
+            return False
+        return timezone.now() < self.reserved_until
     @property
     def producer_name(self):
         """Get producer name for this item"""

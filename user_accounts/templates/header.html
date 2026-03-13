@@ -1,11 +1,24 @@
 {% load static %}
 
-<div class="nav-left">
-    <img src="{% static 'images/leaf.png' %}" alt="Leaf logo" class="logo">
-    <span class="title">Bristol Regional Food Network</span>
-</div>
+<header class="navbar">
+    <div class="nav-left">
+        <img src="{% static 'images/leaf.png' %}" alt="Leaf logo" class="logo">
+        <span class="title">Bristol Regional Food Network</span>
+    </div>
 
-<nav class="nav-links"></nav>
+    <nav class="nav-links">
+        <!--we want the buttons styling to be active if we are on that page to make it clear what page the user is currently on
+        which is what is being done here-->
+        
+        <!-- Add a container for the notification bell with badge -->
+        <span id="notification-container" style="display: none; margin-left: 10px; position: relative;">
+            <a href="/notifications/" id="notification-link">
+                <i class="fa-solid fa-bell"></i>
+                <span id="notification-badge" style="position: absolute; top: -8px; right: -8px; background: #dc3545; color: white; font-size: 11px; font-weight: bold; min-width: 18px; height: 18px; border-radius: 9px; display: none; align-items: center; justify-content: center; padding: 0 4px;">0</span>
+            </a>
+        </span>
+    </nav>
+</header>
 
 <script>
 function getAccessToken() {
@@ -16,6 +29,59 @@ function logoutUser() {
     localStorage.clear();
     sessionStorage.clear();
     window.location.href = "/";
+}
+
+function headerGoToCart() {
+    const token = getAccessToken();
+    if (!token) {
+        window.location.href = "/login/";
+        return;
+    }
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/cart/';
+    
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrfmiddlewaretoken';
+    csrfInput.value = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+    
+    const tokenInput = document.createElement('input');
+    tokenInput.type = 'hidden';
+    tokenInput.name = 'token';
+    tokenInput.value = token;
+    
+    form.appendChild(csrfInput);
+    form.appendChild(tokenInput);
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// Update notification badge count
+async function updateNotificationBadge() {
+    const token = getAccessToken();
+    if (!token) return;
+    
+    try {
+        const response = await fetch('/notifications/api/unread-count/', {
+            headers: { "Authorization": "Bearer " + token }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const badge = document.getElementById('notification-badge');
+            if (badge) {
+                if (data.unread_count > 0) {
+                    badge.textContent = data.unread_count;
+                    badge.style.display = 'flex';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error updating notification badge:', error);
+    }
 }
 
 async function buildNav() {
@@ -60,12 +126,28 @@ async function buildNav() {
 
     let customerIcons = "";
     if (role === "customer") {
+        // First, get unread count for the badge
+        let unreadCount = 0;
+        try {
+            const badgeResp = await fetch('/notifications/api/unread-count/', {
+                headers: { "Authorization": "Bearer " + token }
+            });
+            if (badgeResp.ok) {
+                const badgeData = await badgeResp.json();
+                unreadCount = badgeData.unread_count;
+            }
+        } catch (error) {
+            console.error('Error fetching notification count:', error);
+        }
+
         customerIcons = `
-            <a href="/cart/" class="${currentPath === '/cart/' ? 'active' : ''}">
+            <a href="javascript:void(0);" onclick="headerGoToCart()" class="cart-icon ${currentPath === '/cart/' ? 'active' : ''}">
                 <i class="fa-solid fa-cart-shopping"></i>
+                <span class="cart-badge" id="cart-badge" style="display: none;">0</span>
             </a>
-            <a href="/notifications/" class="${currentPath === '/notifications/' ? 'active' : ''}">
+            <a href="/notifications/" class="notifications-icon ${currentPath === '/notifications/' ? 'active' : ''}">
                 <i class="fa-solid fa-bell"></i>
+                <span class="notification-badge" id="notification-badge" style="display: ${unreadCount > 0 ? 'flex' : 'none'};">${unreadCount}</span>
             </a>
         `;
     }
@@ -78,7 +160,55 @@ async function buildNav() {
         ${customerIcons}
         <a href="#" onclick="logoutUser()">Logout</a>
     `;
+
+    // Update cart badge count
+    if (role === "customer") {
+        try {
+            const cartResp = await fetch('/cart/api/icon/', {
+                headers: { "Authorization": "Bearer " + token }
+            });
+            if (cartResp.ok) {
+                const cartData = await cartResp.json();
+                const cartBadge = document.getElementById('cart-badge');
+                if (cartBadge) {
+                    if (cartData.total_items > 0) {
+                        cartBadge.textContent = cartData.total_items;
+                        cartBadge.style.display = 'flex';
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching cart count:', error);
+        }
+    }
 }
+
+// Also periodically update just the notification badge
+setInterval(updateNotificationBadge, 30000); // Every 30 seconds
 
 document.addEventListener("DOMContentLoaded", buildNav);
 </script>
+
+<style>
+.cart-icon, .notifications-icon {
+    position: relative;
+    display: inline-block;
+}
+
+.cart-badge, .notification-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #dc3545;
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+}
+</style>

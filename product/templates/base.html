@@ -1,20 +1,23 @@
-
 {% load static %}
 
 <!DOCTYPE html>
 <html lang = "en">
     <head>
+        <!-- Add Font Awesome for icons -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
         <meta charset="UTF-8">
         <title>Bristol Regional Food Network</title>
         <link rel="stylesheet" href="{% static 'base.css'%}">
+        
         {% block head%}
         {%endblock%}
     </head>
     
 
     <body> 
+        {% include "header.html" %}
 
-        <header class="navbar">
+        {% comment %} <header class="navbar">
             <div class="nav-left">
                 <img src="{% static 'images/leaf.png' %}" alt="Leaf logo" class="logo">
                 <span class="title">Bristol Regional Food Network</span>
@@ -22,15 +25,23 @@
             {%block nav%}
 
             <nav class="nav-links">
-                <!--we want the buttons styling to be active if we are on that page to make it clear what page the user is currently on
-                which is what is being done here-->
+                
                 <a href="{%url 'home'%}"
                 class="{%if request.resolver_match.url_name == 'home'%}active{%endif%}">Home</a>
                 <a href="#">Login</a>
+                
+           
+                <span id="notification-container" style="display: none; margin-left: 10px; position: relative;">
+                    <a href="/notifications/" id="notification-link">
+                        <i class="fa-solid fa-bell"></i>
+                        <span id="notification-badge" style="position: absolute; top: -8px; right: -8px; background: #dc3545; color: white; font-size: 11px; font-weight: bold; min-width: 18px; height: 18px; border-radius: 9px; display: none; align-items: center; justify-content: center; padding: 0 4px;">0</span>
+                    </a>
+                </span>
+                
                 {%block nav_extra%}{%endblock%}
             </nav>
             {%endblock%}
-        </header>
+        </header> {% endcomment %}
 
         <!--page content will go here e.g login form-->
         <main>
@@ -41,47 +52,89 @@
         <footer class="footer">
             <p>Local Food Marketplace | Supporting Local Farmers</p>
         </footer>
+        
         <script>
             (function() {
                 const token = localStorage.getItem("access") || sessionStorage.getItem("access");
-                if (!token) return;
-
-                fetch('/cart/api/icon/', {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                })
-                .then(r => {
-                    if (r.status === 401) {
-                        // Try refresh
-                        const refresh = localStorage.getItem("refresh") || sessionStorage.getItem("refresh");
-                        if (!refresh) return null;
-                        return fetch('/api/token/refresh/', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ refresh })
-                        })
-                        .then(r => r.json())
-                        .then(data => {
-                            if (localStorage.getItem("access")) localStorage.setItem("access", data.access);
-                            else sessionStorage.setItem("access", data.access);
-                            return fetch('/cart/api/icon/', {
-                                headers: { 'Authorization': 'Bearer ' + data.access }
-                            });
-                        });
+                const notificationContainer = document.getElementById('notification-container');
+                const notificationBadge = document.getElementById('notification-badge');
+                
+                if (token) {
+                    // Show notification container
+                    if (notificationContainer) {
+                        notificationContainer.style.display = 'inline-block';
                     }
-                    return r;
-                })
-                .then(r => r ? r.json() : null)
-                .then(data => {
-                    if (data && data.total_items > 0) {
-                        const badge = document.getElementById('cart-badge');
-                        if (badge) {
-                            badge.textContent = data.total_items;
-                            badge.style.display = 'flex';
+                    
+                    // Function to check for unread notifications
+                    async function checkNotifications() {
+                        try {
+                            const response = await fetch('/notifications/api/unread-count/', {
+                                headers: { 'Authorization': 'Bearer ' + token }
+                            });
+                            
+                            if (response.ok) {
+                                const data = await response.json();
+                                
+                                if (notificationBadge) {
+                                    if (data.unread_count > 0) {
+                                        notificationBadge.textContent = data.unread_count;
+                                        notificationBadge.style.display = 'flex';
+                                        console.log(' Notification badge shown:', data.unread_count);
+                                    } else {
+                                        notificationBadge.style.display = 'none';
+                                    }
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Error checking notifications:', error);
                         }
                     }
-                })
-                .catch(() => {});
+                    
+                    // Check immediately
+                    checkNotifications();
+                    
+                    // Check every 2 seconds (more frequent for instant updates)
+                    setInterval(checkNotifications, 2000);
+                    
+                    // Cart badge (your existing code)
+                    fetch('/cart/api/icon/', {
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    })
+                    .then(r => {
+                        if (r.status === 401) {
+                            const refresh = localStorage.getItem("refresh") || sessionStorage.getItem("refresh");
+                            if (!refresh) return null;
+                            return fetch('/api/token/refresh/', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ refresh })
+                            })
+                            .then(r => r.json())
+                            .then(data => {
+                                if (localStorage.getItem("access")) localStorage.setItem("access", data.access);
+                                else sessionStorage.setItem("access", data.access);
+                                return fetch('/cart/api/icon/', {
+                                    headers: { 'Authorization': 'Bearer ' + data.access }
+                                });
+                            });
+                        }
+                        return r;
+                    })
+                    .then(r => r ? r.json() : null)
+                    .then(data => {
+                        if (data && data.total_items > 0) {
+                            const badge = document.getElementById('cart-badge');
+                            if (badge) {
+                                badge.textContent = data.total_items;
+                                badge.style.display = 'flex';
+                            }
+                        }
+                    })
+                    .catch(() => {});
+                }
             })();
         </script>
+        {% block scripts %}
+        {% endblock%}
     </body>
-    </html>
+</html>

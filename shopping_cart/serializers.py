@@ -71,12 +71,6 @@ class AddToCartSerializer(serializers.Serializer):
             raise serializers.ValidationError("Product out of stock")
         
         return value
-    
-    def validate(self, data):
-        """Additional validation"""
-        if data['quantity'] > 10:  # Reasonable limit
-            raise serializers.ValidationError("Maximum quantity per item is 10")
-        return data
 
 
 class UpdateCartItemSerializer(serializers.Serializer):
