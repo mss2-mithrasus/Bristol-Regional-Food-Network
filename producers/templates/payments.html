@@ -3,7 +3,7 @@
 
 {% block head %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'payments.css' %}">
+  <link rel="stylesheet" href="{% static 'weekly_payments.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -94,13 +94,13 @@
 <section class="panel">
   <div class="panel-header-row">
     <h2>Order Breakdown</h2>
-    <div class="small-note">Only Delivered/Completed orders should be included in settlements.</div>
+    
   </div>
 
   <div id="paymentError" style="color:#b00020; font-weight:800; margin: 8px 0;"></div>
 
   <div class="table-wrap">
-    <div class="pay-table head" style="grid-template-columns: 1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr 0.8fr;">
+    <div class="pay-table head" style="display: grid !important; grid-template-columns: 1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr 0.8fr !important; font-weight: 800 !important;">
       <div>Order #</div>
       <div>Customer</div>
       <div>Delivered</div>
@@ -122,7 +122,7 @@
   </div>
 
   <div class="table-wrap">
-    <div class="history-table head">
+    <div class="history-table head" style="display: grid !important; grid-template-columns: 1fr 1.6fr 1.1fr 1.1fr 2fr 0.9fr  !important; font-weight: 800 !important;">
       <div>Week</div>
       <div>Reference</div>
       <div>Total Value</div>
@@ -232,6 +232,7 @@ function renderHistory(){
   HISTORY.forEach(h => {
     const row = document.createElement("div");
     row.className = "history-table row";
+    row.style.cssText = "display: grid !important; grid-template-columns: 1fr 1.6fr 1.1fr 1.1fr 2fr 0.9fr  !important;";
     row.innerHTML = `
       <div>${h.weekLabel}</div>
       <div><strong>${h.ref}</strong></div>
@@ -298,7 +299,7 @@ function renderWeek(weekKey){
 
     const row = document.createElement("div");
     row.className = "pay-table row";
-    //row.style.gridTemplateColumns = "1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr 0.8fr";
+    row.style.cssText = "display: grid !important; grid-template-columns: 1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr 0.8fr !important;";
     row.innerHTML = `
       <div><strong>#${o.order_no}</strong></div>
       <div>${cname}</div>

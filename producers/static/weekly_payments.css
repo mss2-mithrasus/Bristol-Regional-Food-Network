@@ -43,20 +43,32 @@
 }
 
 /* Settlement breakdown table (8 columns) */
-.pay-table{
-  display:grid;
+.panel .pay-table{
+  display:grid !important;
   grid-template-columns: 1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr 0.8fr !important;
   gap:10px;
   align-items:center;
+  width: 100%;  
+  box-sizing: border-box;  
+}
+.pay-table.head,
+.pay-table.row {
+  display: grid !important;
+  grid-template-columns: 1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr 0.8fr !important;
+  width: 100%;
+  box-sizing: border-box;
 }
 .pay-table.head{
-  font-weight:800;
+  display: grid !important;   
+  font-weight:800 !important;
   background:rgba(0,0,0,0.18);
   padding:10px 12px;
   border-radius:10px;
   margin-bottom:8px;
+
 }
 .pay-table.row{
+  display: grid !important; 
   background:#f2f2f2;
   color:#406083;
   padding:10px 12px;
@@ -78,7 +90,7 @@
 
 /* History table (6 columns) */
 .history-table{
-  display:grid;
+  display:grid !important;
   grid-template-columns: 2fr 1.5fr 1fr 1fr 1.2fr 0.8fr;
   gap:10px;
   align-items:center;
@@ -104,6 +116,10 @@
 .history-table.row > div:nth-child(1),
 .history-table.row > div:nth-child(2){
   text-align:left;
+}
+
+#historyRows{
+  display:block;
 }
 
 /* Audit modal box */

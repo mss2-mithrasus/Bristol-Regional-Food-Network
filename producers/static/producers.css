@@ -70,7 +70,13 @@
 .logo{height:26px}
 .brand{font-size:20px;font-weight:700}
 
-.topbar-right{display:flex;align-items:center;gap:14px}
+.topbar-right{display:flex;align-items:center;gap:20px !important;}
+.topbar-right > * {
+    display: flex;
+}
+
+
+
 .about-pill{
   background:#406083;
   color:#fff;
@@ -80,21 +86,19 @@
   font-weight:700;
 }
 
-<<<<<<< HEAD
-/* Your icons (you already have this, keep it) */
-=======
-
->>>>>>> ID-72-mithra-changes
 .nav-icons{
-  display:inline-flex;
-  gap:15px;
-  margin-left:10px;
+  display:flex;
+  gap:20px;
   align-items:center;
+  font-size:18px;
+  padding:4px;
 }
 .nav-icons a{
+  display: flex;
   color:white;
   font-size:18px;
   text-decoration:none;
+  gap:20px
 }
 .nav-icons a:hover{color:rgba(255,255,255,.6)}
 
@@ -378,6 +382,140 @@
   border-radius: 14px;
   box-shadow: 0 18px 50px rgba(0,0,0,0.18);
 }
-.available-pill { background:#39c57c; }
-.low-stock-pill { background:#e1b738; }
-.out-stock-pill { background:#ec4f4f; }
+/*weekly payments*/
+/* Payments page specific styles */
+.right-controls{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.toggle{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  font-weight:800;
+  color:#406083;
+  background:#f2f2f2;
+  padding:8px 12px;
+  border-radius:999px;
+}
+
+.meta-row{
+  display:flex;
+  gap:16px;
+  flex-wrap:wrap;
+  margin-top:10px;
+  font-weight:700;
+  color:#406083;
+}
+
+.download-row{
+  display:flex;
+  gap:10px;
+  margin-top:12px;
+  justify-content:flex-end;
+}
+
+.hint{
+  margin-top:10px;
+  background:#f2f2f2;
+  padding:10px 12px;
+  border-radius:10px;
+  color:#406083;
+  font-weight:700;
+}
+
+/* Settlement breakdown table (8 columns) */
+.panel .pay-table{
+  display:grid !important;
+  grid-template-columns: 1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr 0.8fr !important;
+  gap:10px;
+  align-items:center;
+  width: 100%;  
+  box-sizing: border-box;  
+}
+.pay-table.head,
+.pay-table.row {
+  display: grid !important;
+  grid-template-columns: 1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr 0.8fr !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+.pay-table.head{
+  display: grid !important;   
+  font-weight:800 !important;
+  background:rgba(0,0,0,0.18);
+  padding:10px 12px;
+  border-radius:10px;
+  margin-bottom:8px;
+
+}
+.pay-table.row{
+  display: grid !important; 
+  background:#f2f2f2;
+  color:#406083;
+  padding:10px 12px;
+  border-radius:10px;
+  margin-bottom:8px;
+}
+.pay-table.row > div{
+  font-weight:700;
+  text-align:center;
+}
+.pay-table.row > div:nth-child(2),
+.pay-table.row > div:nth-child(4){
+  text-align:left;
+}
+.items-cell{
+  line-height:1.2;
+  word-break:break-word;
+}
+
+/* History table (6 columns) */
+.history-table{
+  display:grid !important;
+  grid-template-columns: 2fr 1.5fr 1fr 1fr 1.2fr 0.8fr;
+  gap:10px;
+  align-items:center;
+}
+.history-table.head{
+  font-weight:800;
+  background:rgba(0,0,0,0.18);
+  padding:10px 12px;
+  border-radius:10px;
+  margin-bottom:8px;
+}
+.history-table.row{
+  background:#f2f2f2;
+  color:#406083;
+  padding:10px 12px;
+  border-radius:10px;
+  margin-bottom:8px;
+}
+.history-table.row > div{
+  font-weight:700;
+  text-align:center;
+}
+.history-table.row > div:nth-child(1),
+.history-table.row > div:nth-child(2){
+  text-align:left;
+}
+
+#historyRows{
+  display:block;
+}
+
+/* Audit modal box */
+.audit-box{
+  margin-top:10px;
+  background:#f2f2f2;
+  padding:12px;
+  border-radius:12px;
+  color:#406083;
+  font-weight:700;
+}
+.audit-box .hint{
+  margin-top:10px;
+}
