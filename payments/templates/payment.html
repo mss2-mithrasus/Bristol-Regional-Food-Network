@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block head %}
+<script src="https://js.stripe.com/v3/"></script>
+<link rel="stylesheet" href="{% static 'payments.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="payment-container">
+    <div class="payment-box">
+        <h2 class="title"> Complete Payment</h2>
+        
+        <div class="order-summary">
+            <div class="summary-row">
+                <span>Subtotal:</span>
+                <span>£{{ total|floatformat:2 }}</span>
+            </div>
+            <div class="summary-row total">
+                <span>Total Amount:</span>
+                <span>£{{ total|floatformat:2 }}</span>
+            </div>
+        </div>
+        
+        <form id="payment-form">
+            {% csrf_token %}
+            
+            <!-- Card Number Field -->
+            <div class="card-field-container">
+                <label class="field-label">
+                    <i></i> Card Number
+                </label>
+                <div id="card-number-element" class="card-field">
+                    <!-- Stripe Card Number Element will be mounted here -->
+                </div>
+            </div>
+            
+            <!-- Expiry and CVV in same row -->
+            <div class="card-row">
+                <!-- Expiry Field -->
+                <div class="card-field-container">
+                    <label class="field-label">
+                        <i></i> Expiry Date
+                    </label>
+                    <div id="card-expiry-element" class="card-field"></div>
+                </div>
+                
+                <!-- CVV Field with Help -->
+                <div class="card-field-container">
+                    <label class="field-label">
+                        <i></i> CVV
+                    </label>
+                    <div class="cvv-wrapper">
+                        <div id="card-cvc-element" class="card-field"></div>
+                        <span class="cvv-help" title="3-4 digit security code on your card"></span>
+                        <div class="cvv-tooltip">
+                            Last 3 digits on back of card (Amex: 4 digits on front)
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="card-errors"></div>
+            <button id="submit-btn">
+                <span id="button-text">Pay £{{ total|floatformat:2 }}</span>
+            </button>
+            <div id="payment-message"></div>
+        </form>
+        
+        <div class="security-badge">
+            <span><i></i> Secure Payment by Stripe</span>
+            <span><i></i> PCI Compliant</span>
+            <span><i></i> Encrypted</span>
+        </div>
+    </div>
+</div>
+
+<script>
+const stripe = Stripe('{{ stripe_public_key }}');
+let cardNumberElement;
+let cardExpiryElement;
+let cardCvcElement;
+let clientSecret;
+
+initialize();
+
+document.getElementById('payment-form').addEventListener('submit', handleSubmit);
+
+async function initialize() {
+    try {
+        console.log("Initializing payment...");
+        
+        const response = await fetch('/payments/create-payment-intent/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ total: '{{ total }}' })
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            showMessage(data.error);
+            return;
+        }
+        
+        clientSecret = data.clientSecret;
+        
+        // Create Elements instance
+        const elements = stripe.elements({ 
+            clientSecret: clientSecret,
+        });
+        
+        // Create individual card elements with better styling
+        cardNumberElement = elements.create('cardNumber', {
+            style: {
+                base: {
+                    fontSize: '16px',
+                    fontFamily: 'Arial, sans-serif',
+                    color: '#333',
+                    '::placeholder': {
+                        color: '#aaa',
+                        fontWeight: 'normal',
+                    },
+                    padding: '0',
+                },
+                invalid: {
+                    color: '#dc3545',
+                    iconColor: '#dc3545',
+                },
+            },
+            showIcon: true,
+            iconStyle: 'solid',
+            disableLink: true,
+        });
+        
+        cardExpiryElement = elements.create('cardExpiry', {
+            style: {
+                base: {
+                    fontSize: '16px',
+                    fontFamily: 'Arial, sans-serif',
+                    color: '#333',
+                    '::placeholder': {
+                        color: '#aaa',
+                    },
+                },
+                invalid: {
+                    color: '#dc3545',
+                },
+            },
+            placeholder: 'MM/YY',
+        });
+        
+        cardCvcElement = elements.create('cardCvc', {
+            style: {
+                base: {
+                    fontSize: '16px',
+                    fontFamily: 'Arial, sans-serif',
+                    color: '#333',
+                    '::placeholder': {
+                        color: '#aaa',
+                    },
+                },
+                invalid: {
+                    color: '#dc3545',
+                },
+            },
+            placeholder: '123',
+        });
+        
+        // Mount the elements
+        cardNumberElement.mount('#card-number-element');
+        cardExpiryElement.mount('#card-expiry-element');
+        cardCvcElement.mount('#card-cvc-element');
+        
+        // Handle validation errors
+        [cardNumberElement, cardExpiryElement, cardCvcElement].forEach(element => {
+            element.on('change', ({error}) => {
+                const displayError = document.getElementById('card-errors');
+                if (error) {
+                    displayError.textContent = error.message;
+                    displayError.classList.add('visible');
+                } else {
+                    // Check if any element has error
+                    const elementsWithError = [cardNumberElement, cardExpiryElement, cardCvcElement].filter(
+                        el => el._errorMessage
+                    );
+                    if (elementsWithError.length === 0) {
+                        displayError.textContent = '';
+                        displayError.classList.remove('visible');
+                    }
+                }
+            });
+        });
+        
+    } catch (error) {
+        console.error("Error:", error);
+        showMessage('Failed to initialize payment. Please try again.');
+    }
+}
+async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+        const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+            payment_method: {
+                card: cardNumberElement,
+            },
+        });
+        
+        if (error) {
+            console.error("Payment error:", error);
+            showMessage(error.message);
+            setLoading(false);
+        } else {
+            console.log("Payment successful!", paymentIntent);
+            // MANUAL REDIRECT to success page
+            window.location.href = '/payments/success/?payment_intent=' + paymentIntent.id;
+        }
+    } catch (error) {
+        console.error("Exception:", error);
+        showMessage('An error occurred during payment.');
+        setLoading(false);
+    }
+}
+
+function showMessage(message) {
+    const messageEl = document.getElementById('payment-message');
+    messageEl.textContent = message;
+    setTimeout(() => {
+        messageEl.textContent = '';
+    }, 5000);
+}
+
+function setLoading(isLoading) {
+    const submitBtn = document.getElementById('submit-btn');
+    const buttonText = document.getElementById('button-text');
+    
+    if (isLoading) {
+        submitBtn.disabled = true;
+        buttonText.textContent = 'Processing...';
+    } else {
+        submitBtn.disabled = false;
+        buttonText.textContent = 'Pay £{{ total|floatformat:2 }}';
+    }
+}
+</script>
+{% endblock %}
