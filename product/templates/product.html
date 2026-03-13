@@ -53,32 +53,6 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
     </script>
 {% endblock %}
 
-{%block nav%}
-
-    <nav class="nav-links">
-        <a href="{%url 'home'%}"
-            class="{%if request.resolver_match.url_name == 'home'%}active{%endif%}">Home</a>
-
-        <a href="{% url 'about' %}"
-            class="{% if request.resolver_match.url_name == 'about'%}active{%endif%}">
-            About Us
-        </a>
-
-        <div class="nav-icons">
-            <a href="#" onclick="goToCartWithToken(event)" class="cart-icon" id="cart-icon-link">
-                <i class="fa-solid fa-cart-shopping"></i>
-                <span class="cart-badge" id="cart-badge" style="display: none;">0</span>
-            </a>
-            <a href="/notifications/" class="notifications-icon" style="position:relative;">
-                <i class="fa-solid fa-bell"></i>
-                <span id="notification-badge" style="display:none; position:absolute; top:-8px; right:-8px; background:#dc3545; color:white; font-size:11px; font-weight:bold; min-width:18px; height:18px; border-radius:9px; align-items:center; justify-content:center; padding:0 4px;">0</span>
-            </a>
-            <a href="{% url 'user_profile' %}"><i class="fa-solid fa-user"></i></a>
-        </div>
-    </nav>
-
-{%endblock%}
-
 
 {% block content %}
 
@@ -247,7 +221,7 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
 </style>
 
 {% endblock %}
-
+{% block scripts %}
 <script>
     function getToken() {
         return localStorage.getItem("access") || sessionStorage.getItem("access");
@@ -624,6 +598,7 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
     }
 </script>
 
+{% endblock %}
 <style>
 .quantity {
     display: flex;

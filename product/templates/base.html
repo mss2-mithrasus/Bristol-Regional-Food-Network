@@ -3,19 +3,21 @@
 <!DOCTYPE html>
 <html lang = "en">
     <head>
+        <!-- Add Font Awesome for icons -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
         <meta charset="UTF-8">
         <title>Bristol Regional Food Network</title>
         <link rel="stylesheet" href="{% static 'base.css'%}">
-        <!-- Add Font Awesome for icons -->
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+        
         {% block head%}
         {%endblock%}
     </head>
     
 
     <body> 
+        {% include "header.html" %}
 
-        <header class="navbar">
+        {% comment %} <header class="navbar">
             <div class="nav-left">
                 <img src="{% static 'images/leaf.png' %}" alt="Leaf logo" class="logo">
                 <span class="title">Bristol Regional Food Network</span>
@@ -23,13 +25,12 @@
             {%block nav%}
 
             <nav class="nav-links">
-                <!--we want the buttons styling to be active if we are on that page to make it clear what page the user is currently on
-                which is what is being done here-->
+                
                 <a href="{%url 'home'%}"
                 class="{%if request.resolver_match.url_name == 'home'%}active{%endif%}">Home</a>
                 <a href="#">Login</a>
                 
-                <!-- Add a container for the notification bell with badge -->
+           
                 <span id="notification-container" style="display: none; margin-left: 10px; position: relative;">
                     <a href="/notifications/" id="notification-link">
                         <i class="fa-solid fa-bell"></i>
@@ -40,7 +41,7 @@
                 {%block nav_extra%}{%endblock%}
             </nav>
             {%endblock%}
-        </header>
+        </header> {% endcomment %}
 
         <!--page content will go here e.g login form-->
         <main>
@@ -78,7 +79,7 @@
                                     if (data.unread_count > 0) {
                                         notificationBadge.textContent = data.unread_count;
                                         notificationBadge.style.display = 'flex';
-                                        console.log('🔔 Notification badge shown:', data.unread_count);
+                                        console.log(' Notification badge shown:', data.unread_count);
                                     } else {
                                         notificationBadge.style.display = 'none';
                                     }
@@ -133,5 +134,7 @@
                 }
             })();
         </script>
+        {% block scripts %}
+        {% endblock%}
     </body>
 </html>
