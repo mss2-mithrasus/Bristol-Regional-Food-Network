@@ -1,0 +1,83 @@
+{% extends "product.html" %}
+{% load static %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'order_detail.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="detail-container">
+    <a href="{% url 'order_history' %}" class="back-link">← Back to Orders</a>
+    
+    <div class="order-header">
+        <h1>Order #{{ order.order_id }} <span class="status-badge">{{ order.status }}</span></h1>
+        <div class="order-meta">
+            <span>Placed on {{ order_date|date:"F j, Y" }}</span>
+        </div>
+    </div>
+    
+    <div class="info-card">
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">Delivery Address</span>
+                <span class="info-value">{{ delivery_address }}</span>
+                <span class="info-value">{{ delivery_postcode }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Payment Status</span>
+                <span class="info-value">Paid</span>
+            </div>
+        </div>
+    </div>
+    
+    {% for producer in producers %}
+    <div class="producer-section">
+        <div class="producer-header">
+            <h3>{{ producer.name }}</h3>
+            <div class="producer-meta">
+                <span>Delivery: {{ producer.delivery_date|date:"M j, Y" }}</span>
+                <span>Status: {{ producer.status }}</span>
+            </div>
+        </div>
+        
+        <div class="items-table">
+            {% for item in producer.items %}
+            <div class="item-row">
+                <div class="item-image">
+                    {% if item.image %}
+                        <img src="{{ item.image }}" alt="{{ item.name }}">
+                    {% else %}
+                        <img src="{% static 'images/default-product.png' %}" alt="{{ item.name }}">
+                    {% endif %}
+                </div>
+                <div class="item-details">
+                    <div class="item-name">{{ item.name }}</div>
+                </div>
+                <div class="item-quantity">x{{ item.quantity }}</div>
+                <div class="item-price">£{{ item.price }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="producer-totals">
+            <div>Subtotal: £{{ producer.subtotal|floatformat:2 }}</div>
+        </div>
+    </div>
+    {% endfor %}
+    
+    <div class="order-total">
+        <div class="total-row">
+            <span>Subtotal:</span>
+            <span>£{{ order.total_amount|add:commission|floatformat:2 }}</span>
+        </div>
+        <div class="total-row">
+            <span>Commission (5%):</span>
+            <span>£{{ commission|floatformat:2 }}</span>
+        </div>
+        <div class="total-row grand-total">
+            <span>Total Paid:</span>
+            <span>£{{ total|floatformat:2 }}</span>
+        </div>
+    </div>
+</div>
+{% endblock %}

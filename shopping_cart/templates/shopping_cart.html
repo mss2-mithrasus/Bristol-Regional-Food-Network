@@ -7,7 +7,26 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 {% endblock %}
 
-
+{% block nav %}
+    <nav class="nav-links">
+        <a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">Home</a>
+        <a href="{% url 'about' %}" class="{% if request.resolver_match.url_name == 'about' %}active{% endif %}">About Us</a>
+        
+        <div class="nav-icons">
+            <a href="javascript:void(0);" onclick="goToCartWithToken()" class="cart-icon {% if request.resolver_match.url_name == 'cart_view' %}active{% endif %}">
+                <i class="fa-solid fa-cart-shopping"></i>
+                {% if total_items > 0 %}
+                    <span class="cart-badge" id="cart-badge">{{ total_items }}</span>
+                {% endif %}
+            </a>
+            <a href="/notifications/" class="notifications-icon" style="position:relative;">
+                <i class="fa-solid fa-bell"></i>
+                <span id="notification-badge" style="display:none; position:absolute; top:-8px; right:-8px; background:#dc3545; color:white; font-size:11px; font-weight:bold; min-width:18px; height:18px; border-radius:9px; align-items:center; justify-content:center; padding:0 4px;">0</span>
+            </a>
+            <a href="{% url 'user_profile' %}"><i class="fa-solid fa-user"></i></a>
+        </div>
+    </nav>
+{% endblock %}
 
 {% block content %}
 <div class="cart-container">
@@ -121,7 +140,7 @@
         </div>
         <h2>Your cart is empty</h2>
         <p>Looks like you haven't added any products yet</p>
-        <a href="{% url 'home' %}" class="shop-now-btn">
+        <a href="javascript:void(0);" onclick="startShopping()" class="shop-now-btn">
             <i class="fa-solid fa-store"></i> Start Shopping
         </a>
     </div>
@@ -133,6 +152,7 @@
     function getToken() {
         return localStorage.getItem("access") || sessionStorage.getItem("access");
     }
+    
     // Function to go to cart with token
     function goToCartWithToken() {
         const token = getToken();
@@ -176,6 +196,28 @@
         return cookieValue;
     }
     const csrftoken = getCookie('csrftoken');
+    
+    // Fetch real-time available stock and update max for a cart item
+    async function updateCartItemMax(itemId) {
+        const token = getToken();
+        if (!token) return;
+        
+        try {
+            const response = await fetch(`/cart/api/item-stock/${itemId}/`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                const input = document.getElementById(`qty-${itemId}`);
+                if (input) {
+                    input.max = data.max_total_allowed;
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching stock for item', itemId, error);
+        }
+    }
     
     // Update producer subtotal function
     function updateProducerSubtotal(itemId, newItemSubtotal) {
@@ -248,7 +290,7 @@
     }
     
     // Update quantity via +/- buttons
-    function updateQuantity(itemId, change) {
+    async function updateQuantity(itemId, change) {
         const token = getToken();
         if (!token) {
             showNotification('Please log in again', 'error');
@@ -268,10 +310,20 @@
             return;
         }
         
-        const max = parseInt(input.max);
-        if (newValue > max) {
-            showNotification(`Only ${max} items available in stock`, 'error');
-            return;
+        // First check with server for real-time availability
+        try {
+            const stockResponse = await fetch(`/cart/api/item-stock/${itemId}/`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const stockData = await stockResponse.json();
+            
+            if (stockData.success && newValue > stockData.max_total_allowed) {
+                showNotification(`You can only have up to ${stockData.max_total_allowed} items total`, 'error');
+                input.max = stockData.max_total_allowed;
+                return;
+            }
+        } catch (e) {
+            console.error('Error checking stock', e);
         }
         
         // Send update to server
@@ -308,9 +360,12 @@
                     cartBadge.textContent = data.cart_total_items;
                 }
                 
+                // Update the max for this item after successful update
+                updateCartItemMax(itemId);
+                
                 showNotification('Cart updated', 'success');
             } else {
-                showNotification('Error: ' + data.error, 'error');
+                showNotification(data.error, 'error');
             }
         })
         .catch(error => {
@@ -326,7 +381,7 @@
     }
     
     // Handle manual quantity input change
-    function changeQuantity(itemId, newValue) {
+    async function changeQuantity(itemId, newValue) {
         const token = getToken();
         if (!token) {
             showNotification('Please log in again', 'error');
@@ -338,6 +393,22 @@
         if (newValue < 1) {
             document.getElementById(`qty-${itemId}`).value = 1;
             return;
+        }
+        
+        // First check with server for real-time availability
+        try {
+            const stockResponse = await fetch(`/cart/api/item-stock/${itemId}/`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const stockData = await stockResponse.json();
+            
+            if (stockData.success && newValue > stockData.max_total_allowed) {
+                showNotification(`You can only have up to ${stockData.max_total_allowed} items total`, 'error');
+                document.getElementById(`qty-${itemId}`).value = stockData.current_quantity;
+                return;
+            }
+        } catch (e) {
+            console.error('Error checking stock', e);
         }
         
         fetch(`/cart/api/item/${itemId}/`, {
@@ -366,9 +437,13 @@
                 updateCartIcon(data.cart_total_items);
                 document.getElementById('cart-fee').textContent = `£${(data.cart_subtotal * 0.05).toFixed(2)}`;
                 document.getElementById('cart-total').textContent = `£${(data.cart_subtotal * 1.05).toFixed(2)}`;
+                
+                // Update the max for this item after successful update
+                updateCartItemMax(itemId);
+                
                 showNotification('Quantity updated', 'success');
             } else {
-                showNotification('Error: ' + data.error, 'error');
+                showNotification(data.error, 'error');
             }
         })
         .catch(error => {
@@ -452,7 +527,7 @@
                 
                 showNotification('Item removed from cart', 'success');
             } else {
-                showNotification('Error: ' + data.error, 'error');
+                showNotification(data.error, 'error');
             }
         })
         .catch(error => {
@@ -483,30 +558,43 @@
     `;
     document.head.appendChild(style);
 
-    // function for the removal pop up message
-
-    // item user wants to remove
-    let itemSelected = null;
-
-    function showRemoveMessage(itemId){
-        itemSelected = itemId;
-        document.getElementById("removeItem").style.display = "flex";
+    // Update all cart items max on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.cart-item').forEach(item => {
+            const itemId = item.dataset.itemId;
+            if (itemId) updateCartItemMax(itemId);
+        });
+        // Poll for notification badge
+        async function checkNotificationBadge() {
+            const token = getToken();
+            if (!token) return;
+            try {
+                const response = await fetch('/notifications/api/unread-count/', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await response.json();
+                const badge = document.getElementById('notification-badge');
+                if (badge) {
+                    if (data.unread_count > 0) {
+                        badge.textContent = data.unread_count;
+                        badge.style.display = 'flex';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            } catch (e) {}
+        }
+        checkNotificationBadge();
+        setInterval(checkNotificationBadge, 3000);
+    });
+    function startShopping() {
+        const token = getToken();
+        if (!token) {
+            window.location.href = "/login/";
+        } else {
+            window.location.href = "/customer/home/";
+        }
     }
-
-    function confirmDeletion(){
-
-        document.getElementById("removeItem").style.display = "none";
-        deleteItem(itemSelected);
-    }
-
-    function noRemoval(){
-        document.getElementById("removeItem").style.display = "none"
-    }
-
-
-
-
-    
     // Logout function
     function logoutUser() {
         localStorage.clear();

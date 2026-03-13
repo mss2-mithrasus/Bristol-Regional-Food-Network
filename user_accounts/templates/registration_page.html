@@ -183,7 +183,8 @@
             <div class="input_row password_wrapper">
                 <label>Confirm Password:</label>
                 <div class="password_field">
-                    <input type="password" id="confirm_password" name="confirm_password">
+                    <!-- ADDED (10-03-26) - Stops users from copy pasting password in the confirm password field -->
+                    <input type="password" id="confirm_password" name="confirm_password" onpaste="return false" autocomplete="new-password">
                     <!-- ICON -->
                     <i class="fa-solid fa-eye-slash toggle-password" data-target="confirm_password"></i>
                 </div>
@@ -209,7 +210,21 @@
 </main>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    //adding postcode validation
+    // ADDED (10-03-26) - Prevents copy and pasting password in the confirm password field
+    const confirmField = document.getElementById("confirm_password");
+    // Block paste
+    confirmField.addEventListener("paste", (e) => e.preventDefault());
+
+    // Block right-click paste
+    confirmField.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    // Block keyboard shortcuts (Ctrl+V / Cmd+V)
+    confirmField.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
+            e.preventDefault();
+        }
+    });
+
     // Toggle button for passwords
     document.querySelectorAll(".toggle-password").forEach(icon => {
         icon.addEventListener("click", () => {

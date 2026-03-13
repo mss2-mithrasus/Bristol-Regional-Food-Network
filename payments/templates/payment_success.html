@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'payment_success.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="receipt-container">
+    <div class="receipt-header">
+        <div class="success-icon">✓</div>
+        <h1>Payment Successful!</h1>
+        <p>Thank you for your order</p>
+    </div>
+    
+    <div class="receipt-card">
+        <div class="order-info">
+            <div class="info-item">
+                <span class="info-label">Order Number</span>
+                <span class="info-value">#{{ order_id }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Order Date</span>
+                <span class="info-value">{{ order_date|date:"F j, Y" }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Customer</span>
+                <span class="info-value">{{ customer_name }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Delivery Address</span>
+                <span class="info-value">{{ delivery_address }}, {{ delivery_postcode }}</span>
+            </div>
+        </div>
+        
+        <h2 class="receipt-title">Order Items</h2>
+        
+        {% for item in items %}
+        <div class="item-row">
+            <div class="item-image">
+                {% if item.image %}
+                    <img src="{{ item.image }}" alt="{{ item.name }}">
+                {% else %}
+                    <img src="{% static 'images/default-product.png' %}" alt="{{ item.name }}">
+                {% endif %}
+            </div>
+            <div class="item-details">
+                <div class="item-name">
+                    {{ item.name }}
+                    {% if item.unit %}
+                    <span class="item-unit">({{ item.unit }})</span>
+                    {% endif %}
+                </div>
+                <div class="item-producer">{{ item.producer }}</div>
+            </div>
+            <div class="item-quantity">x{{ item.quantity }}</div>
+            <div class="item-price">£{{ item.price }}</div>
+        </div>
+        {% endfor %}
+        
+        <div class="total-row">
+            <span class="total-label">Total Paid:</span>
+            <span class="total-value">£{{ total|floatformat:2 }}</span>
+        </div>
+        
+        <div style="text-align: center;">
+            <button onclick="window.print()" class="print-btn">Print / Save as PDF</button>
+        </div>
+        
+        <div class="action-buttons">
+            <a href="/customer/home/"  class="btn btn-primary">Continue Shopping</a>
+            <a href="{% url 'order_history' %}" class="btn btn-secondary">View All Orders</a>
+        </div>
+        
+        <div class="receipt-note">
+            This receipt is also available in your <a href="{% url 'order_history' %}" class="receipt-link">Order History</a>
+        </div>
+    </div>
+</div>
+
+<script>
+// Toast notification function
+function showToast(title, message, type = 'success', duration = 5000) {
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast-notification ${type}`;
+    
+    // Choose text indicator based on type
+    let indicator = 'SUCCESS';
+    if (type === 'error') indicator = 'ERROR';
+    if (type === 'info') indicator = 'INFO';
+    
+    toast.innerHTML = `
+        <div class="toast-indicator">${indicator}</div>
+        <div class="toast-content">
+            <div class="toast-title">${title}</div>
+            <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto-remove after duration
+    setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    showToast(
+        'Payment Successful', 
+        'Your order #{{ order_id }} has been confirmed',
+        'success',
+        6000
+    );
+});
+</script>
+{% endblock %}

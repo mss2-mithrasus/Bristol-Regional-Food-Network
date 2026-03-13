@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Order Confirmation #{{ order_id }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #fff;
+        }
+        .header {
+            background: #2b7a2b;
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        .header p {
+            margin: 10px 0 0;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 30px 20px;
+        }
+        .order-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px solid #e0e0e0;
+        }
+        .order-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .info-item {
+            text-align: left;
+        }
+        .info-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .info-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2b7a2b;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th {
+            text-align: left;
+            padding: 12px 8px;
+            background: #e9ecef;
+            font-size: 14px;
+        }
+        td {
+            padding: 12px 8px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .item-name {
+            font-weight: 600;
+        }
+        .item-producer {
+            font-size: 12px;
+            color: #999;
+        }
+        .total-row {
+            text-align: right;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 15px 0;
+            border-top: 2px solid #333;
+        }
+        .total-amount {
+            color: #2b7a2b;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            color: #666;
+            font-size: 12px;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #2b7a2b;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>Order Confirmation</h1>
+            <p>Order #{{ order_id }}</p>
+        </div>
+        
+        <div class="content">
+            <p>Dear {{ customer_name }},</p>
+            <p>Thank you for your order! We're pleased to confirm that your payment has been successfully processed.</p>
+            
+            <div class="order-box">
+                <div class="order-info">
+                    <div class="info-item">
+                        <div class="info-label">Order Date</div>
+                        <div class="info-value">{{ order_date|date:"F j, Y" }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Order Total</div>
+                        <div class="info-value">£{{ total|floatformat:2 }}</div>
+                    </div>
+                </div>
+                
+                <h3 style="margin-top: 0;">Order Details</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Qty</th>
+                            <th>Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>
+                                <span class="item-name">{{ item.name }}</span>
+                                {% if item.unit %}
+                                <br><small>({{ item.unit }})</small>
+                                {% endif %}
+                                <div class="item-producer">{{ item.producer }}</div>
+                            </td>
+                            <td>{{ item.quantity }}</td>
+                            <td>£{{ item.price }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                <div style="margin: 20px 0; padding: 15px; background: #e8f5e9; border-radius: 6px;">
+                    <strong>Delivery Address:</strong><br>
+                    {{ delivery_address }}<br>
+                    {{ delivery_postcode }}
+                </div>
+                
+                <div class="total-row">
+                    <span>Total Paid: </span>
+                    <span class="total-amount">£{{ total|floatformat:2 }}</span>
+                </div>
+            </div>
+            
+            <p>You'll receive another email when your order ships.</p>
+            
+            <div style="text-align: center;">
+                <a href="{{ site_url }}/orders/history/" class="button">View Order Status</a>
+            </div>
+            
+            <p style="margin-top: 30px;">Thank you for choosing BRFN!</p>
+        </div>
+        
+        <div class="footer">
+            <p>© {% now "Y" %} BRFN - Bristol Regional Food Network</p>
+            <p>This is an automated message, please do not reply.</p>
+        </div>
+    </div>
+</body>
+</html>

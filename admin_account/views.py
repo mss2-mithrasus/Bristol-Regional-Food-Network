@@ -1,3 +1,4 @@
+import hashlib 
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils.decorators import method_decorator
@@ -10,7 +11,9 @@ from rest_framework.response import Response
 from user_accounts.models import (
     CustomerAccount,
     ProducerAccount,
-    User
+    User,
+    DeletionAudit,
+    FailedLoginAttempt
 )
 
 # Check if user is admin
@@ -118,3 +121,40 @@ class RejectAccountView(APIView):
         user_id = request.data.get("user_id")
         User.objects.filter(id=user_id).delete()
         return Response({"message": "Account rejected"})
+
+# ADDED (10-03-26)
+# Deleted account history
+class DeletedAccountsView(APIView):
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        audits = DeletionAudit.objects.all().order_by("-deleted_at")
+
+        results = []
+        for entry in audits:
+            results.append({
+                "hashed_user_identifier": entry.hashed_user_identifier,
+                "role": entry.role,
+                "reason": entry.reason,
+                "deleted_at": entry.deleted_at,
+            })
+
+        return Response(results)
+    
+# Failed login attempts history
+class FailedLoginAttemptsView(APIView):
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        attempts = FailedLoginAttempt.objects.all().order_by("-timestamp")
+
+        results = []
+        for attempt in attempts:
+            results.append({
+                "email": attempt.email,
+                "ip_address": attempt.ip_address,
+                "user_agent": attempt.user_agent,
+                "timestamp": attempt.timestamp,
+            })
+
+        return Response(results)
