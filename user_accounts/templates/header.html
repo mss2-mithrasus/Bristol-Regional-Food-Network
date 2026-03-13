@@ -1,11 +1,13 @@
 {% load static %}
 
+<header class=navbar>
 <div class="nav-left">
     <img src="{% static 'images/leaf.png' %}" alt="Leaf logo" class="logo">
     <span class="title">Bristol Regional Food Network</span>
 </div>
 
 <nav class="nav-links"></nav>
+</header>
 
 <script>
 function getAccessToken() {
@@ -61,8 +63,9 @@ async function buildNav() {
     let customerIcons = "";
     if (role === "customer") {
         customerIcons = `
-            <a href="/cart/" class="${currentPath === '/cart/' ? 'active' : ''}">
+            <a href="/cart/" class="cart-icon ${currentPath === '/cart/' ? 'active' : ''}">
                 <i class="fa-solid fa-cart-shopping"></i>
+                <span class="cart-badge" id="cart-badge" style="display: none;">0</span>
             </a>
             <a href="/notifications/" class="${currentPath === '/notifications/' ? 'active' : ''}">
                 <i class="fa-solid fa-bell"></i>

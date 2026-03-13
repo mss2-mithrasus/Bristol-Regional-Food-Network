@@ -1,4 +1,4 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -13,10 +13,11 @@ from django.contrib.auth.decorators import login_required
 
 
 # product home page
-@login_required(login_url='/login/')
+
 def home(request):
     print("home view hit")
     print("user authenticated", request.user.is_authenticated)
+    
     # getting all the categories stored in the database
     categories = ProductCategory.objects.all()
     # debug to check categories
@@ -29,10 +30,25 @@ def home(request):
     # milk (allergen)
     # if a product is out of stock it wont be displayed even when a user tries to search for it using the search bar
     if query:
+        words = query.split()
+        
+        filtering =(
+            Q(name__icontains=query) | Q(allergens__name__icontains=query) | Q(producer__business_name__icontains=query)
+        
+        )
+        
+        if "organic" in query.lower():
+            filtering |= Q(organic_certified=True)
+            
+        if len(words) >= 2:
+            filter_by_description = Q()
+            for word in words:
+                filter_by_description |= Q(description__icontains=word)
+                
+            filtering |= filter_by_description
+            
         products = Product.objects.filter(
-        availability_status=True).filter(
-            Q(name__icontains=query) | Q(allergens__name__icontains=query)
-            ).distinct()
+        availability_status=True).filter(filtering).distinct()
         
     # mapping the category names to their corresponding images
     category_images = {
@@ -50,16 +66,16 @@ def home(request):
     return render(request, "product.html", {"categories": categories, "products": products, "query": query} )
 
 # THESE PAGES ARENT DONE YET
-@login_required(login_url='login')
+
 def orders(request):
     return render(request, "orders.html")
 
-@login_required(login_url='login')
+
 def about_us(request):
     return render(request, "about_us.html")
 
 
-@login_required(login_url='login')
+
 def products_category(request, category_name):
     # get category object
     category = get_object_or_404(ProductCategory, category_name=category_name)
@@ -85,7 +101,7 @@ def products_category(request, category_name):
     return render(request, "categories.html", context)
 
 
-@login_required(login_url='login')
+
 def product_detail(request, product_id):
     # getting product based on primary key
     product = get_object_or_404(Product, pk=product_id)

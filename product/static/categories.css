@@ -1,3 +1,17 @@
+.search-box {
+    display: flex;
+    justify-content: center;
+    margin: 60px 0px;
+    
+}
+
+.search-bar{
+    width: 500px;
+    padding: 20px 20px;
+    border-radius: 30px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+}
 
 .product-container {
     display: grid;
@@ -6,7 +20,7 @@
     gap: 20px;
     padding-bottom: 120px;
     align-items: start;
-
+ 
     margin: 30px;
 }
 

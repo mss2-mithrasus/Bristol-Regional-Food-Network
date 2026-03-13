@@ -20,6 +20,7 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
 
     {{ block.super }}
     <link rel="stylesheet" href="{% static 'product.css' %}">
+    
     <script>
         function getToken() {
             return localStorage.getItem("access") || sessionStorage.getItem("access");
@@ -54,29 +55,9 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
     </script>
 {% endblock %}
 
-{%block nav%}
 
-    <nav class="nav-links">
-        <a href="{%url 'home'%}"
-            class="{%if request.resolver_match.url_name == 'home'%}active{%endif%}">Home</a>
 
-        <a href="{% url 'about' %}"
-            class="{% if request.resolver_match.url_name == 'about'%}active{%endif%}">
-            About Us
-        </a>
-
-        <div class="nav-icons">
-            <!-- Cart icon with token handling -->
-            <a href="#" onclick="goToCartWithToken(event)" class="cart-icon" id="cart-icon-link">
-                <i class="fa-solid fa-cart-shopping"></i>
-                <span class="cart-badge" id="cart-badge" style="display: none;">0</span>
-            </a>
-            <a href="#"><i class="fa-solid fa-bell"></i></a>
-            <a href="{% url 'user_profile' %}"><i class="fa-solid fa-user"></i></a>
-        </div>
-    </nav>
-
-{%endblock%}
+    
 
 
 {% block content %}
@@ -110,7 +91,7 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
                         {%endif%}
                     </div>
 
-                    <h4 class="field"><span class="label">Producer:</span> {{product.producer_name}}</h4>
+                    <h4 class="field"><span class="label">Producer:</span> {{product.producer.business_name}}</h4>
                     <h4 class="field"><span class="label">Price:</span> {{product.price}}</h4>
                     <h4 class="field"><span class="label">Status:</span> {{product.availability_status|yesno:"Available, Out of stock"}}</h4>
 
@@ -130,6 +111,7 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
         {% else%}
             <p>No products available for this query</p>
         {%endif%}
+            </div>
 
 {%else%}
 
@@ -149,6 +131,8 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
 {%endif%}
 
 {% endblock %}
+
+{% block scripts %}
 
 <script>
     // Get JWT token from storage
@@ -410,6 +394,8 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
         window.location.href = "/login/";
     }
 </script>
+
+{% endblock%}
 
 <style>
 .quantity {
