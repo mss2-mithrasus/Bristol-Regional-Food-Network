@@ -60,13 +60,21 @@
       </div>
 
       <div class="form-group">
-        <label>Availability</label>
-        <select name="availability" required>
-          <option value="In Season (Available)">In Season (Available)</option>
-          <option value="Available">Available</option>
-          <option value="Out of Season">Out of Season</option>
-          <option value="Unavailable">Unavailable</option>
+        <label for="availability">Availability</label>
+        <select name="seasonal_type" id="seasonal_type">
+          <option value="available_yearly">Available All Year Round</option>
+          <option value="seasonal">Season</option>
+          
+          
         </select>
+
+        <div id="seasonal_dates" style="display:none;">
+          <label>Season start date</label>
+          <input type="date" name="season_start_date">
+
+          <label>Season end date</label>
+          <input type="date" name="season_end_date">
+        </div>
       </div>
 
       <div class="form-group">
@@ -173,6 +181,18 @@
 
     const form = document.getElementById("addProductForm");
     const errorBox = document.getElementById("formErrors");
+    //seasonal date cant be older than the current date of the day
+    const todays_date = new Date().toISOString().split("T")[0];
+    document.querySelector("input[name='season_start_date']").min = todays_date;
+    document.querySelector("input[name='season_end_date']").min = todays_date;
+    //validating end date so that it is not before the start date
+    const startDate = document.querySelector("input[name='season_start_date']")
+    const endDate = document.querySelector("input[name='season_end_date']")
+    
+    startDate.addEventListener("change", function(){
+      endDate.min = startDate.value;
+    })
+
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -180,6 +200,50 @@
       errorBox.innerHTML = "";
 
       const formData = new FormData(form);
+      const seasonType = form.querySelector("select[name='seasonal_type']").value;
+      let startDate = form.querySelector("input[name='season_start_date']").value;
+      let endDate = form.querySelector("input[name='season_end_date']").value;
+
+      
+
+      formData.set("seasonal_type", seasonType);
+
+      if (seasonType === "seasonal"){
+        formData.set("season_start_date", startDate);
+        formData.set("season_end_date", endDate);
+
+      } else {
+        formData.delete("season_start_date");
+        formData.delete("season_end_date");
+
+      }
+     
+
+      const allergens = [];
+
+      const selected = document.getElementById("allergens").selectedOptions;
+
+      Array.from(selected).forEach(opt => {
+        const id= opt.value;
+        const name = opt.text;
+
+        const descField = document.querySelector(
+          `textarea[name="allergen_description_${id}"]`
+        );
+
+        const description = descField ? descField.value: "";
+
+        allergens.push({
+          name: name, 
+          description: description
+        });
+
+
+      });
+
+      formData.delete("allergens")
+
+      formData.append("allergens", JSON.stringify(allergens));
 
       // Get JWT access token (must match login storage key)
       // const token = localStorage.getItem("access");
@@ -240,7 +304,22 @@
     });
   });
 
+  const seasonType = document.getElementById("seasonal_type");
+  const seasonalDates = document.getElementById("seasonal_dates");
+
+  if (seasonType) {
+    seasonType.addEventListener("change", function(){
+      if (this.value == "seasonal"){
+        seasonalDates.style.display = "block";
+      } else {
+        seasonalDates.style.display = "none";
+      }
+    });
+  }
+
 
 </script>
+
+
 
 {% endblock %}

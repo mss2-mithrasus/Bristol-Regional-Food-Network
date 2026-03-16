@@ -103,6 +103,7 @@
 </style>
 
 <script>
+  
 document.addEventListener("DOMContentLoaded", async () => {
   // const token = localStorage.getItem("access");
   const token = localStorage.getItem("access") || sessionStorage.getItem("access");
@@ -254,30 +255,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       //  DELETE
       if (action === "delete") {
-        const confirmDelete = confirm("Are you sure you want to delete this product?");
-        if (!confirmDelete) return;
+        showRemoveMessage(id);
+        return;
 
-        try {
-          const res = await fetch(`/producer/api/products/${id}/delete/`, {
-            method: "DELETE",
-            headers: { "Authorization": `Bearer ${localStorage.getItem("access")}` }
-          });
-
-          const data = await res.json().catch(() => ({}));
-
-          if (!res.ok) {
-            alert(data.detail || data.error || "Delete failed.");
-            return;
-          }
-
-          const row = document.querySelector(`[data-product-id="${id}"]`);
-          if (row) row.remove();
-
-          alert("Product deleted successfully!");
-        } catch (err) {
-          console.error(err);
-          alert("Unexpected error deleting product.");
-        }
       }
     });
 
@@ -364,6 +344,75 @@ document.addEventListener("DOMContentLoaded", async () => {
       errorBox.textContent = "Unexpected error loading products.";
     }
   });
-  </script>
+  
+// Lano - product user wants to remove
+    let productSelected = null;
+
+    function showRemoveMessage(id){
+        productSelected = id;
+        document.getElementById("deleteProduct").style.display = "flex";
+    }
+
+    function confirmDeletion(){
+
+        document.getElementById("deleteProduct").style.display = "none";
+        deleteProduct(productSelected);
+    }
+
+    function noRemoval(){
+        document.getElementById("deleteProduct").style.display = "none"
+    }
+// Lano - product user wants to remove
+
+
+
+    async function deleteProduct(id) {
+  try {
+          const res = await fetch(`/producer/api/products/${id}/delete/`, {
+            method: "DELETE",
+            // headers: { "Authorization": `Bearer ${localStorage.getItem("access")}` }
+            headers: {
+              "Authorization": `Bearer ${
+                localStorage.getItem("access") || sessionStorage.getItem("access")
+              }`
+            }
+          });
+
+          const data = await res.json().catch(() => ({}));
+
+          if (!res.ok) {
+            alert(data.detail || data.error || "Delete failed.");
+            return;
+          }
+
+          const row = document.querySelector(`[data-product-id="${id}"]`);
+          if (row) row.remove();
+
+        } catch (err) {
+          console.error(err);
+          alert("Unexpected error deleting product.");
+        }
+      }
+    
+
+
+
+</script>
+
+<!-- Lano added pop up message -->
+
+<div id="deleteProduct" class="remove-item" style="display:none;">
+    <div class="remove-box">
+        <p>Delete this product?</p>
+        <div class="removal-actions">
+            <button onclick="confirmDeletion()">Delete</button>
+            <button onclick="noRemoval()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+
+
+
 
 {% endblock %}
