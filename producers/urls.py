@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from .views import ProducerCreateProductAPI, ProducerDashboardAPI, ProducerOrdersAPI, ProducerProductListAPI, ProducerDeleteProductAPI, ProducerUpdateOrderStatusAPI, ProducerUpdateProductAPI
+from .views import ProducerCreateProductAPI, ProducerDashboardAPI, ProducerOrdersAPI, ProducerProductListAPI, ProducerDeleteProductAPI, ProducerUpdateOrderStatusAPI, ProducerUpdateProductAPI, ProducerWeeklyPaymentsAPI
 app_name = "producers"
 
 urlpatterns = [
@@ -18,4 +18,7 @@ urlpatterns = [
     path("api/orders/<int:order_id>/status/",ProducerUpdateOrderStatusAPI.as_view(),),
     path("payments/", views.payments, name="payments"),
     path("api/weekly-payments/",views.ProducerWeeklyPaymentsAPI.as_view(),name="producer_weekly_payments"),
+    path('api/weekly-payments/weeks/', views.ProducerWeeklyPaymentsWeeksAPI.as_view(), name='weekly_payments_weeks'),
+    path('api/weekly-payments/history/', views.ProducerWeeklyPaymentsHistoryAPI.as_view(), name='weekly_payments_history'),
+    path("api/weekly-payments/report/", views.ProducerWeeklyPaymentsCSV.as_view(), name="weekly_payments_csv"),
 ]

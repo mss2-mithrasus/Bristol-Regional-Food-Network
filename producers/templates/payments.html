@@ -14,7 +14,7 @@
 </div>
 
 <!-- Top summary -->
-<section class="panel">
+<section id="weeklySummary" class="panel payments-panel">
   <div class="panel-header">
     <h2>Weekly Settlement Summary</h2>
 
@@ -64,13 +64,11 @@
   <div id="downloadHint" class="hint" style="display:none;">
     This is a frontend placeholder. Later you’ll connect these buttons to a Django URL that streams a PDF/CSV.
   </div>
-</section>
+
 
 <!-- Running total -->
-<section class="panel">
-  <div class="panel-header-row">
-    <h2>Tax Year Running Total</h2>
-  </div>
+    <h2 class="section-title">Tax Year Running Total</h2>
+  
 
   <div class="pill-row">
     <div class="pill">
@@ -86,14 +84,11 @@
       <strong id="taxYearCommission">£0.00</strong>
     </div>
   </div>
-</section>
+
 
 <!-- Breakdown table -->
-<section class="panel">
-  <div class="panel-header-row">
-    <h2>Order Breakdown</h2>
-    
-  </div>
+  
+    <h2 class="section-title">Order Breakdown</h2>
 
   <div id="paymentError" style="color:#b00020; font-weight:800; margin: 8px 0;"></div>
 
@@ -111,13 +106,12 @@
 
     <div id="paymentRows"></div>
   </div>
-</section>
+
 
 <!-- History -->
-<section class="panel">
-  <div class="panel-header-row">
-    <h2>Historical Settlements</h2>
-  </div>
+
+    <h2 class="section-title">Historical Settlements</h2>
+  
 
   <div class="table-wrap">
     <div class="history-table head" style="display: grid !important; grid-template-columns: 1fr 1.6fr 1.1fr 1.1fr 2fr 0.9fr  !important; font-weight: 800 !important;">
@@ -178,9 +172,69 @@ function anonymise(name){
     return parts.map(p => p ? p[0] + "***" : "").join(" ");
 }
 
-function loadPayments(){
+function loadAvailableWeeks() {
+    fetch(`/producer/api/weekly-payments/weeks/`, {
+        headers: { "Authorization": "Bearer " + token }
+    })
+    .then(r => {
+        if (r.status === 401) {
+            window.location.href = "/login/";
+            return;
+        }
+        return r.json();
+    })
+    .then(data => {
+        const weekSelect = document.getElementById("weekSelect");
+        weekSelect.innerHTML = ""; // Clear existing options
+        
+        if (!data.weeks || data.weeks.length === 0) {
+            // If no weeks, add placeholder
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = "No settlements available";
+            option.disabled = true;
+            option.selected = true;
+            weekSelect.appendChild(option);
+            return;
+        }
+        
+        // Sort weeks in descending order (most recent first)
+        data.weeks.sort((a, b) => new Date(b.week_ending) - new Date(a.week_ending));
+        
+        data.weeks.forEach(week => {
+            const option = document.createElement("option");
+            const start = new Date(week.week_ending);
+            const end = new Date(start);
+            end.setDate(start.getDate() + 6);
 
-fetch("/producer/api/weekly-payments/",{
+            option.value = end.toISOString().split("T")[0];
+            option.textContent = `Week starting ${week.end_date_formatted || week.week_ending}`;
+            
+            // Add status indicator if available
+            
+            
+            weekSelect.appendChild(option);
+        });
+        
+        
+        if (data.weeks.length > 0) {
+            const start = new Date(data.weeks[0].week_ending);
+            const end = new Date(start);
+            end.setDate(start.getDate() + 6);
+            loadPayments(end.toISOString().split("T")[0]);
+        }
+    })
+    .catch(error => {
+        console.error("Failed to load weeks:", error);
+        const weekSelect = document.getElementById("weekSelect");
+        weekSelect.innerHTML = '<option value="" disabled selected>Error loading weeks</option>';
+    });
+}
+function loadPayments(selectedWeek) {
+
+    const week = selectedWeek || document.getElementById("weekSelect").value || "";
+
+    fetch(`/producer/api/weekly-payments/?week=${week}`,{
     headers:{ "Authorization":"Bearer "+token }
 })
 .then(r => {
@@ -201,6 +255,12 @@ fetch("/producer/api/weekly-payments/",{
     document.getElementById("payoutValue").textContent = money(data.payout);
 
     document.getElementById("settlementStatus").innerHTML = statusTag(data.status);
+    document.getElementById("settlementRef").textContent = data.settlement_ref || "AUTO-GENERATED";
+    document.getElementById("weekEnd").textContent = data.week_end || week;
+    document.getElementById("processedAt").textContent = data.processed_at || "Not processed yet";
+    document.getElementById("taxYear").textContent = data.tax_year || "2025/26";
+    document.getElementById("taxYearPaid").textContent = money(data.total_paid_ytd || 0);
+    document.getElementById("taxYearCommission").textContent = money(data.total_commission_ytd || 0);
 
     const anonymiseOn = document.getElementById("anonymiseToggle").checked;
 
@@ -213,9 +273,7 @@ fetch("/producer/api/weekly-payments/",{
     }
 
     data.orders.forEach(o => {
-
         const cname = anonymiseOn ? anonymise(o.customer_name) : o.customer_name;
-
         const row = document.createElement("div");
         row.className = "pay-table row";
 
@@ -253,7 +311,61 @@ fetch("/producer/api/weekly-payments/",{
 
 });
 }
+function loadPaymentHistory() {
+    fetch(`/producer/api/weekly-payments/history/`, {
+        headers: { "Authorization": "Bearer " + token }
+    })
+    .then(r => r.json())
+    .then(data => {
+        const container = document.getElementById("historyRows");
+        container.innerHTML = "";
+        
+        if (!data.history || data.history.length === 0) {
+            container.innerHTML = "<div style='padding:20px;font-weight:700;text-align:center;'>No historical settlements yet.</div>";
+            return;
+        }
+        
+        data.history.forEach(week => {
+            const row = document.createElement("div");
+            row.className = "history-table row";
+            
+            row.style.display = "grid";
+            row.style.gridTemplateColumns = "1fr 1.6fr 1.1fr 1.1fr 2fr 0.9fr";
+            
+            row.innerHTML = `
+                <div><strong>${week.week_ending_formatted || week.week_ending}</strong></div>
+                <div>${week.settlement_ref || 'AUTO'}</div>
+                <div>${money(week.total_value)}</div>
+                <div><strong>${money(week.payout)}</strong></div>
+                <div>${statusTag(week.status)}</div>
+                <div class="actions">
+                    <button class="mini-btn history-view-btn" data-week="${new Date(week.week_ending).toISOString().split("T")[0]}" type="button">View</button>
+                </div>
+            `;
+            
+            container.appendChild(row);
+        });
+        
+        // Attach history view buttons
+        document.querySelectorAll(".history-view-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const start = new Date(btn.dataset.week);
+                const end = new Date(start);
+                end.setDate(start.getDate() + 6);
 
+                loadPayments(end.toISOString().split("T")[0]);
+
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                const section = document.getElementById("weeklySummary");
+                section.classList.add("highlight");
+                setTimeout(() => section.classList.remove("highlight"), 1500);
+            });
+        });
+    })
+    .catch(error => {
+        console.error("Failed to load history:", error);
+    });
+}
 
 function attachAuditButtons(status){
 
@@ -280,6 +392,35 @@ document.getElementById("orderAuditModal").style.display = "flex";
 function closeAudit(){
     document.getElementById("orderAuditModal").style.display = "none";
 }
+document.getElementById("downloadPdfBtn").addEventListener("click", () => {
+    const week = document.getElementById("weekSelect").value;
+    if (!week) {
+        alert("Please select a week first");
+        return;
+    }
+    window.print(); 
+});
+document.getElementById("downloadCsvBtn").addEventListener("click", () => {
+
+    const week = document.getElementById("weekSelect").value;
+
+    fetch(`/producer/api/weekly-payments/report/?week=${week}`, {
+        headers: {
+            "Authorization": "Bearer " + token
+        }
+    })
+    .then(response => response.blob())
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `settlement_${week}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    });
+});
 
 document.getElementById("closeAuditBtn").addEventListener("click", closeAudit);
 
@@ -292,10 +433,10 @@ document.addEventListener("keydown",(e)=>{
 });
 
 
-document.getElementById("anonymiseToggle").addEventListener("change", loadPayments);
+document.getElementById("anonymiseToggle").addEventListener("change", () => loadPayments());
+document.getElementById("weekSelect").addEventListener("change", () => loadPayments());
 
-
-loadPayments();
-
+loadAvailableWeeks();
+loadPaymentHistory();
 </script>
 {% endblock %}

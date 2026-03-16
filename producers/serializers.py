@@ -5,6 +5,35 @@ from user_accounts.models import ProducerAccount
 from order_management.models import SubOrder, OrderItem
 import json
 
+class DashboardOrderSerializer(serializers.ModelSerializer):
+
+    id = serializers.IntegerField(source="order.order_id")
+    customer = serializers.SerializerMethodField()
+    items = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SubOrder
+        fields = ["id", "customer", "items", "status"]
+
+    def get_customer(self, obj):
+        customer = obj.order.customer
+
+        if customer.person:
+            return f"{customer.person.first_name} {customer.person.last_name}"
+
+        if customer.account_type == "community":
+            return customer.communitygroup.organisation_name
+
+        if customer.account_type == "restaurant":
+            return customer.restaurant.organisation_name
+
+        return customer.user.email
+
+    def get_items(self, obj):
+        return ", ".join(
+            f"{i.product.name} x{i.quantity}"
+            for i in obj.items.all()
+        )
 class ProductCreateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255)
     category = serializers.PrimaryKeyRelatedField(queryset=ProductCategory.objects.all())

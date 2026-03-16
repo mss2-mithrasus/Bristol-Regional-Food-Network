@@ -265,7 +265,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     saveEditBtn.addEventListener("click", async () => {
       editErrors.textContent = "";
 
-      const token = localStorage.getItem("access");
+      const token = localStorage.getItem("access")|| sessionStorage.getItem("access");
       if (!token) {
         editErrors.textContent = "Token missing. Please log in again.";
         return;
@@ -287,7 +287,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       formData.append("stock_quantity", stock);
 
       // Some backends expect "true"/"false" strings in multipart
-      formData.append("availability_status", available ? "true" : "false");
+      formData.append("availability_status", available)? 1:0;
 
       //  Optional image
       const imageFile = document.getElementById("editImage")?.files?.[0];
@@ -332,7 +332,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         closeEditModal();
-        alert("Product updated successfully!");
+        showSuccessPopup("Product updated successfully!");
       } catch (err) {
         console.error(err);
         editErrors.textContent = "Unexpected error updating product.";
@@ -362,6 +362,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     function noRemoval(){
         document.getElementById("deleteProduct").style.display = "none"
     }
+    function showSuccessPopup(message){
+      document.getElementById("successMessage").innerText = message;
+      document.getElementById("successPopup").style.display = "flex";
+    }
+
+    function closeSuccessPopup(){
+      document.getElementById("successPopup").style.display = "none";
+    }
 // Lano - product user wants to remove
 
 
@@ -377,6 +385,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               }`
             }
           });
+          
 
           const data = await res.json().catch(() => ({}));
 
@@ -410,8 +419,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         </div>
     </div>
 </div>
-
-
+  
+<!-- pop up message for update -->
+<div id="successPopup" class="remove-item" style="display:none;">
+  <div class="remove-box">
+    <p id="successMessage">Product updated successfully!</p>
+    <div class="removal-actions">
+      <button onclick="closeSuccessPopup()">OK</button>
+    </div>
+  </div>
+</div>
 
 
 

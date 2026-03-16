@@ -22,6 +22,7 @@
   gap:16px;
   flex-wrap:wrap;
   margin-top:10px;
+  margin-bottom: 10px;
   font-weight:700;
   color:#406083;
 }
@@ -30,6 +31,7 @@
   display:flex;
   gap:10px;
   margin-top:12px;
+  margin-bottom: 10px;
   justify-content:flex-end;
 }
 
@@ -73,7 +75,7 @@
   border:1px solid #e6ebf1;
   padding:12px 14px;
   border-radius:8px;
-  margin-bottom:6px;
+  margin-bottom:18px;
 }
 .pay-table.row:hover{
   background:#f8fafc;
@@ -142,6 +144,7 @@
   grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
   gap:16px;
   margin-top:16px;
+  margin-bottom:16px;
 }
 
 .stat-card{
@@ -149,9 +152,12 @@
   border-radius:10px;
   padding:18px;
 }
-
+.stat-card strong{
+  font-size:20px;
+  font-weight:700;
+}
 .stat-title{
-  font-size:13px;
+  font-size:14px;
   color:#6b7a8c;
   font-weight:600;
 }
@@ -184,3 +190,43 @@
 }
 .week-select:hover{
   border-color:#406083; }
+
+.section-title{
+  font-size:20px;
+  font-weight:700;
+  margin-top:35px;
+  margin-bottom:24px;
+  padding-bottom:8px;
+  border-bottom:2px solid #d8dee6;
+}
+.pay-table.head div,
+.history-table.head div{
+  font-size:14px;
+  font-weight:700;
+}
+.pay-table.row div,
+.history-table.row div{
+  font-size:14px;
+}
+.highlight {
+  background-color: #f6fff4;
+  transition: background-color 1.5s ease;
+}
+@media print {
+
+  body * {
+    visibility: hidden;
+  }
+
+  #weeklySummary, #weeklySummary * {
+    visibility: visible;
+  }
+
+  #weeklySummary {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+}
