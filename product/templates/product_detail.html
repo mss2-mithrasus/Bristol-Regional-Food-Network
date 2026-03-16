@@ -8,6 +8,7 @@
 
     {{ block.super }}
     <link rel="stylesheet" href="{% static 'product_detail.css' %}">
+    
 {% endblock %}
 
 
@@ -15,37 +16,130 @@
 
 <div class="product-detail-container">
     <div class="product-detail-box">
+        <!--<img src="/static/images/organic.png" class="organic-badge" style="display:;">-->
 
-
-    {% if product.image%}
-    <img src="{{product.image.url}}" alt="{{product.name}}" class="product-detail-img">
-    {%endif%}
-
+    
     <div class="product-details">
-        <h2 class="product-name">Product: {{product.name}}</h2>
-        <h4 class="product-description">Product description: {{product.description}}</h4>
+        <img  class="product-detail-img" src="" alt="product image">
+        <h3 class="product-name"></h3>
+        
+    
+        <h4 class="product-producer"></h4>
+        <h4 class="product-description"></h4>
 
 
     <h3>Allergens</h3>
-    {%if product.productallergen_set.all %}
-    <ul class="allergens-list">
-        {# looping through each allergen the product has#}
-         {% for pa in product.productallergen_set.all%}
-        <li>
-            <span class="allergen-name">{{ pa.allergen.name}}</span>
-            {# displaying allergen description #}
-            {% if pa.description%} - Description: {{ pa.description}}
-            {%endif%}
-        </li>
-        {%endfor%}
-    </ul>
+    
+    <ul class="allergens-list"></ul>
 
-    {# if no allergens are present then message is displayed#}
-    {%else%}
-        <p>No allergens are present.</p>
-        {% endif %}
-    <h3>Farm miles: </h3>
+    <h4 class="farm-miles"></h4>
+
+</div>
 </div>
 
 </div>
 {%endblock%}
+
+{% block scripts%}
+
+<script>
+
+    //function for auth token
+    function getToken(){
+        // checking local storage and session storage
+        return localStorage.getItem("access") || sessionStorage.getItem("access");
+
+    }
+
+    // variable to store product_id
+    const productId = "{{product_id}}";
+
+    // mapping allergens
+    const allergenMap = {
+        {% for allergen in allergens%}
+        "{{ allergen.allergen_id}}" : "{{allergen.name}}"
+        {%endfor%}
+    };
+
+    // function to fetch product details from api
+    async function ProductDetails(){
+        // get auth token
+        const token = getToken();
+
+        try {
+            // try request to api to fetch product details
+            const response = await fetch(`/customer/home/api/product/${productId}/`, {
+                headers:{
+                    "Authorization": "Bearer " + token
+                }
+            });
+
+            // otherwise show error response
+            if (!response.ok){
+                console.error("error loading product");
+                return;
+            }
+            // covert the response to json
+            const data = await response.json();
+            const product = data.product;
+            const allergens = data.allergens || [];
+
+            // inserting product name, description and producer name into page
+            document.querySelector(".product-name").textContent = "Product: " + product.name;
+
+            document.querySelector(".product-description").textContent = "Product description: " + product.description;
+
+            document.querySelector(".product-producer").textContent = "Producer: " + product.producer_name;
+
+            const image = document.querySelector(".product-detail-img");
+
+            // if theres an image display it too
+            if (product.image){
+                image.src = product.image;
+            }
+
+            
+
+            // allergens display
+
+            // allergens list
+            const productAllergens = document.querySelector(".allergens-list");
+
+            productAllergens.innerHTML = "";
+            // if no allergens are present for product display message
+            if (allergens.length === 0){
+                productAllergens.innerHTML = "<li>No allergens are present</li>";
+            }
+
+            else{
+                // looping through each allergen
+                allergens.forEach(alg => {
+                    const list = document.createElement("li");
+
+                    //allergen name and description
+                    list.innerHTML = `
+                    <span class="allergen-name">${alg.name}</span>
+                    ${alg.description ? " - Description: " + alg.description : ""}`;
+
+                    productAllergens.appendChild(list);
+
+                });
+
+            }
+
+            if(product.farm_miles){
+                document.querySelector(".farm-miles").textContent = "Farm miles: " + product.farm_miles;
+            }
+
+            
+        } catch (error){
+            console.error("error loading product details", error);
+        }
+    }
+    // run ProductDetail function on page load
+    document.addEventListener("DOMContentLoaded", ProductDetails);
+
+
+</script>
+
+{% endblock%}

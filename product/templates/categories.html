@@ -8,72 +8,46 @@
 {% endblock %}
 
 {% block content %}
-<h2 class="category-title">{{ category.category_name}}</h2>
-<!--search box to filter products-->
-<div class="search-box">
-    <input type="text" placeholder="Search Products" class="search-bar">
+<h2 class="category-title"></h2>
+
+<div class="product-container">
+    
+</div>
+
+<!-- Stock Alert Modal -->
+<div id="stockAlertModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2> Get Notified</h2>
+            <span class="close-modal" onclick="closeStockAlertModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p id="modal-product-name"></p>
+            <div class="quantity-selector">
+                <label for="alert-quantity">Quantity:</label>
+                <div class="quantity-input-group">
+                    <button type="button" class="quantity-btn" onclick="decrementAlertQuantity()">-</button>
+                    <input type="number" id="alert-quantity" value="1" min="1" max="99">
+                    <button type="button" class="quantity-btn" onclick="incrementAlertQuantity()">+</button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeStockAlertModal()">Cancel</button>
+            <button class="btn-confirm" onclick="confirmStockAlert()">Notify Me</button>
+        </div>
+    </div>
 </div>
 
 
-<div class="product-container">
-    {% if products %}
-    {% for product in products%}
-    <div class="product-card" 
-         data-product-id="{{ product.product_id }}"
-         data-max-stock="{{ product.stock_quantity }}">
-        {% if product.image %}
-            <img src="{{ product.image.url }}" alt="{{ product.name }}">
-        {% else %}
-            <img src="{% static 'images/default-product.png' %}" alt="{{ product.name }}">
-        {% endif %}
-
-        <div class="field-row">
-            <h4 class="field"><span class="label">Product:</span> {{product.name}}</h4>
-            {%if product.organic_certified%}
-                <img src="{% static 'images/organic.png'%}" alt='organic badge' class="organic-badge">
-            {%endif%}
-        </div>
-
-        <h4 class="field"><span class="label">Producer:</span> {{product.producer.business_name}}</h4>
-        <h4 class="field"><span class="label">Price:</span> £{{product.price}}</h4>
-
-        <div class="status-section">
-            <h4 class="field"><span class="label">Status:</span>
-                {% if product.availability_status %}
-                    <span class="status-available">Available</span>
-                {% else %}
-                    <span class="status-out-of-stock">Out of stock</span>
-                {% endif %}
-            </h4>
-        </div>
-
-        <div class="button-group">
-            <div class="quantity">
-                <button class="minus">-</button>
-                <span class="quantity-display">1</span>
-                <button class="plus">+</button>
-            </div>
-            <button class="add-cart">Add to Cart</button>
-        </div>
-
-        <button class="notify-btn"
-                data-product-id="{{ product.product_id }}"
-                onclick="showStockAlert({{ product.product_id }}, '{{ product.name }}')"
-                style="display: none;">
-            <i class="fa-regular fa-bell"></i> Notify when available
-        </button>
-
-        <a href="{% url 'product_detail' product_id=product.product_id%}">
-            <button class="product-details">View Product Details</button>
-        </a>
-    </div>
-    {% endfor %}
-    {% else%}
-        <p>No products available in this category</p>
-    {%endif%}
 </div>
 
 <script>
+
+
+   const categoryName = window.location.pathname.split('/').filter(Boolean).pop();
+
+    
     function getToken() {
         return localStorage.getItem("access") || sessionStorage.getItem("access");
     }
@@ -194,6 +168,195 @@
         setTimeout(() => notification.remove(), 3000);
     }
 
+
+    //loading products through API
+
+    function getProducts(products){
+        const data = document.querySelector(".product-container");
+        
+
+        if (!data) return;
+        
+        data.innerHTML = "";
+
+        products.forEach(product => {
+
+            let seasonalData = "";
+
+        
+            const seasons = product.seasonal_availability || [];
+
+            if (seasons.length > 0) {
+                const season = seasons[0];
+            
+            
+            
+            if (season.is_year_round){
+                seasonalData = `<h4 class="field"><span class="label">Season:</span>All Year</h4>`;
+            } else if (season.season_start_date && season.season_end_date){
+                const start_season_month = new Date(season.season_start_date + "T00:00:00")
+                    .toLocaleString('default', {month: 'long'});
+
+                const end_season_month = new Date(season.season_end_date + "T00:00:00")
+                    .toLocaleString('default', {month: 'long'});
+                
+                seasonalData = `<h4 class="field"><span class="label">In season</span> ${start_season_month} - ${end_season_month}</h4>`;
+            
+                
+        }
+        console.log(product.name, seasonalData);
+    }
+
+
+            const organic = product.organic_certified ?
+              `<img src="/static/images/organic.png" class="organic-badge">` : "";
+                        
+            const status = product.availability_status ? 
+             `<span class="status-available">Available</span>`
+            : `<span class="status-out-of-stock">Out of stock</span>`;
+                            
+
+            const card = document.createElement("div");
+            card.className = "product-card";
+            card.dataset.productId = product.product_id;
+            card.dataset.maxStock = product.stock_quantity || 99;
+
+            card.innerHTML = ` <img class="product-img" src="${product.image? product.image : '/static/images/default-product.png'}">
+
+            <div class="field-row">
+                        <h4 class="field"><span class="label">Product:</span> ${product.name}</h4>
+                        ${organic}
+                    </div>
+
+                    <h4 class="field"><span class="label">Producer:</span> ${product.producer_name}</h4>
+                    <h4 class="field"><span class="label">Price:</span> £${product.price}</h4>
+                    
+                    ${seasonalData}
+
+                    <div class="status-section">
+                        <h4 class="field"><span class="label">Status:</span> ${status}
+                            
+                        </h4>
+                    </div>
+
+
+
+
+                    <div class="button-group">
+                        <div class="quantity">
+                            <button class="minus">-</button>
+                            <span class="quantity-display">1</span>
+                            <button class="plus">+</button>
+                        </div>
+                        <button class="add-cart">Add to Cart</button>
+                    </div> 
+
+
+                    <button class="notify-btn"
+                            data-product-id="${product.product_id }"
+                            onclick="showStockAlert(event, ${product.product_id}, '${product.name}')"
+                            style="display: none;">
+                        <i class="fa-regular fa-bell"></i> Notify when available
+                    </button>
+
+                    <a href="/customer/home/product/${product.product_id}/">
+                        <button class="product-details">View Product Details</button>
+                    </a>
+                
+                    
+                    
+                    `;
+            
+
+            data.appendChild(card);
+
+            const plusBtn = card.querySelector('.plus');
+            if (plusBtn) {
+                plusBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const display = card.querySelector('.quantity-display');
+                    const maxStock = parseInt(card.dataset.maxStock);
+                    const productId = card.dataset.productId;
+                    if (display) {
+                        const currentQty = parseInt(display.textContent);
+                    if (currentQty < maxStock) {
+                        display.textContent = currentQty + 1;
+                        // Update notify button after quantity changes
+                        updateNotifyButton(card, productId);
+                    } else {
+                        showNotification(`Only ${maxStock} items available in stock`, 'error');
+                    }
+                    }
+                });
+
+            }
+            
+            
+            const minusBtn = card.querySelector('.minus');
+            if (minusBtn) {
+                minusBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const display = card.querySelector('.quantity-display');
+                    const productId = card.dataset.productId;
+                    if (display) {
+                        let currentQty = parseInt(display.textContent);
+                        if (currentQty > 1){
+                            display.textContent = currentQty - 1;
+                            // Update notify button after quantity decreases
+                            updateNotifyButton(card, productId);
+                        }
+                    }
+                });
+
+            }
+            
+            
+            const addToCartBtn = card.querySelector('.add-cart');
+            if (addToCartBtn) {
+                addToCartBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const productId = card.dataset.productId;
+                    if (!productId) {
+                        showNotification('Error: Product ID not found', 'error');
+                        return;
+                    }
+                    const quantityDisplay = card.querySelector('.quantity-display');
+                    const quantity = quantityDisplay ? parseInt(quantityDisplay.textContent) : 1;
+                    addToCart(productId, quantity, this);
+                });
+            }
+        });
+        
+
+    }
+
+
+    document.addEventListener('DOMContentLoaded', async function(){
+        
+        const productsContainer = document.querySelector(".product-container");
+
+        async function loadCategoryProducts(query=""){
+            try{
+                const response = await fetchWithAuth(`/customer/home/api/category/${categoryName}/products/`);
+                const data = await response.json();
+                if (data.products && data.products.length > 0){
+                    getProducts(data.products);
+                } else {
+                    productsContainer.innerHTML = "<p>No products available in this category</p>";
+
+                }
+            } catch (err){
+                console.error(err);
+                productsContainer.innerHTML = "<p>Error loading products<p>";
+            }
+        }
+
+        loadCategoryProducts();
+    })
+    
+
+    
+
     function updateCartBadge(count) {
         const badge = document.getElementById('cart-badge');
         if (badge) {
@@ -278,7 +441,7 @@
     let currentProductId = null;
     let currentProductName = '';
 
-    function showStockAlert(productId, productName) {
+    function showStockAlert(event, productId, productName) {
         currentProductId = productId;
         currentProductName = productName;
         
@@ -424,6 +587,10 @@
         sessionStorage.clear();
         window.location.href = "/login/";
     }
+
+    
+
+
 </script>
 
 <style>
@@ -513,30 +680,7 @@
 
 .notify-btn:hover { background: #e0a800; }
 </style>
-<!-- Stock Alert Modal -->
-<div id="stockAlertModal" class="modal" style="display: none;">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2> Get Notified</h2>
-            <span class="close-modal" onclick="closeStockAlertModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <p id="modal-product-name"></p>
-            <div class="quantity-selector">
-                <label for="alert-quantity">Quantity:</label>
-                <div class="quantity-input-group">
-                    <button type="button" class="quantity-btn" onclick="decrementAlertQuantity()">-</button>
-                    <input type="number" id="alert-quantity" value="1" min="1" max="99">
-                    <button type="button" class="quantity-btn" onclick="incrementAlertQuantity()">+</button>
-                </div>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn-cancel" onclick="closeStockAlertModal()">Cancel</button>
-            <button class="btn-confirm" onclick="confirmStockAlert()">Notify Me</button>
-        </div>
-    </div>
-</div>
+
 <style>
     .modal {
         position: fixed;

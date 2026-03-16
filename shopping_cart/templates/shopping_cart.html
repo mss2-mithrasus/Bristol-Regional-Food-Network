@@ -302,10 +302,9 @@
         let newValue = parseInt(input.value) + change;
         
         if (newValue < 1) {
-            //<!--if (confirm('Remove this item from cart?')) {
+            //if (confirm('Remove this item from cart?')) {
                 //removeItem(itemId);
             //}
-
             showRemoveMessage(itemId)
             return;
         }
@@ -457,7 +456,8 @@
             }
         });
     }
-
+    
+    
     function removeItem(itemId){
         showRemoveMessage(itemId);
     }
@@ -471,7 +471,9 @@
             return;
         }
         
-        
+        //if (!confirm('Remove this item from cart?')) {
+            //return;
+        //}
         
         fetch(`/cart/api/item/${itemId}/`, {
             method: 'DELETE',
@@ -595,6 +597,30 @@
             window.location.href = "/customer/home/";
         }
     }
+
+
+    // function for the removal pop up message
+
+    // item user wants to remove
+    let itemSelected = null;
+
+    function showRemoveMessage(itemId){
+        itemSelected = itemId;
+        document.getElementById("removeItem").style.display = "flex";
+    }
+
+    function confirmDeletion(){
+
+        document.getElementById("removeItem").style.display = "none";
+        deleteItem(itemSelected);
+    }
+
+    function noRemoval(){
+        document.getElementById("removeItem").style.display = "none"
+    }
+
+
+
     // Logout function
     function logoutUser() {
         localStorage.clear();
@@ -714,11 +740,12 @@
 
 <div id="removeItem" class="remove-item">
     <div class="remove-box">
-        <p>Remove this item from cart?</p>
+        <p>Delete this item from cart?</p>
         <div class="removal-actions">
-            <button onclick="confirmDeletion()">Remove</button>
+            <button onclick="confirmDeletion()">Delete</button>
             <button onclick="noRemoval()">Cancel</button>
         </div>
     </div>
 </div>
+
 {% endblock %}

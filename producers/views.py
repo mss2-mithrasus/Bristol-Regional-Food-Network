@@ -117,17 +117,7 @@ class ProducerCreateProductAPI(APIView):
         serializer = ProductCreateSerializer(data=request.data, context={"request": request})
         if serializer.is_valid():
             product = serializer.save()
-            #list of allergens
-            allergens_id = request.data.getlist("allergens")
-            for allergen_id in allergens_id:
-                description = request.data.get(f"allergendescription{allergen_id}", "")
-                if description or description == "":
-                    ProductAllergen.objects.create(
-                        product=product,
-                        allergen_id=allergen_id,
-                        description=description
-
-                    )
+            
             return Response(
                 {"message": "Product added successfully!", "product_id": product.product_id},
                 status=status.HTTP_201_CREATED
