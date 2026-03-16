@@ -42,10 +42,8 @@
       <div class="form-group">
         <label>Name</label>
         <input type="text" id="editName" required>
-      
-
-      
       </div>
+
       <div class="form-group">
         <label>Price (£)</label>
         <input type="number" step="0.01" id="editPrice" min="0" required>
@@ -59,6 +57,12 @@
       <div class="form-group">
         <label>Stock</label>
         <input type="number" id="editStock" min="0" required>
+      </div>
+      
+      <div class="form-group form-group-full">
+        <label>Product Image</label>
+        <input type="file" id="editImage" accept="image/*">
+        <img id="editImagePreview" style="max-width:120px; margin-top:6px; display:none;">
       </div>
 
       <div class="form-group form-group-full" style="margin-top:6px;">
@@ -175,9 +179,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       const unit = escapeHtml(p.unit);
       const price = escapeHtml(p.price);
       const stock = escapeHtml(p.stock_quantity);
-
+      const imageUrl = escapeHtml(p.image_url ?? p.image ?? "");
       return `
-        <div class="prod-table row" data-product-id="${p.product_id}">
+        <div class="prod-table row" data-product-id="${p.product_id}"data-image-url="${imageUrl}">
           <div class="cell-name">${name}</div>
           <div class="cell-category">${category}</div>
           <div class="cell-price">£${price}</div>
@@ -192,7 +196,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       `;
     }).join("");
 
-    // One click handler for edit + delete
+    //  One click handler for edit + delete
     rowsBox.addEventListener("click", async (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
@@ -200,7 +204,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const action = btn.dataset.action;
       const id = btn.dataset.id;
 
-      // EDIT
+      //  EDIT
       if (action === "edit") {
         editErrors.textContent = "";
 
@@ -213,6 +217,30 @@ document.addEventListener("DOMContentLoaded", async () => {
         const stock = row.querySelector(".cell-stock")?.innerText?.trim() || "";
         const statusText = row.querySelector(".cell-status")?.innerText?.toLowerCase() || "";
         const available = !statusText.includes("unavailable");
+        const imgUrl = row.dataset.imageUrl || "";
+        const preview = document.getElementById("editImagePreview");
+        const fileInput = document.getElementById("editImage");
+
+        // reset file input every time you open modal
+        fileInput.value = "";
+
+        if (imgUrl) {
+          preview.src = imgUrl;
+          preview.style.display = "block";
+        } else {
+          preview.src = "";
+          preview.style.display = "none";
+      }
+
+        // live preview when user picks a new file
+        fileInput.onchange = () => {
+          const f = fileInput.files?.[0];
+          if (!f) return;
+
+          const url = URL.createObjectURL(f);
+          preview.src = url;
+          preview.style.display = "block";
+        };
 
         document.getElementById("editProductId").value = id;
         document.getElementById("editName").value = name;
@@ -225,7 +253,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
 
-      // DELETE
+      //  DELETE
       if (action === "delete") {
         showRemoveMessage(id);
         return;
@@ -233,12 +261,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
 
-    // SAVE EDIT
+    //  SAVE EDIT 
     saveEditBtn.addEventListener("click", async () => {
       editErrors.textContent = "";
 
-      // const token = localStorage.getItem("access");
-      const token = localStorage.getItem("access") || sessionStorage.getItem("access");
+      const token = localStorage.getItem("access")|| sessionStorage.getItem("access");
       if (!token) {
         editErrors.textContent = "Token missing. Please log in again.";
         return;
@@ -246,22 +273,36 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       const id = document.getElementById("editProductId").value;
 
-      const payload = {
-        name: document.getElementById("editName").value.trim(),
-        price: document.getElementById("editPrice").value,
-        unit: document.getElementById("editUnit").value.trim(),
-        stock_quantity: document.getElementById("editStock").value,
-        availability_status: document.getElementById("editAvailable").checked
-      };
+      //  Build multipart payload
+      const formData = new FormData();
+      const name = document.getElementById("editName").value.trim();
+      const price = document.getElementById("editPrice").value;
+      const unit = document.getElementById("editUnit").value.trim();
+      const stock = document.getElementById("editStock").value;
+      const available = document.getElementById("editAvailable").checked;
+
+      formData.append("name", name);
+      formData.append("price", price);
+      formData.append("unit", unit);
+      formData.append("stock_quantity", stock);
+
+      // Some backends expect "true"/"false" strings in multipart
+      formData.append("availability_status", available)? 1:0;
+
+      //  Optional image
+      const imageFile = document.getElementById("editImage")?.files?.[0];
+      if (imageFile) {
+        formData.append("image", imageFile); // <-- change key if your backend uses a different field name
+      }
 
       try {
         const res = await fetch(`/producer/api/products/${id}/update/`, {
-          method: "PUT",
+          method: "PUT", 
           headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
+            "Authorization": `Bearer ${token}`
+        
           },
-          body: JSON.stringify(payload)
+          body: formData
         });
 
         const data = await res.json().catch(() => ({}));
@@ -271,34 +312,39 @@ document.addEventListener("DOMContentLoaded", async () => {
           return;
         }
 
-        // Update UI instantly
+        //  Update UI instantly
         const row = document.querySelector(`[data-product-id="${id}"]`);
         if (row) {
-          row.querySelector(".cell-name").innerText = payload.name;
-          row.querySelector(".cell-price").innerText = `£${payload.price}`;
-          row.querySelector(".cell-unit").innerText = payload.unit;
-          row.querySelector(".cell-stock").innerText = payload.stock_quantity;
+          row.querySelector(".cell-name").innerText = name;
+          row.querySelector(".cell-price").innerText = `£${price}`;
+          row.querySelector(".cell-unit").innerText = unit;
+          row.querySelector(".cell-stock").innerText = stock;
 
           row.querySelector(".cell-status").innerHTML = getStatusTag({
-            stock_quantity: payload.stock_quantity,
-            availability_status: payload.availability_status
+            stock_quantity: stock,
+            availability_status: available
           });
+
+          // If backend returns updated image URL, store it for next edit open
+          if (data.image_url || data.image) {
+            row.dataset.imageUrl = data.image_url || data.image;
+          }
         }
 
         closeEditModal();
-        alert("Product updated successfully!");
+        showSuccessPopup("Product updated successfully!");
       } catch (err) {
         console.error(err);
         editErrors.textContent = "Unexpected error updating product.";
       }
     });
 
-  } catch (err) {
-    console.error(err);
-    errorBox.textContent = "Unexpected error loading products.";
-  }
-});
-
+    } catch (err) {
+      console.error(err);
+      errorBox.textContent = "Unexpected error loading products.";
+    }
+  });
+  
 // Lano - product user wants to remove
     let productSelected = null;
 
@@ -316,6 +362,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     function noRemoval(){
         document.getElementById("deleteProduct").style.display = "none"
     }
+    function showSuccessPopup(message){
+      document.getElementById("successMessage").innerText = message;
+      document.getElementById("successPopup").style.display = "flex";
+    }
+
+    function closeSuccessPopup(){
+      document.getElementById("successPopup").style.display = "none";
+    }
 // Lano - product user wants to remove
 
 
@@ -331,6 +385,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               }`
             }
           });
+          
 
           const data = await res.json().catch(() => ({}));
 
@@ -364,8 +419,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         </div>
     </div>
 </div>
-
-
+  
+<!-- pop up message for update -->
+<div id="successPopup" class="remove-item" style="display:none;">
+  <div class="remove-box">
+    <p id="successMessage">Product updated successfully!</p>
+    <div class="removal-actions">
+      <button onclick="closeSuccessPopup()">OK</button>
+    </div>
+  </div>
+</div>
 
 
 

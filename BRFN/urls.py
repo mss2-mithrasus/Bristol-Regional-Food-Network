@@ -1,9 +1,10 @@
 from django.contrib import admin
 from django.urls import path, include
-from user_accounts.views import home_page, registration_page, login_page
+from user_accounts.views import home_page,  registration_page, login_page
 from django.conf import settings
 from django.conf.urls.static import static
-from rest_framework_simplejwt.views import TokenRefreshView, TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
 
 urlpatterns = [
     path('customer/home/', include("product.urls")),
@@ -18,6 +19,5 @@ urlpatterns = [
     path("notifications/", include('notifications.urls')),
     path('api/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),  
 ]
-
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

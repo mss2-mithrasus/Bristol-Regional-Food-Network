@@ -6,6 +6,8 @@
   <title>Producer | Bristol Regional Food Network</title>
   <link rel="stylesheet" href="{% static 'producers.css' %}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  {% block head %}
+  {% endblock %}
 </head>
 <body>
 
@@ -35,7 +37,8 @@
         href="/producer/product_management/">Products</a>
       <a class="sidebar-link {% if '/producer/order_management/' in request.path %}active{% endif %}"
         href="/producer/order_management/">Orders</a>
-      <a class="sidebar-link" href="#">Payments</a>
+      <a class="sidebar-link {% if '/producer/payments/' in request.path %}active{% endif %}"
+        href="/producer/payments/">Payments</a>
       <a class="sidebar-link" href="#">Content</a>
     </aside>
 

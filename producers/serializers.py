@@ -2,8 +2,38 @@ from decimal import Decimal, InvalidOperation
 from rest_framework import serializers
 from product.models import Product, ProductCategory, Allergen, ProductAllergen, SeasonalAvailability
 from user_accounts.models import ProducerAccount
+from order_management.models import SubOrder, OrderItem
 import json
 
+class DashboardOrderSerializer(serializers.ModelSerializer):
+
+    id = serializers.IntegerField(source="order.order_id")
+    customer = serializers.SerializerMethodField()
+    items = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SubOrder
+        fields = ["id", "customer", "items", "status"]
+
+    def get_customer(self, obj):
+        customer = obj.order.customer
+
+        if customer.person:
+            return f"{customer.person.first_name} {customer.person.last_name}"
+
+        if customer.account_type == "community":
+            return customer.communitygroup.organisation_name
+
+        if customer.account_type == "restaurant":
+            return customer.restaurant.organisation_name
+
+        return customer.user.email
+
+    def get_items(self, obj):
+        return ", ".join(
+            f"{i.product.name} x{i.quantity}"
+            for i in obj.items.all()
+        )
 class ProductCreateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255)
     category = serializers.PrimaryKeyRelatedField(queryset=ProductCategory.objects.all())
@@ -117,3 +147,110 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = "__all__"
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source="product.name")
+    image = serializers.SerializerMethodField()
+    class Meta:
+        model = OrderItem
+        fields = [
+            "product_name",
+            "quantity",
+            "price_at_purchase",
+            "image",
+        ]
+    def get_image(self, obj):
+        if obj.product.image:
+            return obj.product.image.url
+        return None
+
+
+class ProducerOrderSerializer(serializers.ModelSerializer):
+
+    order_id = serializers.IntegerField(source="order.order_id")
+
+    customer_name = serializers.SerializerMethodField()
+    customer_contact = serializers.SerializerMethodField()
+
+    delivery_address = serializers.CharField(source="order.delivery_address")
+    
+    created_at = serializers.DateTimeField(
+        source="order.created_at",
+        format="%d/%m/%Y"
+    )
+    delivery_type = serializers.SerializerMethodField()
+    items = OrderItemSerializer(many=True, read_only=True)
+
+    total_value = serializers.DecimalField(
+        source="payout_amount",
+        max_digits=10,
+        decimal_places=2
+    )
+
+    class Meta:
+        model = SubOrder
+        fields = [
+            "order_id",
+            "customer_name",
+            "customer_contact",
+            "delivery_address",
+            "delivery_type",
+            "created_at",
+            "delivery_date",
+            "special_instruction",
+            "items",
+            "total_value",
+            "status",
+        ]
+
+    def get_customer_name(self, obj):
+        customer = obj.order.customer
+        # Normal customer
+        if customer.person:
+            return f"{customer.person.first_name} {customer.person.last_name}"
+
+        # Community group
+        try:
+            if customer.account_type == "community":
+                return customer.communitygroup.organisation_name
+        except:
+            pass
+
+        # Restaurant
+        try:
+            if customer.account_type == "restaurant":
+                return customer.restaurant.organisation_name
+        except:
+            pass
+
+        # Fallback
+        return customer.user.email
+
+    def get_customer_contact(self, obj):
+
+        customer = obj.order.customer
+
+        # Normal customer
+        if customer.person and customer.person.phone:
+            return customer.person.phone
+
+        # Community group
+        try:
+            if customer.account_type == "community":
+                return customer.communitygroup.phone
+        except:
+            pass
+
+        # Restaurant
+        try:
+            if customer.account_type == "restaurant":
+                return customer.restaurant.phone
+        except:
+            pass
+
+        return ""
+        
+    def get_delivery_type(self, obj):
+        if obj.delivery_date:
+            return "Delivery"
+        return "Collection"

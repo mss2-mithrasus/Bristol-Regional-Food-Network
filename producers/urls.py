@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from .views import ProducerCreateProductAPI, ProducerDashboardAPI, ProducerProductListAPI, ProducerDeleteProductAPI, ProducerUpdateProductAPI
+from .views import ProducerCreateProductAPI, ProducerDashboardAPI, ProducerOrdersAPI, ProducerProductListAPI, ProducerDeleteProductAPI, ProducerUpdateOrderStatusAPI, ProducerUpdateProductAPI, ProducerWeeklyPaymentsAPI
 app_name = "producers"
 
 urlpatterns = [
@@ -12,5 +12,13 @@ urlpatterns = [
     path("api/products/", ProducerProductListAPI.as_view(), name="api_list_products"),
     path("api/products/<int:product_id>/delete/", ProducerDeleteProductAPI.as_view(), name="api_delete_product"),
     path("api/products/<int:product_id>/update/",views.ProducerUpdateProductAPI.as_view(), name="api_update_product"),
+
     path("order_management/", views.order_management, name="order_management"),
+    path("api/orders/", ProducerOrdersAPI.as_view(), name="producer_orders_api"),
+    path("api/orders/<int:order_id>/status/",ProducerUpdateOrderStatusAPI.as_view(),),
+    path("payments/", views.payments, name="payments"),
+    path("api/weekly-payments/",views.ProducerWeeklyPaymentsAPI.as_view(),name="producer_weekly_payments"),
+    path('api/weekly-payments/weeks/', views.ProducerWeeklyPaymentsWeeksAPI.as_view(), name='weekly_payments_weeks'),
+    path('api/weekly-payments/history/', views.ProducerWeeklyPaymentsHistoryAPI.as_view(), name='weekly_payments_history'),
+    path("api/weekly-payments/report/", views.ProducerWeeklyPaymentsCSV.as_view(), name="weekly_payments_csv"),
 ]

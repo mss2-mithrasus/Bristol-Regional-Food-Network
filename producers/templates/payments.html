@@ -1,0 +1,442 @@
+{% extends "producer_base.html" %}
+{% load static %}
+
+{% block head %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'weekly_payments.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="welcome">
+  <h1>Payments</h1>
+  <p>Weekly settlement summaries, reports, and audit trails.</p>
+</div>
+
+<!-- Top summary -->
+<section id="weeklySummary" class="panel payments-panel">
+  <div class="panel-header">
+    <h2>Weekly Settlement Summary</h2>
+
+    <div class="panel-controls">
+      <select id="weekSelect" class="week-select">
+        <!-- later: fill from backend -->
+        
+      </select>
+
+      <label class="toggle">
+        <input type="checkbox" id="anonymiseToggle" checked>
+        <span>Anonymise customers</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-title">Total Orders Value</div>
+      <strong id="totalValue">£0.00</strong>
+    </div>
+    <div class="stat-card">
+      <div class="stat-title">Network Commission (5%)</div>
+      <strong id="commissionValue">£0.00</strong>
+    </div>
+    <div class="stat-card">
+      <div class="stat-title">Producer Payment (95%)</div>
+      <strong id="payoutValue">£0.00</strong>
+    </div>
+    <div class="stat-card">
+      <div class="stat-title">Status</div>
+      <strong id="settlementStatus">—</strong>
+    </div>
+  </div>
+
+  <div class="meta-row">
+    <div><strong>Settlement Reference:</strong> <span id="settlementRef">—</span></div>
+    <div><strong>Settlement Week End:</strong> <span id="weekEnd">—</span></div>
+    <div><strong>Processed At:</strong> <span id="processedAt">—</span></div>
+  </div>
+
+  <div class="download-row">
+    <button class="button-pill" type="button" id="downloadPdfBtn">Download PDF</button>
+    <button class="button-pill secondary" type="button" id="downloadCsvBtn">Download CSV</button>
+  </div>
+
+  <div id="downloadHint" class="hint" style="display:none;">
+    This is a frontend placeholder. Later you’ll connect these buttons to a Django URL that streams a PDF/CSV.
+  </div>
+
+
+<!-- Running total -->
+    <h2 class="section-title">Tax Year Running Total</h2>
+  
+
+  <div class="pill-row">
+    <div class="pill">
+      <span>Tax Year</span>
+      <strong id="taxYear">2025/26</strong>
+    </div>
+    <div class="pill">
+      <span>Total Paid To Date</span>
+      <strong id="taxYearPaid">£0.00</strong>
+    </div>
+    <div class="pill">
+      <span>Total Commission To Date</span>
+      <strong id="taxYearCommission">£0.00</strong>
+    </div>
+  </div>
+
+
+<!-- Breakdown table -->
+  
+    <h2 class="section-title">Order Breakdown</h2>
+
+  <div id="paymentError" style="color:#b00020; font-weight:800; margin: 8px 0;"></div>
+
+  <div class="table-wrap">
+    <div class="pay-table head" style="display: grid !important; grid-template-columns: 1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr 0.8fr !important; font-weight: 800 !important;">
+      <div>Order #</div>
+      <div>Customer</div>
+      <div>Delivered</div>
+      <div>Items</div>
+      <div>Order Value</div>
+      <div>Commission (5%)</div>
+      <div>Payout (95%)</div>
+      <div>Audit</div>
+    </div>
+
+    <div id="paymentRows"></div>
+  </div>
+
+
+<!-- History -->
+
+    <h2 class="section-title">Historical Settlements</h2>
+  
+
+  <div class="table-wrap">
+    <div class="history-table head" style="display: grid !important; grid-template-columns: 1fr 1.6fr 1.1fr 1.1fr 2fr 0.9fr  !important; font-weight: 800 !important;">
+      <div>Week</div>
+      <div>Reference</div>
+      <div>Total Value</div>
+      <div>Payout</div>
+      <div>Status</div>
+      <div>Report</div>
+    </div>
+
+    <div id="historyRows"></div>
+  </div>
+</section>
+
+<!-- Optional details modal -->
+<div id="orderAuditModal" class="modal order-modal" style="display:none;">
+  <div class="modal-content order-modal-content" role="dialog" aria-modal="true">
+    <div class="panel-header-row">
+      <h2 style="margin:0;">Audit Trail</h2>
+      <button class="button-pill" type="button" id="closeAuditBtn">Close</button>
+    </div>
+
+    <div class="audit-box">
+      <div><strong>Settlement Ref:</strong> <span id="aRef">—</span></div>
+      <div><strong>Order #:</strong> <span id="aOrder">—</span></div>
+      <div><strong>Status:</strong> <span id="aStatus">—</span></div>
+      <div><strong>Processed At:</strong> <span id="aProcessed">—</span></div>
+      <div class="hint">Later you can link this to <code>order_status_history</code> and a payment transaction record.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+
+function getAccessToken(){
+    return localStorage.getItem("access") || sessionStorage.getItem("access");
+}
+
+const token = getAccessToken();
+
+if(!token){
+    window.location.href="/login/";
+}
+
+function money(n){
+    return "£" + Number(n || 0).toFixed(2);
+}
+
+function statusTag(status){
+    if(status === "Processed") return `<span class="tag green">Processed</span>`;
+    if(status === "Pending") return `<span class="tag amber">Pending</span>`;
+    return `<span class="tag red">${status || "Unknown"}</span>`;
+}
+
+function anonymise(name){
+    const parts = String(name || "").split(" ");
+    return parts.map(p => p ? p[0] + "***" : "").join(" ");
+}
+
+function loadAvailableWeeks() {
+    fetch(`/producer/api/weekly-payments/weeks/`, {
+        headers: { "Authorization": "Bearer " + token }
+    })
+    .then(r => {
+        if (r.status === 401) {
+            window.location.href = "/login/";
+            return;
+        }
+        return r.json();
+    })
+    .then(data => {
+        const weekSelect = document.getElementById("weekSelect");
+        weekSelect.innerHTML = ""; // Clear existing options
+        
+        if (!data.weeks || data.weeks.length === 0) {
+            // If no weeks, add placeholder
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = "No settlements available";
+            option.disabled = true;
+            option.selected = true;
+            weekSelect.appendChild(option);
+            return;
+        }
+        
+        // Sort weeks in descending order (most recent first)
+        data.weeks.sort((a, b) => new Date(b.week_ending) - new Date(a.week_ending));
+        
+        data.weeks.forEach(week => {
+            const option = document.createElement("option");
+            const start = new Date(week.week_ending);
+            const end = new Date(start);
+            end.setDate(start.getDate() + 6);
+
+            option.value = end.toISOString().split("T")[0];
+            option.textContent = `Week starting ${week.end_date_formatted || week.week_ending}`;
+            
+            // Add status indicator if available
+            
+            
+            weekSelect.appendChild(option);
+        });
+        
+        
+        if (data.weeks.length > 0) {
+            const start = new Date(data.weeks[0].week_ending);
+            const end = new Date(start);
+            end.setDate(start.getDate() + 6);
+            loadPayments(end.toISOString().split("T")[0]);
+        }
+    })
+    .catch(error => {
+        console.error("Failed to load weeks:", error);
+        const weekSelect = document.getElementById("weekSelect");
+        weekSelect.innerHTML = '<option value="" disabled selected>Error loading weeks</option>';
+    });
+}
+function loadPayments(selectedWeek) {
+
+    const week = selectedWeek || document.getElementById("weekSelect").value || "";
+
+    fetch(`/producer/api/weekly-payments/?week=${week}`,{
+    headers:{ "Authorization":"Bearer "+token }
+})
+.then(r => {
+
+    if(r.status === 401){
+        window.location.href="/login/";
+        return;
+    }
+    return r.json();
+})
+.then(data => {
+
+    const err = document.getElementById("paymentError");
+    err.textContent = "";
+
+    document.getElementById("totalValue").textContent = money(data.total_value);
+    document.getElementById("commissionValue").textContent = money(data.commission);
+    document.getElementById("payoutValue").textContent = money(data.payout);
+
+    document.getElementById("settlementStatus").innerHTML = statusTag(data.status);
+    document.getElementById("settlementRef").textContent = data.settlement_ref || "AUTO-GENERATED";
+    document.getElementById("weekEnd").textContent = data.week_end || week;
+    document.getElementById("processedAt").textContent = data.processed_at || "Not processed yet";
+    document.getElementById("taxYear").textContent = data.tax_year || "2025/26";
+    document.getElementById("taxYearPaid").textContent = money(data.total_paid_ytd || 0);
+    document.getElementById("taxYearCommission").textContent = money(data.total_commission_ytd || 0);
+
+    const anonymiseOn = document.getElementById("anonymiseToggle").checked;
+
+    const container = document.getElementById("paymentRows");
+    container.innerHTML = "";
+
+    if(!data.orders || data.orders.length === 0){
+        container.innerHTML = "<div style='padding:10px;font-weight:700;'>No delivered orders yet.</div>";
+        return;
+    }
+
+    data.orders.forEach(o => {
+        const cname = anonymiseOn ? anonymise(o.customer_name) : o.customer_name;
+        const row = document.createElement("div");
+        row.className = "pay-table row";
+
+        row.style.gridTemplateColumns = "1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr 0.8fr";
+
+        row.dataset.orderId = o.order_id;
+        row.dataset.status = data.status;
+
+        row.innerHTML = `
+        <div><strong>#${o.order_id}</strong></div>
+        <div>${cname}</div>
+        <div>${o.delivered_date}</div>
+        <div class="items-cell">${o.items}</div>
+        <div>${money(o.order_value)}</div>
+        <div>${money(o.commission)}</div>
+        <div><strong>${money(o.payout)}</strong></div>
+        <div class="actions">
+            <button class="mini-btn audit-btn" type="button">Audit</button>
+        </div>
+        `;
+
+        container.appendChild(row);
+
+    });
+
+    attachAuditButtons(data.status);
+
+})
+.catch(error => {
+
+    const err = document.getElementById("paymentError");
+    err.textContent = "Failed to load weekly payments.";
+
+    console.error(error);
+
+});
+}
+function loadPaymentHistory() {
+    fetch(`/producer/api/weekly-payments/history/`, {
+        headers: { "Authorization": "Bearer " + token }
+    })
+    .then(r => r.json())
+    .then(data => {
+        const container = document.getElementById("historyRows");
+        container.innerHTML = "";
+        
+        if (!data.history || data.history.length === 0) {
+            container.innerHTML = "<div style='padding:20px;font-weight:700;text-align:center;'>No historical settlements yet.</div>";
+            return;
+        }
+        
+        data.history.forEach(week => {
+            const row = document.createElement("div");
+            row.className = "history-table row";
+            
+            row.style.display = "grid";
+            row.style.gridTemplateColumns = "1fr 1.6fr 1.1fr 1.1fr 2fr 0.9fr";
+            
+            row.innerHTML = `
+                <div><strong>${week.week_ending_formatted || week.week_ending}</strong></div>
+                <div>${week.settlement_ref || 'AUTO'}</div>
+                <div>${money(week.total_value)}</div>
+                <div><strong>${money(week.payout)}</strong></div>
+                <div>${statusTag(week.status)}</div>
+                <div class="actions">
+                    <button class="mini-btn history-view-btn" data-week="${new Date(week.week_ending).toISOString().split("T")[0]}" type="button">View</button>
+                </div>
+            `;
+            
+            container.appendChild(row);
+        });
+        
+        // Attach history view buttons
+        document.querySelectorAll(".history-view-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const start = new Date(btn.dataset.week);
+                const end = new Date(start);
+                end.setDate(start.getDate() + 6);
+
+                loadPayments(end.toISOString().split("T")[0]);
+
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                const section = document.getElementById("weeklySummary");
+                section.classList.add("highlight");
+                setTimeout(() => section.classList.remove("highlight"), 1500);
+            });
+        });
+    })
+    .catch(error => {
+        console.error("Failed to load history:", error);
+    });
+}
+
+function attachAuditButtons(status){
+
+document.querySelectorAll(".audit-btn").forEach(btn => {
+
+btn.addEventListener("click", () => {
+
+const row = btn.closest(".row");
+
+document.getElementById("aOrder").textContent = "#" + row.dataset.orderId;
+document.getElementById("aStatus").innerHTML = statusTag(status);
+document.getElementById("aRef").textContent = "AUTO-GENERATED";
+document.getElementById("aProcessed").textContent = new Date().toLocaleString();
+
+document.getElementById("orderAuditModal").style.display = "flex";
+
+});
+
+});
+
+}
+
+
+function closeAudit(){
+    document.getElementById("orderAuditModal").style.display = "none";
+}
+document.getElementById("downloadPdfBtn").addEventListener("click", () => {
+    const week = document.getElementById("weekSelect").value;
+    if (!week) {
+        alert("Please select a week first");
+        return;
+    }
+    window.print(); 
+});
+document.getElementById("downloadCsvBtn").addEventListener("click", () => {
+
+    const week = document.getElementById("weekSelect").value;
+
+    fetch(`/producer/api/weekly-payments/report/?week=${week}`, {
+        headers: {
+            "Authorization": "Bearer " + token
+        }
+    })
+    .then(response => response.blob())
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `settlement_${week}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    });
+});
+
+document.getElementById("closeAuditBtn").addEventListener("click", closeAudit);
+
+document.getElementById("orderAuditModal").addEventListener("click",(e)=>{
+    if(e.target.id==="orderAuditModal") closeAudit();
+});
+
+document.addEventListener("keydown",(e)=>{
+    if(e.key==="Escape") closeAudit();
+});
+
+
+document.getElementById("anonymiseToggle").addEventListener("change", () => loadPayments());
+document.getElementById("weekSelect").addEventListener("change", () => loadPayments());
+
+loadAvailableWeeks();
+loadPaymentHistory();
+</script>
+{% endblock %}

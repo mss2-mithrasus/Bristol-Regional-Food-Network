@@ -1,3 +1,4 @@
+
 .producer-dashboard {
     padding: 20px;
 }
@@ -70,7 +71,13 @@
 .logo{height:26px}
 .brand{font-size:20px;font-weight:700}
 
-.topbar-right{display:flex;align-items:center;gap:14px}
+.topbar-right{display:flex;align-items:center;gap:20px !important;}
+.topbar-right > * {
+    display: flex;
+}
+
+
+
 .about-pill{
   background:#406083;
   color:#fff;
@@ -81,20 +88,23 @@
 }
 
 .nav-icons{
-  display:inline-flex;
-  gap:15px;
-  margin-left:10px;
+  display:flex;
+  gap:20px;
   align-items:center;
+  font-size:18px;
+  padding:4px;
 }
 .nav-icons a{
+  display: flex;
   color:white;
   font-size:18px;
   text-decoration:none;
+  gap:20px
 }
 .nav-icons a:hover{color:rgba(255,255,255,.6)}
 
 /* Layout */
-.dash-layout{display:flex;min-height:calc(100vh - 110px);background:#eef2f5}
+.dash-layout{display:flex;min-height:calc(100vh - 110px);background:#f4f6f9;}
 .sidebar{
   width:200px;
   background:#406083;
@@ -118,7 +128,15 @@
 }
 .sidebar-link:hover{background:#2e4a63;}
 
-.dash-main{flex:1;padding:18px 22px}
+.dash-main{
+  flex:1;
+  padding:24px;
+  display:grid;
+  gap:20px;
+  min-width:0;
+
+}
+
 
 /* Footer */
 .dash-footer{
@@ -136,32 +154,35 @@
 
 .panel{
   background:#fff;
-  color:#406083;
   border-radius:12px;
-  padding:14px;
-  margin:14px auto;
-  max-width:900px;
+  padding:30px 28px;
+  margin-bottom:20px;
+  width:100%;
+  max-width: 100%;
+  overflow: hidden;
   box-shadow: 0 0 15px rgba(64, 96, 131, 0.4);
+  box-sizing: border-box;
 }
-.panel h2{margin:0 0 10px 0;font-size:16px}
+.panel h2{margin:0 0 14px 0;font-size:20px; font-weight: 700; color:#1f2d3d ;}
 
-/* Green pills */
+
 .pill-row{
-  display:flex;
-  gap:12px;
-  justify-content:center;
-  flex-wrap:wrap;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:14px;
+  margin-top:12px;
+  margin-bottom:18px
 }
 .pill{
-  background:#406083;
+  
   border-radius:999px;
   padding:10px 16px;
   min-width:170px;
   text-align:center;
-  color:#fff;
+  color:#406083;
 }
-.pill span{display:block;font-weight:800;font-size:13px}
-.pill strong{display:block;font-size:16px;margin-top:4px}
+.pill span{display:block;font-weight:600;font-size:13px;color:#6b7a8c;}
+.pill strong{font-size:18px;margin-top:4px;font-weight: 700;}
 
 .pill.mini{
   min-width:auto;
@@ -199,22 +220,24 @@
 .button-pill{
   background:#406083;
   color:#fff;
-  padding:8px 14px;
-  border-radius:999px;
-  text-decoration:none;
-  font-weight:800;
+  padding:9px 16px;
+  border-radius:8px;
   border:none;
+  font-weight:600;
   cursor:pointer;
 }
 .button-pill:hover{
-  background:rgba(255,255,255,0.596);
-  color:#406083;
+  background:#34506b;;
+  color:#ffff;
 }
 .button-pill.secondary{ background:#24485f; }
 .button-pill.secondary:hover{ background:#1c3a4c; }
 
 /* product table */
-.table-wrap{ max-width: 950px; margin: 0 auto; }
+.table-wrap{
+  width:100%;
+  overflow-x:hidden;
+}
 
 .prod-table{
   display:grid;
@@ -247,9 +270,16 @@
   color:#fff;
   font-weight:800;
 }
-.tag.green{ background:#39c57c; }
-.tag.amber{ background:#e1b738; }
-.tag.red {background-color: #ec4f4f;}
+.tag{
+  display:inline-block;
+  padding:4px 10px;
+  border-radius:6px;
+  font-size:13px;
+  font-weight:600;
+  background:#eef2f5;
+  color:#2f3e4e;
+  border:1px solid #d7dee5;
+}
 /* action buttons */
 .actions{ display:flex; justify-content:center; gap:8px; }
 .mini-btn{
@@ -442,4 +472,10 @@
     to{
         opacity: 1;
     }
+}
+
+#successPopup .removal-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 15px;
 }

@@ -70,7 +70,7 @@
     margin-top: 8px;
 }
 .order-modal {
-  display: none !important;             
+  display: none;             
 }
 
 .order-modal-content {
@@ -124,7 +124,7 @@
 /* Orders table */
 .orders-grid {
   display: grid;
-  grid-template-columns: 1.1fr 1.6fr 1.1fr 1.1fr 1.8fr 0.9fr 1fr 0.9fr;
+  grid-template-columns: 1fr 1.5fr 1fr 1fr 1fr 2fr 1fr 1fr 1fr;
   gap: 10px;
   align-items: center;
 }
@@ -161,9 +161,7 @@
   text-align: center;
 }
 
-.prod-table.orders {
-  grid-template-columns: 1.1fr 1.6fr 1.1fr 1.1fr 2fr 0.9fr 1fr 0.9fr !important;
-}
+
 
 /* Alignment like products, but Items left-aligned */
 .prod-table.orders.row div { text-align: center; }
