@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from .views import ProducerCreateProductAPI, ProducerDashboardAPI, ProducerOrdersAPI, ProducerProductListAPI, ProducerDeleteProductAPI, ProducerUpdateProductAPI
+from .views import ProducerCreateProductAPI, ProducerDashboardAPI, ProducerOrdersAPI, ProducerProductListAPI, ProducerDeleteProductAPI, ProducerUpdateOrderStatusAPI, ProducerUpdateProductAPI
 app_name = "producers"
 
 urlpatterns = [
@@ -14,6 +14,8 @@ urlpatterns = [
     path("api/products/<int:product_id>/update/",views.ProducerUpdateProductAPI.as_view(), name="api_update_product"),
 
     path("order_management/", views.order_management, name="order_management"),
-    path("producer/api/orders/", ProducerOrdersAPI.as_view(), name="producer_orders_api"),
+    path("api/orders/", ProducerOrdersAPI.as_view(), name="producer_orders_api"),
+    path("api/orders/<int:order_id>/status/",ProducerUpdateOrderStatusAPI.as_view(),),
     path("payments/", views.payments, name="payments"),
+    path("api/weekly-payments/",views.ProducerWeeklyPaymentsAPI.as_view(),name="producer_weekly_payments"),
 ]

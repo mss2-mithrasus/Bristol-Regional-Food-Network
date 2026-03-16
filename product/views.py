@@ -6,7 +6,7 @@ from .models import Product, ProductCategory, ProductAllergen
 from .serializers import ProductCategorySerializer, ProductCreateSerializer, ProductAllergenSerializer
 from rest_framework.permissions import AllowAny
 from rest_framework import generics
-from django.db.models import Q
+from django.db.models import Q 
 
 
 # product home page

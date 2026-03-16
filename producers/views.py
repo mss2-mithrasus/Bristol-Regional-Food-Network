@@ -1,12 +1,10 @@
 from sqlite3 import IntegrityError
 from django.db.models import ProtectedError
-
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import request, status
 from rest_framework.permissions import IsAuthenticated
-
 from product.models import Product, ProductCategory, Allergen,ProductAllergen
 from product.serializers import ProductSerializer
 from user_accounts.permissions import IsProducer
@@ -14,8 +12,9 @@ from user_accounts.models import ProducerAccount
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.generics import UpdateAPIView
 
-from .serializers import ProductCreateSerializer
-
+from .serializers import ProductCreateSerializer, ProducerOrderSerializer
+from order_management.models import SubOrder
+from payments.models import Commission
 
 class ProducerDashboardAPI(APIView):
     permission_classes = [IsAuthenticated, IsProducer]
@@ -115,7 +114,7 @@ def add_product(request):
         },
     )
 def order_management(request):
-    orders = []  # TODO: get orders for this producer from DB
+    orders = []
     return render(request, "order_management.html", {"orders": orders})
 
 def payments(request):
@@ -255,27 +254,102 @@ class ProducerOrdersAPI(APIView):
     permission_classes = [IsAuthenticated, IsProducer]
 
     def get(self, request):
+
         producer = ProducerAccount.objects.filter(user=request.user).first()
+
         if not producer:
-            return Response({"error": "Producer account not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Producer account not found"}, status=404)
 
-        # TODO: replace Order with your actual model and filter
-        orders = []  # Order.objects.filter(producer=producer).order_by("-created_at")
+        suborders = (
+            SubOrder.objects
+            .filter(producer=producer)
+            .select_related("order", "order__customer")
+            .prefetch_related("items__product")
+            .order_by("-order__created_at")
+        )
 
-        data = []
-        for o in orders:
-            data.append({
-                "order_id": o.order_id,
-                "customer_name": o.customer_name,
-                "customer_contact": o.customer_contact,
-                "delivery_address": o.delivery_address,
-                "created_at": o.created_at.strftime("%d/%m/%Y"),
-                "delivery_date": o.delivery_date.strftime("%d/%m/%Y") if o.delivery_date else "",
-                "special_instruction": o.special_instruction or "None",
-                "items": o.items_json,  # list of dicts
-                "items_summary": o.items_summary,
-                "total_value": str(o.total_value),
-                "status": o.status,
+        serializer = ProducerOrderSerializer(suborders, many=True)
+
+        return Response({"orders": serializer.data})
+
+class ProducerUpdateOrderStatusAPI(APIView):
+    permission_classes = [IsAuthenticated, IsProducer]
+
+    def patch(self, request, order_id):
+        producer = ProducerAccount.objects.filter(user=request.user).first()
+
+        suborder = SubOrder.objects.filter(
+            order__order_id=order_id,
+            producer=producer
+        ).first()
+
+        if not suborder:
+            return Response({"error": "Order not found"}, status=404)
+
+        new_status = request.data.get("status")
+
+        allowed = ["Pending", "Confirmed", "Ready", "Delivered"]
+
+        if new_status not in allowed:
+            return Response({"error": "Invalid status"}, status=400)
+
+        suborder.status = new_status
+        suborder.save()
+
+        return Response({"message": "Status updated"})
+    
+class ProducerWeeklyPaymentsAPI(APIView):
+    permission_classes = [IsAuthenticated, IsProducer]
+
+    def get(self, request):
+
+        producer = ProducerAccount.objects.filter(user=request.user).first()
+
+        if not producer:
+            return Response({"error": "Producer account not found"}, status=404)
+
+        suborders = (
+            SubOrder.objects
+            .filter(producer=producer, status="Delivered")
+            .select_related("order", "order__customer")
+            .prefetch_related("items__product")
+        )
+
+        orders = []
+        total_value = 0
+        total_commission = 0
+        total_payout = 0
+
+        for sub in suborders:
+
+            order_value = float(sub.payout_amount)
+
+            commission = round(order_value * 0.05, 2)
+            payout = round(order_value * 0.95, 2)
+
+            items = ", ".join([
+                f"{i.product.name} x{i.quantity}"
+                for i in sub.items.all()
+            ])
+
+            orders.append({
+                "order_id": sub.order.order_id,
+                "customer_name": sub.order.customer.user.email,
+                "delivered_date": sub.order.created_at.strftime("%d/%m/%Y"),
+                "items": items,
+                "order_value": order_value,
+                "commission": commission,
+                "payout": payout,
             })
 
-        return Response({"orders": data}, status=status.HTTP_200_OK)
+            total_value += order_value
+            total_commission += commission
+            total_payout += payout
+
+        return Response({
+            "total_value": total_value,
+            "commission": total_commission,
+            "payout": total_payout,
+            "status": "Processed",
+            "orders": orders
+        })

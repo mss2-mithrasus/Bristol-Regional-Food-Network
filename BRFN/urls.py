@@ -3,7 +3,7 @@ from django.urls import path, include
 from user_accounts.views import home_page,  registration_page, login_page
 from django.conf import settings
 from django.conf.urls.static import static
-
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
 urlpatterns = [

@@ -28,52 +28,19 @@
 
   <div class="table-wrap">
 
-    <div class="prod-table orders head" style="grid-template-columns: 1.1fr 1.6fr 1.1fr 1.1fr 2fr 0.9fr 1fr 0.9fr;">
+    <div class="prod-table orders head" style="grid-template-columns: 1fr 1.6fr 1fr 1fr 1fr 2fr 1fr 1fr 1fr;">
       <div>Order #</div>
       <div>Customer</div>
       <div>Order Date</div>
       <div>Delivery Date</div>
+      <div>Delivery Type</div>
       <div>Items</div>
       <div>Total</div>
       <div>Status</div>
       <div>Actions</div>
     </div>
 
-    
-    {% if orders %}
-      {% for o in orders %}
-        <div class="prod-table orders row order-row"
-             data-status="{{ o.status }}"
-             data-order-id="{{ o.order_id }}"
-             data-customer-name="{{ o.customer_name }}"
-             data-customer-contact="{{ o.customer_contact }}"
-             data-delivery-address="{{ o.delivery_address }}"
-             data-order-date="{{ o.created_at|date:'d/m/Y' }}"
-             data-delivery-date="{{ o.delivery_date|date:'d/m/Y' }}"
-             data-special-instruction="{{ o.special_instruction|default:'None' }}"
-             data-items='{{ o.items_json|escapejs }}'
-             data-total="{{ o.total_value }}">
-
-          <div><strong>#{{ o.order_id }}</strong></div>
-          <div>{{ o.customer_name }}</div>
-          <div>{{ o.created_at|date:"d/m/Y" }}</div>
-          <div><strong>{{ o.delivery_date|date:"d/m/Y" }}</strong></div>
-          <div class="order-items">{{ o.items_summary }}</div>
-          <div><strong>£{{ o.total_value }}</strong></div>
-          <div>
-            <span class="tag {% if o.status == 'Pending' %}red{% elif o.status == 'Ready' %}amber{% else %}green{% endif %}">
-              {{ o.status }}
-            </span>
-          </div>
-          <div class="actions">
-            <button class="mini-btn view-btn" type="button">View</button>
-          </div>
-        </div>
-      {% endfor %}
-    {% else %}
-      <div style="padding:10px; font-weight:700;">No incoming orders yet.</div>
-    {% endif %}
-
+    <div id="ordersRows"></div>
   </div>
 </section>
 
@@ -145,95 +112,222 @@
 </div>
 
 <script>
-    // Shared auth helpers
-    function getAccessToken() {
-        return localStorage.getItem("access") || sessionStorage.getItem("access");
-    }
 
-    // Protect this page
-    if (!getAccessToken()) {
-        window.location.href = "/login/";
-        
-    }
+function getAccessToken(){
+    return localStorage.getItem("access") || sessionStorage.getItem("access");
+}
 
-    // Logout function (optional, used by profile/logout buttons)
-    function logoutUser() {
-        localStorage.clear();
-        sessionStorage.clear();
-        window.location.href = "/login/";
-    }
-    const token = getAccessToken();
-    fetch("/producer/api/orders/", {
-        headers: { "Authorization": "Bearer " + token }
-        })
-    .then(r => {
-        if (r.status === 401) throw new Error("Unauthorized");
-        return r.json();
-        })
-.then(data => {
-  // render rows into your container
-})
+if(!getAccessToken()){
+    window.location.href="/login/";
+}
 
-// modal open/close 
-function openModal(){ document.getElementById("orderModal").style.display="flex"; }
-function closeModal(){ document.getElementById("orderModal").style.display="none"; }
+const token = getAccessToken();
 
-document.getElementById("closeModalBtn").addEventListener("click", closeModal);
-document.getElementById("orderModal").addEventListener("click",(e)=>{ if(e.target.id==="orderModal") closeModal(); });
-document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") closeModal(); });
+/* ---------------- MODAL CONTROLS ---------------- */
 
-/* ---------- status filter (frontend only) ---------- */
-document.getElementById("statusFilter").addEventListener("change", () => {
-  const selected = document.getElementById("statusFilter").value;
-  document.querySelectorAll(".order-row").forEach(row => {
-    const status = row.dataset.status || "";
-    row.style.display = (!selected || status === selected) ? "grid" : "none";
-  });
+function openModal(){
+    document.getElementById("orderModal").style.display="flex";
+}
+
+function closeModal(){
+    document.getElementById("orderModal").style.display="none";
+}
+
+document.getElementById("closeModalBtn").addEventListener("click",closeModal);
+
+document.getElementById("orderModal").addEventListener("click",(e)=>{
+    if(e.target.id==="orderModal") closeModal();
 });
 
-/* ---------- open details from row dataset ---------- */
-document.querySelectorAll(".view-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    const row = btn.closest(".order-row");
+document.addEventListener("keydown",(e)=>{
+    if(e.key==="Escape") closeModal();
+});
 
-    document.getElementById("modalMeta").innerHTML =
-      `Order <strong>#${row.dataset.orderId}</strong>`;
 
-    document.getElementById("dCustomerName").value = row.dataset.customerName || "";
-    document.getElementById("dCustomerContact").value = row.dataset.customerContact || "";
-    document.getElementById("dDeliveryAddress").value = row.dataset.deliveryAddress || "";
-    document.getElementById("dOrderDate").value = row.dataset.orderDate || "";
-    document.getElementById("dDeliveryDate").value = row.dataset.deliveryDate || "";
-    document.getElementById("dSpecialInstruction").value = row.dataset.specialInstruction || "None";
-    document.getElementById("dTotalAmount").textContent = "£" + (row.dataset.total || "0.00");
+/* ---------------- LOAD ORDERS ---------------- */
 
-    // items JSON (later you pass it from Django)
-    const itemsWrap = document.getElementById("itemsRows");
-    itemsWrap.innerHTML = "";
-    let items = [];
-    try { items = JSON.parse(row.dataset.items || "[]"); } catch(e){ items = []; }
-
-    items.forEach(it => {
-      const r = document.createElement("div");
-      r.className = "prod-table row";
-      r.style.gridTemplateColumns = "2fr 0.7fr 0.9fr 0.9fr";
-      r.innerHTML = `
-        <div style="text-align:left;">${it.product_name || ""}</div>
-        <div>${it.quantity || 0}</div>
-        <div>£${Number(it.price_at_purchase || 0).toFixed(2)}</div>
-        <div><strong>£${Number((it.quantity||0)*(it.price_at_purchase||0)).toFixed(2)}</strong></div>
-      `;
-      itemsWrap.appendChild(r);
-    });
-
-    openModal();
-  });
+fetch("/producer/api/orders/",{
+    headers:{ "Authorization":"Bearer "+token }
 })
-.catch(error => {
-        console.error(error);
-        window.location.href = "/login/";
+.then(r=>{
+    if(r.status===401) throw new Error("Unauthorized");
+    return r.json();
+})
+.then(data=>renderOrders(data.orders || []))
+.catch(err=>{
+    console.error(err);
+});
+
+
+function renderOrders(orders){
+
+    const container=document.getElementById("ordersRows");
+    container.innerHTML="";
+
+    if(!orders.length){
+        container.innerHTML="<div style='padding:10px;font-weight:700;'>No incoming orders yet.</div>";
+        return;
+    }
+    const fragment = document.createDocumentFragment();
+    orders.forEach(o=>{
+
+        const itemsSummary = o.items.map(i =>
+            `${i.product_name} x${i.quantity}`
+        ).join(", ");
+
+        const deliveryType = o.delivery_date ? "Delivery" : "Collection";
+
+        const row=document.createElement("div");
+        row.className="prod-table orders row order-row";
+
+        row.style.gridTemplateColumns=
+        "1.1fr 1.6fr 1.1fr 1.1fr 1fr 2fr 0.9fr 1fr 0.9fr";
+
+        row.dataset.status=o.status;
+        row.dataset.orderId=o.order_id;
+        row.dataset.customerName=o.customer_name;
+        row.dataset.customerContact=o.customer_contact;
+        row.dataset.deliveryAddress=o.delivery_address;
+        row.dataset.orderDate=o.created_at;
+        row.dataset.deliveryDate=o.delivery_date;
+        row.dataset.items=JSON.stringify(o.items);
+        row.dataset.total=o.total_value;
+
+        const statusColor =
+            o.status==="Pending" ? "red" :
+            o.status==="Ready" ? "amber" :
+            "green";
+
+        row.innerHTML=`
+        <div><strong>#${o.order_id}</strong></div>
+        <div>${o.customer_name}</div>
+        <div>${o.created_at}</div>
+        <div>${o.delivery_date || "-"}</div>
+        <div>${deliveryType}</div>
+        <div class="order-items">${itemsSummary}</div>
+        <div><strong>£${o.total_value}</strong></div>
+
+        <div>
+            <select class="status-select" data-id="${o.order_id}">
+                <option ${o.status==="Pending"?"selected":""}>Pending</option>
+                <option ${o.status==="Confirmed"?"selected":""}>Confirmed</option>
+                <option ${o.status==="Ready"?"selected":""}>Ready</option>
+                <option ${o.status==="Delivered"?"selected":""}>Delivered</option>
+            </select>
+        </div>
+
+        <div class="actions">
+            <button class="mini-btn view-btn" type="button">View</button>
+        </div>
+        `;
+
+        container.appendChild(row);
+
     });
+    container.appendChild(fragment);
+
+}
+
+
+/* ---------------- VIEW ORDER DETAILS ---------------- */
+
+document.addEventListener("click",function(e){
+
+if(!e.target.classList.contains("view-btn")) return;
+
+const row=e.target.closest(".order-row");
+
+document.getElementById("modalMeta").innerHTML=
+`Order <strong>#${row.dataset.orderId}</strong>`;
+
+document.getElementById("dCustomerName").value=row.dataset.customerName||"";
+document.getElementById("dCustomerContact").value=row.dataset.customerContact||"";
+document.getElementById("dDeliveryAddress").value=row.dataset.deliveryAddress||"";
+document.getElementById("dOrderDate").value=row.dataset.orderDate||"";
+document.getElementById("dDeliveryDate").value=row.dataset.deliveryDate||"";
+
+document.getElementById("dTotalAmount").textContent="£"+(row.dataset.total||"0.00");
+
+const itemsWrap=document.getElementById("itemsRows");
+itemsWrap.innerHTML="";
+
+let items=[];
+
+try{
+items=JSON.parse(row.dataset.items||"[]");
+}catch(e){items=[];}
+
+items.forEach(it=>{
+
+const r=document.createElement("div");
+r.className="prod-table row";
+r.style.gridTemplateColumns="2fr 0.7fr 0.9fr 0.9fr";
+
+r.innerHTML=`
+<div style="display:flex;align-items:center;gap:8px;">
+${it.image ? `<img src="${it.image}" style="width:40px;height:40px;border-radius:6px;">` : ""}
+${it.product_name||""}
+</div>
+
+<div>${it.quantity||0}</div>
+
+<div>£${Number(it.price_at_purchase||0).toFixed(2)}</div>
+
+<div><strong>£${Number((it.quantity||0)*(it.price_at_purchase||0)).toFixed(2)}</strong></div>
+`;
+
+itemsWrap.appendChild(r);
+
+});
+
+openModal();
+
+});
+
+
+/* ---------------- UPDATE ORDER STATUS ---------------- */
+
+document.addEventListener("change",function(e){
+
+if(!e.target.classList.contains("status-select")) return;
+
+const orderId=e.target.dataset.id;
+const newStatus=e.target.value;
+
+fetch(`/producer/api/orders/${orderId}/status/`,{
+    method:"PATCH",
+    headers:{
+        "Authorization":"Bearer "+token,
+        "Content-Type":"application/json"
+    },
+    body:JSON.stringify({status:newStatus})
+})
+.then(r=>r.json())
+.then(data=>{
+    console.log("Status updated",data);
+})
+.catch(err=>{
+    console.error("Status update failed",err);
+});
+
+});
+
+
+/* ---------------- STATUS FILTER ---------------- */
+
+document.getElementById("statusFilter").addEventListener("change",()=>{
+
+const selected=document.getElementById("statusFilter").value;
+
+document.querySelectorAll(".order-row").forEach(row=>{
+
+const status=row.dataset.status||"";
+
+row.style.display=(!selected||status===selected)?"grid":"none";
+
+});
+
+});
 
 </script>
-
 {% endblock %}
