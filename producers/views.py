@@ -1,6 +1,6 @@
 import csv
 from django.http import HttpResponse
-from django.db.models import Count, DateField, ProtectedError
+from django.db.models import Count, Sum
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -11,15 +11,14 @@ from product.serializers import ProductSerializer
 from user_accounts.permissions import IsProducer
 from user_accounts.models import ProducerAccount
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
-from rest_framework.generics import UpdateAPIView
 
 from .serializers import DashboardOrderSerializer, ProductCreateSerializer, ProducerOrderSerializer
-from order_management.models import SubOrder
+from order_management.models import OrderStatusHistory, OrderStatusHistory, SubOrder
 from payments.models import Commission
 from django.db.models.functions import TruncWeek
 from django.utils import timezone
 from datetime import date, timedelta, datetime
-from django.db.models import Sum, Q, F
+
 
 class ProducerDashboardAPI(APIView):
     permission_classes = [IsAuthenticated, IsProducer]
@@ -256,12 +255,12 @@ class ProducerUpdateOrderStatusAPI(APIView):
     def patch(self, request, order_id):
         producer = ProducerAccount.objects.filter(user=request.user).first()
 
-        suborder = SubOrder.objects.filter(
+        suborders = SubOrder.objects.filter(
             order__order_id=order_id,
             producer=producer
-        ).first()
+        )
 
-        if not suborder:
+        if not suborders.exists():
             return Response({"error": "Order not found"}, status=404)
 
         new_status = request.data.get("status")
@@ -270,9 +269,18 @@ class ProducerUpdateOrderStatusAPI(APIView):
 
         if new_status not in allowed:
             return Response({"error": "Invalid status"}, status=400)
+        for sub in suborders:
+            old_status = sub.status
 
-        suborder.status = new_status
-        suborder.save()
+            if old_status != new_status:
+                OrderStatusHistory.objects.create(
+                    suborder=sub,
+                    old_status=old_status,
+                    new_status=new_status,
+                    stock_time_change=producer
+                )
+        
+        suborders.update(status=new_status)
 
         return Response({"message": "Status updated"})
     

@@ -144,7 +144,6 @@ document.addEventListener("keydown",(e)=>{
 });
 
 
-/* ---------------- LOAD ORDERS ---------------- */
 
 fetch("/producer/api/orders/",{
     headers:{ "Authorization":"Bearer "+token }
@@ -302,9 +301,16 @@ fetch(`/producer/api/orders/${orderId}/status/`,{
     },
     body:JSON.stringify({status:newStatus})
 })
-.then(r=>r.json())
-.then(data=>{
-    console.log("Status updated",data);
+.then(async r=>{
+    const data = await r.json();
+    console.log("RESPONSE:", data);
+    console.log("STATUS CODE:", r.status);
+    if(!r.ok){
+        throw new Error(data.error || "Update failed");
+    }
+
+    const row = e.target.closest(".order-row");
+    row.dataset.status = newStatus;
 })
 .catch(err=>{
     console.error("Status update failed",err);
