@@ -302,9 +302,10 @@
         let newValue = parseInt(input.value) + change;
         
         if (newValue < 1) {
-            if (confirm('Remove this item from cart?')) {
-                removeItem(itemId);
-            }
+            //if (confirm('Remove this item from cart?')) {
+                //removeItem(itemId);
+            //}
+            showRemoveMessage(itemId)
             return;
         }
         
@@ -456,8 +457,13 @@
         });
     }
     
+    
+    function removeItem(itemId){
+        showRemoveMessage(itemId);
+    }
+    
     // Remove item from cart
-    function removeItem(itemId) {
+    function deleteItem(itemId) {
         const token = getToken();
         if (!token) {
             showNotification('Please log in again', 'error');
@@ -465,9 +471,9 @@
             return;
         }
         
-        if (!confirm('Remove this item from cart?')) {
-            return;
-        }
+        //if (!confirm('Remove this item from cart?')) {
+            //return;
+        //}
         
         fetch(`/cart/api/item/${itemId}/`, {
             method: 'DELETE',
@@ -591,6 +597,30 @@
             window.location.href = "/customer/home/";
         }
     }
+
+
+    // function for the removal pop up message
+
+    // item user wants to remove
+    let itemSelected = null;
+
+    function showRemoveMessage(itemId){
+        itemSelected = itemId;
+        document.getElementById("removeItem").style.display = "flex";
+    }
+
+    function confirmDeletion(){
+
+        document.getElementById("removeItem").style.display = "none";
+        deleteItem(itemSelected);
+    }
+
+    function noRemoval(){
+        document.getElementById("removeItem").style.display = "none"
+    }
+
+
+
     // Logout function
     function logoutUser() {
         localStorage.clear();
@@ -635,5 +665,87 @@
 .notification button:hover {
     color: #333;
 }
+
+.remove-item{
+    display: none;
+    position: fixed;
+    top:0;
+    left:0;
+    width: 100%;
+    height: 100%;
+    background:rgba(0,0,0,0.4);
+    justify-content: center;
+    align-items:center;
+    z-index:2000;
+    animation: fadeBack 0.2s ease;
+}
+
+.remove-box{
+    background:white;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    width: 280px;
+    animation: popup 0.25s ease;
+}
+
+.removal-actions{
+    margin-top: 15px;
+    display: flex;
+    justify-content: space-between;
+
+}
+
+.removal-actions button{
+    padding: 8px 14px;
+    border: none;
+    cursor:pointer;
+    background: #406083;
+    color: white;
+    border-radius: 10px;
+    
+}
+
+.removal-actions button:hover{
+    transform: scale(1.1);
+    transition:  transform 0.1s ease;
+}
+
+    
+
+@keyframes popup{
+    from {
+        transform: scale(0.87);
+        opacity: 0;
+    }
+
+    to{
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeBack{
+    from{
+        opacity: 0;
+    }
+
+    to{
+        opacity: 1;
+    }
+}
+
+
 </style>
+
+<div id="removeItem" class="remove-item">
+    <div class="remove-box">
+        <p>Delete this item from cart?</p>
+        <div class="removal-actions">
+            <button onclick="confirmDeletion()">Delete</button>
+            <button onclick="noRemoval()">Cancel</button>
+        </div>
+    </div>
+</div>
+
 {% endblock %}

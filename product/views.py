@@ -1,98 +1,145 @@
-from django.shortcuts import render, get_object_or_404
+
+from django.shortcuts import render, get_object_or_404, redirect
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Product, ProductCategory, ProductAllergen
-from .serializers import ProductCategorySerializer, ProductCreateSerializer, ProductAllergenSerializer
+from .serializers import ProductSerializer, ProductCategorySerializer, ProductAllergenSerializer
 from rest_framework.permissions import AllowAny
 from rest_framework import generics
 from django.db.models import Q
+from rest_framework.permissions import IsAuthenticated
+from user_accounts.permissions import IsCustomer
+from django.contrib.auth.decorators import login_required
 
 
-# product home page
-def home(request):
-    # getting all the categories stored in the database
-    categories = ProductCategory.objects.all()
-    # debug to check categories
-    print("categories in db:", [c.category_name for c in categories])
+# api to return all product categories for the frontend page
+
+class CustomerAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsCustomer]
     
-    # getting the query from the url
-    query = request.GET.get("q")
-    products = None
-    # if there is a query then filter products by the product name or allergen name e.g., potatoes (name)
-    # milk (allergen)
-    # if a product is out of stock it wont be displayed even when a user tries to search for it using the search bar
-    if query:
-        products = Product.objects.filter(
-        availability_status=True).filter(
-            Q(name__icontains=query) | Q(allergens__name__icontains=query)
-            ).distinct()
+    def get(self, request):
+        # getting all the categories stored in the database
+        categories = ProductCategory.objects.all()
+        # convert category object to json
+        category_serializer = ProductCategorySerializer(categories, many=True)
+        # debug to check categories
+        print("categories in db:", [c.category_name for c in categories])
         
-    # mapping the category names to their corresponding images
-    category_images = {
-        "Vegetables": "images/carrot.png",
-        "Dairy": "images/milk.png",
-        "Bakery": "images/bread.png",
-        "Preserves": "images/jam-jar.png",
-        "Seasonal Specialities": "images/pumpkin.png"
-    }
+        
+        # return category data to front end
+        return Response({"categories": category_serializer.data}, status=status.HTTP_200_OK )
     
-    for c in categories:
-        c.image_path = category_images.get(c.category_name, "")
-       
-    # sending data the the template
-    return render(request, "product.html", {"categories": categories, "products": products, "query": query} )
-
-# THESE PAGES ARENT DONE YET
 def orders(request):
     return render(request, "orders.html")
 
 def about_us(request):
     return render(request, "about_us.html")
 
-
-def products_category(request, category_name):
-    # get category object
-    category = get_object_or_404(ProductCategory, category_name=category_name)
+# api to return products in a category
+class CategoryProductsAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsCustomer]
     
-    # getting all the products in the category
-    products = Product.objects.filter(category=category, availability_status=True)
-    
-    # getting search query
-    query = request.GET.get("q")
-    if query:
-        # filter based on the user query
-        products = products.filter(
-            Q(name__icontains=query) | Q(allergens__name__icontains=query)
-            ).distinct()
+    def get(self,request, category_name):
+        # get category object
+        category = ProductCategory.objects.filter(category_name__iexact=category_name).first()
         
-    
-    context = {
-        "category": category,
-        "products": products,
-        "query": query,
-    }
-    
-    return render(request, "categories.html", context)
+        # getting all the available products in the category
+        products = Product.objects.filter(category=category, availability_status=True)
+        
+        # convert product object to json
+        serializer = ProductSerializer(products, many=True) 
+        
+        # return category namr and products
+        return Response({
+            "category": category.category_name,
+            "products": serializer.data
+            
+        }, status=status.HTTP_200_OK)
 
 
+def category_page(request, category_name):
+    
+    return render(request, 'categories.html', {'category_name': category_name})
 
 def product_detail(request, product_id):
-    # getting product based on primary key
-    product = get_object_or_404(Product, pk=product_id)
     
-    #getting all the allergens for the product
-    allergens = product.allergens.all()
+    product = get_object_or_404(Product, product_id=product_id)
     
-    # sending the product and allergen data to the template
-    context = {
-        "product": product,
-        "allergens": allergens
-    }
-    
-    return render(request, "product_detail.html", context)
+    return render(request, 'product_detail.html', {'product_id': product_id})
 
 
+class ProductSearchAPIView(APIView):
+    def get(self,request):
+        # get search query from url
+        query = request.GET.get("q", "")
+        # get filter
+        filter_value = request.GET.get("filter", "")
+        products = Product.objects.filter(availability_status=True)
+        # get category
+        category = request.GET.get("category")
+        
+        # filter by category
+        if category:
+            products = products.filter(category__category_name=category)
+        
+        # if there is a query then filter products by the product name, producer name, or allergen name e.g., potatoes (name)
+        # milk (allergen)
+        # if a product is out of stock it wont be displayed even when a user tries to search for it using the search bar
+        
+        if query:
+            # split query to words
+            words = query.split()
+            
+            # search conditions
+            filtering =(
+                Q(name__icontains=query) | Q(allergens__name__icontains=query) | Q(producer__business_name__icontains=query)
+            
+            )
+            # if user searches organic display all organic products
+            if "organic" in query.lower():
+                filtering |= Q(organic_certified=True)
+                
+            # if a query has multip;le words search description
+            if len(words) >= 2:
+                filter_by_description = Q()
+                for word in words:
+                    filter_by_description |= Q(description__icontains=word)
+                    
+                filtering |= filter_by_description
+            # apply filters
+            products = products.filter(filtering).distinct()
+            
+        # organic filter from dropdown
+        if filter_value.lower() == "organic":
+            products = products.filter(organic_certified=True)
+          
+        # convert products to json  
+        serializer = ProductSerializer(products, many=True)
+        
+        # return products
+        return Response({
+    
+            "products": serializer.data
+            
+        }, status=status.HTTP_200_OK)
+
+
+
+class ProductDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsCustomer]
+    
+    def get(self, request, product_id):
+        # getting product based on primary key
+        product = get_object_or_404(Product, pk=product_id)
+        
+        serializer = ProductSerializer(product)
+        #getting all the allergens for the product
+        allergens = product.productallergen_set.all()
+        allergens_serializer = ProductAllergenSerializer(allergens, many=True)
+        
+        
+        return Response({"product": serializer.data, "allergens": allergens_serializer.data}, status=status.HTTP_200_OK)
 
 
 class ProductCategoryCreateAPIView(APIView):
@@ -114,24 +161,5 @@ class ProductCategoryListAPIView(generics.ListAPIView):
     permission_classes = [AllowAny]
     queryset = ProductCategory.objects.all()
     serializer_class = ProductCategorySerializer
-    
-    
-# api end point for creating a new product
-class  ProductCreateAPIView(generics.CreateAPIView):
-    queryset = Product.objects.all()
-    serializer_class = ProductCreateSerializer
-    permission_classes = [AllowAny]
-    
-    # youre going to need this so that when a product is added it is linked to the producer loggedin 
-    #def perform_create(self,serializer):
-        #serializer.save(producer=self.request.user)
-        
-
-# api end point for creating a new allergen
-        
-class ProductAllergenCreateAPIView(generics.CreateAPIView):
-    queryset = ProductAllergen.objects.all()
-    serializer_class = ProductAllergenSerializer
-    permission_classes= [AllowAny]
     
     

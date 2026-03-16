@@ -5,12 +5,27 @@ from .models import ProductCategory, ProductAllergen, Product, Allergen, Seasona
 # these serializers will convert the models into JSON and JSON to the model
 
 class ProductCategorySerializer(serializers.ModelSerializer):
+    
+    image = serializers.SerializerMethodField()
     class Meta:
         model = ProductCategory
         fields = [
             "category_id",
             "category_name",
+            "image",
         ]
+        
+        
+    def get_image(self,obj):
+        # mapping the category names to their corresponding images
+        category_images = {
+            "Vegetables": "images/carrot.png",
+            "Dairy": "images/milk.png",
+            "Bakery": "images/bread.png",
+            "Preserves": "images/jam-jar.png",
+            "Seasonal Specialities": "images/pumpkin.png"
+        }
+        return category_images.get(obj.category_name)
         
         
 class AllergenSerializer(serializers.ModelSerializer):
@@ -22,18 +37,19 @@ class AllergenSerializer(serializers.ModelSerializer):
         ]
         
 class ProductAllergenSerializer(serializers.ModelSerializer):
-    
+    name = serializers.CharField(source="allergen.name", read_only=True)
     class Meta:
         model = ProductAllergen
         fields = [ 
-                  "product",
-                  "allergen",
+                 
+                  "name",
                   "description",
                   
                   ]
         
         
 class SeasonalAvailabilitySerializer(serializers.ModelSerializer):
+    
     class Meta:
         model = SeasonalAvailability
         fields = [
@@ -49,10 +65,17 @@ class SeasonalAvailabilitySerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     category = ProductCategorySerializer(read_only=True)
 
-    allergens = AllergenSerializer(many=True, read_only=True)
+    allergens = ProductAllergenSerializer(source="productallergen_set", many=True,read_only=True)
     
     # comes from producer_account.business_name 
     producer_name = serializers.SerializerMethodField()
+    
+    #seasonal availability 
+    seasonal_availability = SeasonalAvailabilitySerializer(
+        
+        many=True,
+        read_only=True
+    )
     
     class Meta:
         model = Product
@@ -67,33 +90,18 @@ class ProductSerializer(serializers.ModelSerializer):
             "category",
             "image",
             "allergens",
+            "stock_quantity",
+            "organic_certified",
+            "seasonal_availability",
+            
             
         ]
         
     def get_producer_name(self, obj):
        
-        if hasattr(obj.producer, "produceraccount"):
-            return obj.producer.produceraccount.business_name
+        
+        return obj.producer.business_name
        
     
-class ProductCreateSerializer(serializers.ModelSerializer):
-    
-    organic_certified = serializers.BooleanField(required=False)
-    class Meta:
-        model = Product
-        fields = [
-            "name", 
-            "description",
-            "price",
-            "unit",
-            "stock_quantity",
-            "availability_status",
-            "category",
-            "image",
-            "producer",
-            # "allergens",
-            "harvest_date",
-            "organic_certified",
-        ]
-    
+
     

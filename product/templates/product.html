@@ -26,8 +26,8 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
         }
         function goToCartWithToken(event) {
             event.preventDefault();
-            const token = getToken();
-            if (!token) {
+            
+            if (!getToken) {
                 window.location.href = "/login/";
                 return;
             }
@@ -57,88 +57,27 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
 {% block content %}
 
 <div class="search-box">
-    <form method="get">
+    <form id="searchForm" style="position: relative;">
         <input type="text" name="q" placeholder="Search Products" class="search-bar" >
+        <select id="organic-filter" class="filter-dropdown">
+            <option value="">All Products</option>
+            <option value="organic">Organic Products</option>
+            
+        </select>
         <button class="submit" type="submit">Search</button>
     </form>
 </div> 
 
-{% if query %} 
-<h2 class="search-title">Search results for "{{ query}}"</h2>
 
-    <div class="product-container">
-        {% if products %}
-            {% for product in products%}
-                <div class="product-card" 
-                     data-product-id="{{ product.product_id }}"
-                     data-max-stock="{{ product.stock_quantity }}">
-                    {% if product.image %}
-                        <img src="{{ product.image.url }}" alt="{{ product.name }}">
-                    {% else %}
-                        <img src="{% static 'images/default-product.png' %}" alt="{{ product.name }}">
-                    {% endif %}
 
-                    <div class="field-row">
-                        <h4 class="field"><span class="label">Product:</span> {{product.name}}</h4>
-                        {%if product.organic_certified%}
-                            <img src="{% static 'images/organic.png'%}" alt='organic badge' class="organic-badge">
-                        {%endif%}
-                    </div>
-
-                    <h4 class="field"><span class="label">Producer:</span> {{product.producer_name}}</h4>
-                    <h4 class="field"><span class="label">Price:</span> £{{product.price}}</h4>
-
-                    <div class="status-section">
-                        <h4 class="field"><span class="label">Status:</span>
-                            {% if product.availability_status %}
-                                <span class="status-available">Available</span>
-                            {% else %}
-                                <span class="status-out-of-stock">Out of stock</span>
-                            {% endif %}
-                        </h4>
-                    </div>
-
-                    <div class="button-group">
-                        <div class="quantity">
-                            <button class="minus">-</button>
-                            <span class="quantity-display">1</span>
-                            <button class="plus">+</button>
-                        </div>
-                        <button class="add-cart">Add to Cart</button>
-                    </div>
-
-                    <button class="notify-btn"
-                            data-product-id="{{ product.product_id }}"
-                            onclick="showStockAlert({{ product.product_id }}, '{{ product.name }}')"
-                            style="display: none;">
-                        <i class="fa-regular fa-bell"></i> Notify when available
-                    </button>
-
-                    <a href="{% url 'product_detail' product_id=product.product_id%}">
-                        <button class="product-details">View Product Details</button>
-                    </a>
-                </div>
-            {% endfor %}
-        {% else%}
-            <p>No products available for this query</p>
-        {%endif%}
-
-{%else%}
-
-<div class="category">
-    {% for category in categories %}
-        <a href="{% url 'products_category' category.category_name%}" class="category-card">
-            {% if category.image_path %}
-                <img src="{% static category.image_path %}" alt="{{category.category_name}}">
-            {% endif%}
-            <p> {{ category.category_name}}</p>
-        </a>
-    {%empty %}
-        <p>No categories found</p>
-    {% endfor %}
+    <div class="category-container">
+        <h2 class="category-title"></h2>
+        <div class="category"></div>
+        <div class="product-container"></div>
+    
 </div>
 
-{%endif%}
+
 <!-- Stock Alert Modal -->
 <div id="stockAlertModal" class="modal" style="display: none;">
     <div class="modal-content">
@@ -226,6 +165,41 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
     function getToken() {
         return localStorage.getItem("access") || sessionStorage.getItem("access");
     }
+
+    // function for search query to load products
+    function getQuery(name) {
+        const params = new URLSearchParams(window.location.search)
+        return params.get(name)
+
+    }
+
+    // listener for when search is submitted
+    document.getElementById("searchForm").addEventListener("submit", function(e){
+        // prevent refresh during search
+        e.preventDefault();
+
+        //search bar query
+        const query = document.querySelector(".search-bar").value.trim();
+        const titleEL = document.querySelector(".category-title");
+        if (titleEL){
+            //display search title
+            if (query) titleEL.textContent = `Search results for "${query}"`;
+        }
+        // search bar filter drop down
+        const filter = document.getElementById("organic-filter").value;
+
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set("q", query);
+
+        // if filter is picked apply it
+        if (filter) newUrl.searchParams.set("filter", filter);
+        else newUrl.searchParams.delete("filter");
+
+        window.history.pushState({}, "", newUrl);
+
+        //passing query and filter to load products
+        loadProducts(query, filter);
+    })
     
     function getCookie(name) {
         let cookieValue = null;
@@ -243,9 +217,345 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
     }
     const csrftoken = getCookie('csrftoken');
 
-    const token = getToken();
-    if (!token) {
+    
+    if (!getToken) {
         window.location.href = "/login/";
+    }
+
+    
+
+    async function productData(){
+        const token = getToken();
+        try{
+            const response = await fetch("/customer/home/api/customer/", {
+                headers: {
+                    "Authorization": "Bearer " + token
+                }
+            });
+
+            if (!response.ok){
+                const text = await response.text();
+                console.error("server error", text)
+                return;
+            }
+
+            const data = await response.json();
+
+            // display categories on page
+            getCategories(data.categories);
+            
+        } catch (error) {
+            console.error("Error loading data", error);
+        }
+        
+
+    }
+
+    document.addEventListener("DOMContentLoaded", function(){
+
+        // getting organic filter dropdown
+        const filterDropdown = document.getElementById("organic-filter");
+        if (filterDropdown){
+            filterDropdown.addEventListener("change", function(){
+
+                // get filter selected e.g., organic prodcuts
+                const filter = filterDropdown.value;
+                // get search query if something was typed
+                const query = document.querySelector(".search-bar")?.value || "";
+                // new url for query 
+                const newUrl = new URL(window.location);
+                // if query then update url
+                if (query) newUrl.searchParams.set("q", query);
+                else newUrl.searchParams.delete("q");
+
+                // if filter then update url
+                if (filter) newUrl.searchParams.set("filter", filter);
+                else newUrl.searchParams.delete("filter");
+
+                window.history.pushState({}, "", newUrl);
+
+                // reload products using selected filter and query
+                loadProducts(query,filter);
+            });
+            
+
+        }
+
+        const query = getQuery("q");
+
+        fetch("/customer/home/api/customer/", {
+
+            headers: { "Authorization": "Bearer " + getToken()}
+
+          })
+        .then(res => res.json())
+        .then(data => {
+             getCategories(data.categories);
+
+        if (query){
+            document.querySelector(".search-bar").value = query;
+            loadProducts(query)
+        }
+
+    })
+        .catch(err => console.error("error loading categories", err));
+
+})
+        
+    //function to get categories from backend and display as category cards
+    function getCategories(categories){
+        const data = document.querySelector(".category");
+        const titleEL = document.querySelector(".category-title");
+
+        if (!data) return;
+
+        data.innerHTML = "";
+
+        // looping through categories
+        categories.forEach(category => {
+            const card = document.createElement("a");
+            card.className = "category-card";
+            // category link
+            card.href = `/customer/home/category/${encodeURIComponent(category.category_name)}`;
+
+            card.innerHTML = ` <img src="/static/${category.image}" alt="${category.category_name}">
+            <p>${category.category_name}</p>`;
+
+            // load products when category is clicked
+            card.addEventListener("click", function(e){
+                e.preventDefault();
+                titleEL.textContent = category.category_name;
+                //loading products for that category
+                loadProducts("", "", category.category_name);
+            });
+
+            data.appendChild(card); 
+        })
+
+    }
+
+    // loading products from api using the query, filter, category
+    async function loadProducts(query, filter="", category=""){
+        const token = getToken();
+        if (!token) return;
+
+        //api url
+        let url = `/customer/home/api/products/?q=${encodeURIComponent(query)}`;
+        // if filter selected use it
+        if (filter) url += `&filter=${encodeURIComponent(filter)}`;
+
+        // if category selected use it
+        if (category) {
+            url += `&category=${encodeURIComponent(category)}`;
+        }
+
+        try{
+            // try request products from api
+            const response = await fetch(url, {
+                headers: {
+                    "Authorization": "Bearer " + token
+                }
+            });
+            // if failed display error
+            if (!response.ok){
+                console.error("error loading products");
+                return;
+            }
+
+            const data = await response.json();
+
+            // if there are products display them
+            if (data.products && data.products.length > 0){
+                // hide categories when displaying products
+                    document.querySelector(".category").style.display = "none";
+                    // display products
+                    getProducts(data.products);
+                } else {
+                    // if no products show message
+                    document.querySelector(".category").style.display = "none"
+                    document.querySelector(".product-container").innerHTML = "<p>No products found</p>";
+
+                }
+            } catch (error){
+                console.error("error getting products", error);
+                
+        }
+
+    }
+
+    // function to create product cards
+    function getProducts(products){
+        const data = document.querySelector(".product-container");
+        
+
+        if (!data) return;
+
+        // clear products
+        data.innerHTML = "";
+
+        // loop through each product
+        products.forEach(product => {
+
+            let seasonalData = "";
+            let seasonBadge = "";
+            let outOfSeason = false;
+
+            // seasonal availability info
+            const seasons = product.seasonal_availability || [];
+
+            if (seasons.length > 0) {
+                const season = seasons[0];
+            
+            // if product has yearly availability display this
+            if (season.is_year_round){
+                seasonalData = `<h4 class="field"><span class="label">Season:</span> All Year</h4>`;
+                seasonBadge = `<i class="fa-solid fa-seedling season badge"></i>`;
+                outOfSeason = false;
+            } else if (season.season_start_date && season.season_end_date){
+                const startDate = new Date(season.season_start_date + "T00:00:00")
+                
+                const endDate = new Date(season.season_end_date + "T00:00:00")
+                const today = new Date();
+                
+
+                // out of season if todays date is not within the start or end date
+                if (today < startDate|| today > endDate) outOfSeason = true;
+
+                // coverting dates to month
+                const start_season_month = startDate.toLocaleString('default', {month: 'long'});
+                const end_season_month = endDate.toLocaleString('default', {month: 'long'});
+                
+                seasonalData = `<h4 class="field"><span class="label">Season</span> ${start_season_month} - ${end_season_month}</h4>`;
+                // show in season badge if not out of season
+                if (!outOfSeason){
+                    seasonBadge = `<i class="fa-solid fa-seedling season-badge"></i>`;
+                }
+            
+                
+        }
+        console.log(product.name, seasonalData);
+    }
+            // show organic badge only is product is organic certified
+            const organic = product.organic_certified ?
+              `<img src="/static/images/organic.png" class="organic-badge">` : "";
+                        
+            const status = product.availability_status ? 
+             `<span class="status-available">Available</span>`
+            : `<span class="status-out-of-stock">Out of stock</span>`;
+                            
+
+            const card = document.createElement("div");
+            card.className = "product-card" + (outOfSeason ? " out-of-season" : "");
+            card.dataset.productId = product.product_id;
+            card.dataset.maxStock = product.stock_quantity || 99;
+
+            card.innerHTML = ` <img src="${product.image? product.image : '/static/images/default-product.png'}">
+
+            <div class="field-row">
+                        <h4 class="field"><span class="label">Product:</span> ${product.name}</h4>
+                        ${organic}
+                        ${seasonBadge}
+                    </div>
+
+                    <h4 class="field"><span class="label">Producer:</span> ${product.producer_name}</h4>
+                    <h4 class="field"><span class="label">Price:</span> £${product.price}</h4>
+                    ${seasonalData}
+
+                    <div class="status-section">
+                        <h4 class="field"><span class="label">Status:</span> ${status}
+                            
+                        </h4>
+                    </div>
+
+
+
+
+                    <div class="button-group">
+                        <div class="quantity">
+                            <button class="minus">-</button>
+                            <span class="quantity-display">1</span>
+                            <button class="plus">+</button>
+                        </div>
+                        <button class="add-cart">Add to Cart</button>
+                    </div> 
+
+
+                    <button class="notify-btn"
+                            data-product-id="${product.product_id }"
+                            onclick="showStockAlert(event, ${product.product_id}, '${product.name}')"
+                            style="display: none;">
+                        <i class="fa-regular fa-bell"></i> Notify when available
+                    </button>
+
+                    <a href="product/${product.product_id}/">
+                        <button class="product-details">View Product Details</button>
+                    </a>
+                </div>
+                    
+                    
+                    `;
+            
+
+            data.appendChild(card);
+
+            const plusBtn = card.querySelector('.plus');
+            if (plusBtn) {
+                plusBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const display = card.querySelector('.quantity-display');
+                    const maxStock = parseInt(card.dataset.maxStock);
+                    const productId = card.dataset.productId;
+                    if (display) {
+                        const currentQty = parseInt(display.textContent);
+                    if (currentQty < maxStock) {
+                        display.textContent = currentQty + 1;
+                        // Update notify button after quantity changes
+                        updateNotifyButton(card, productId);
+                    } else {
+                        showNotification(`Only ${maxStock} items available in stock`, 'error');
+                    }
+                    }
+                });
+
+            }
+            
+            
+            const minusBtn = card.querySelector('.minus');
+            if (minusBtn) {
+                minusBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const display = card.querySelector('.quantity-display');
+                    const productId = card.dataset.productId;
+                    if (display) {
+                        let currentQty = parseInt(display.textContent);
+                        if (currentQty > 1){
+                            display.textContent = currentQty - 1;
+                            // Update notify button after quantity decreases
+                            updateNotifyButton(card, productId);
+                        }
+                    }
+                });
+
+            }
+            
+            
+            const addToCartBtn = card.querySelector('.add-cart');
+            if (addToCartBtn) {
+                addToCartBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const productId = card.dataset.productId;
+                    if (!productId) {
+                        showNotification('Error: Product ID not found', 'error');
+                        return;
+                    }
+                    const quantityDisplay = card.querySelector('.quantity-display');
+                    const quantity = quantityDisplay ? parseInt(quantityDisplay.textContent) : 1;
+                    addToCart(productId, quantity, this);
+                });
+            }
+        });
+        
+
     }
     
     function goToCartWithToken(event) {
@@ -408,7 +718,7 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
     let currentProductId = null;
     let currentProductName = '';
 
-    function showStockAlert(productId, productName) {
+    function showStockAlert(event, productId, productName) {
         currentProductId = productId;
         currentProductName = productName;
         
@@ -486,62 +796,8 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
         }
     }
     
-    document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.product-card').forEach(card => {
-            const maxStock = parseInt(card.dataset.maxStock);
-            
-            const plusBtn = card.querySelector('.plus');
-            if (plusBtn) {
-                plusBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const display = card.querySelector('.quantity-display');
-                    const maxStock = parseInt(card.dataset.maxStock);
-                    const productId = card.dataset.productId;
-                    if (display) {
-                        const currentQty = parseInt(display.textContent);
-                    if (currentQty < maxStock) {
-                        display.textContent = currentQty + 1;
-                        // Update notify button after quantity changes
-                        updateNotifyButton(card, productId);
-                    } else {
-                        showNotification(`Only ${maxStock} items available in stock`, 'error');
-                    }
-                    }
-                });
-            }
-            
-            const minusBtn = card.querySelector('.minus');
-            if (minusBtn) {
-                minusBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const display = card.querySelector('.quantity-display');
-                    const productId = card.dataset.productId;
-                    if (display) {
-                        let currentQty = parseInt(display.textContent);
-                        if (currentQty > 1){
-                            display.textContent = currentQty - 1;
-                            // Update notify button after quantity decreases
-                            updateNotifyButton(card, productId);
-                        }
-                    }
-                });
-            }
-            
-            const addToCartBtn = card.querySelector('.add-cart');
-            if (addToCartBtn) {
-                addToCartBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const productId = card.dataset.productId;
-                    if (!productId) {
-                        showNotification('Error: Product ID not found', 'error');
-                        return;
-                    }
-                    const quantityDisplay = card.querySelector('.quantity-display');
-                    const quantity = quantityDisplay ? parseInt(quantityDisplay.textContent) : 1;
-                    addToCart(productId, quantity, this);
-                });
-            }
-        });
+    
+        
         
         // Get initial cart count
         const token = getToken();
@@ -558,8 +814,8 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
             const token = getToken();
             if (!token) return;
             try {
-                const response = await fetch('/notifications/api/unread-count/', {
-                    headers: { 'Authorization': 'Bearer ' + token }
+                const response = await fetchWithAuth('/notifications/api/unread-count/', {
+                    
                 });
                 const data = await response.json();
                 const badge = document.getElementById('notification-badge');
@@ -580,7 +836,7 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
             const productId = card.dataset.productId;
             if (productId) await updateNotifyButton(card, productId);
         });
-    });
+    
     
     const style = document.createElement('style');
     style.textContent = `
@@ -598,7 +854,7 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
     }
 </script>
 
-{% endblock %}
+
 <style>
 .quantity {
     display: flex;
@@ -686,3 +942,4 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
 
 .notify-btn:hover { background: #e0a800; }
 </style>
+{% endblock %}

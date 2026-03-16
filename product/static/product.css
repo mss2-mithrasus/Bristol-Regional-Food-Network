@@ -22,14 +22,16 @@
     justify-content: center;
     margin: 60px 0px;
     
+    
 }
 
 .search-bar{
     width: 500px;
-    padding: 20px 20px;
+    padding: 20px 40px 20px 20px;
     border-radius: 30px;
     border: 1px solid #ccc;
     font-size: 16px;
+    flex: 1;
 }
 
 .search-title{
@@ -278,6 +280,38 @@
     height: 40px !important;
     object-fit: contain;
 }
+
+
+.filter-dropdown {
+    position: absolute;
+    right: 115px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 36px;
+    width: 30px;
+    padding: 0px 5px;
+    font-size: 14px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+}
+
+
+.product-card.out-of-season{
+    opacity: 0.5;
+    pointer-events: none;
+    filter: grayscale(100%);
+}
+
+.product-card.product-card.out-of-season .add-cart,
+.product-card.product-card.out-of-season .plus,
+.product-card.product-card.out-of-season .minus,
+.product-card.product-card.out-of-season .notify-btn,
+.product-card.product-card.out-of-season .product-details{
+    pointer-events: none;
+    cursor: not-allowed;
+}
+
 
 
 
