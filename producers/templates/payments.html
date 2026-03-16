@@ -140,7 +140,7 @@
       <div><strong>Order #:</strong> <span id="aOrder">—</span></div>
       <div><strong>Status:</strong> <span id="aStatus">—</span></div>
       <div><strong>Processed At:</strong> <span id="aProcessed">—</span></div>
-      <div class="hint">Later you can link this to <code>order_status_history</code> and a payment transaction record.</div>
+       
     </div>
   </div>
 </div>
@@ -377,7 +377,7 @@ const row = btn.closest(".row");
 
 document.getElementById("aOrder").textContent = "#" + row.dataset.orderId;
 document.getElementById("aStatus").innerHTML = statusTag(status);
-document.getElementById("aRef").textContent = "AUTO-GENERATED";
+document.getElementById("aRef").textContent = "SETT-" + row.dataset.orderId;
 document.getElementById("aProcessed").textContent = new Date().toLocaleString();
 
 document.getElementById("orderAuditModal").style.display = "flex";
@@ -398,7 +398,7 @@ document.getElementById("downloadPdfBtn").addEventListener("click", () => {
         alert("Please select a week first");
         return;
     }
-    window.print(); 
+    window.print(); // Placeholder - later connect to backend PDF generation
 });
 document.getElementById("downloadCsvBtn").addEventListener("click", () => {
 
