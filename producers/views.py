@@ -200,20 +200,43 @@ class ProducerUpdateProductAPI(APIView):
         if not product:
             return Response({"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
 
+        # Capture old stock before any changes
+        old_stock = int(product.stock_quantity)
+
         # Update fields
         product.name = request.data.get("name", product.name)
         product.description = request.data.get("description", product.description)
         product.price = request.data.get("price", product.price)
         product.unit = request.data.get("unit", product.unit)
-        product.stock_quantity = request.data.get("stock_quantity", product.stock_quantity)
+
+        new_stock = request.data.get("stock_quantity", product.stock_quantity)
+        product.stock_quantity = new_stock
+
         availability = request.data.get("availability_status")
         if availability is not None:
             product.availability_status = str(availability).lower() in ["true", "1", "yes"]
 
         product.save()
 
-        return Response({"message": "Product updated successfully"}, status=status.HTTP_200_OK)
+        # If stock increased, notify customers waiting for this product
+        if int(new_stock) > old_stock:
+            from django.db import transaction
+            from notifications.utils import notify_stock_available
+            from product.models import Product as FreshProduct
+            product_id_to_notify = product.product_id
 
+            def send_notifications():
+                try:
+                    fresh_product = FreshProduct.objects.get(product_id=product_id_to_notify)
+                    notified = notify_stock_available(fresh_product)
+                    print(f"Notified {notified} customers about {fresh_product.name}")
+                except Exception as e:
+                    print(f"Notification error: {e}")
+
+            transaction.on_commit(send_notifications)
+
+        return Response({"message": "Product updated successfully"}, status=status.HTTP_200_OK)
+    
 class ProductUpdateView(APIView):
     parser_classes = (MultiPartParser, FormParser, JSONParser)
 
