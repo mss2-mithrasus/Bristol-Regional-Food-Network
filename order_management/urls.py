@@ -8,6 +8,7 @@ urlpatterns = [
     path('history/', views.order_history, name='order_history'),
     path('detail/<int:order_id>/', views.order_detail, name='order_detail'),
     path('update-checkout-address/', views.update_checkout_address, name='update_checkout_address'),
+    path('lookup-postcode/', views.lookup_postcode, name='lookup_postcode'),
     #path("payment/", views.payment, name="payment_page"),
 
 ]

@@ -3,7 +3,7 @@
 
 {% block head %}
 <link rel="stylesheet" href="{% static 'checkout.css' %}">
-<!-- Removed Font Awesome CDN -->
+<!-- GetAddress.io for postcode lookup - no Google Maps needed -->
 {% endblock %}
 
 {% block content %}
@@ -45,7 +45,8 @@
                                 {% endif %}
                             </div>
                             <span class="p-qty">x{{ item.quantity }}</span>
-                            <span class="p-price">£{{ item.price }}</span>
+                            <!-- UPDATED: Use price_formatted instead of price -->
+                            <span class="p-price">£{{ item.price_formatted }}</span>
                         </li>
                         {% endfor %}
                     </ul>
@@ -58,23 +59,27 @@
                         {% for item in group.items %}
                         <div class="summary-row">
                             <span class="summary-label">{{ item.name }} x{{ item.quantity }}</span>
-                            <span class="summary-value">£{{ item.price }}</span>
+                            <!-- UPDATED: Use price_formatted instead of price -->
+                            <span class="summary-value">£{{ item.price_formatted }}</span>
                         </div>
                         {% endfor %}
                         
                         <div class="summary-row">
                             <span class="summary-label">Subtotal:</span>
-                            <span class="summary-value">£{{ group.subtotal }}</span>
+                            <!-- UPDATED: Use subtotal_formatted instead of subtotal -->
+                            <span class="summary-value">£{{ group.subtotal_formatted }}</span>
                         </div>
                         
                         <div class="summary-row">
                             <span class="summary-label">Commission (5%):</span>
-                            <span class="summary-value">£{{ group.commission }}</span>
+                            <!-- UPDATED: Use commission_formatted instead of commission -->
+                            <span class="summary-value">£{{ group.commission_formatted }}</span>
                         </div>
                         
                         <div class="summary-row total">
                             <span class="summary-label">Total:</span>
-                            <span class="summary-value">£{{ group.total }}</span>
+                            <!-- UPDATED: Use total_formatted instead of total -->
+                            <span class="summary-value">£{{ group.total_formatted }}</span>
                         </div>
                     </div>
                     
@@ -115,19 +120,45 @@
                                 </button>
                             </div>
                             
-                            <!-- Edit Mode -->
+                            <!-- ===== NEW: POSTCODE LOOKUP WITH GETADDRESS.IO ===== -->
                             <div id="customer-address-edit-{{ group.producer.id }}" class="address-details hidden">
+                                <!-- Postcode Input -->
                                 <div class="address-item address-full">
-                                    <span class="address-label">Street</span>
-                                    <input type="text" id="edit-customer-street-{{ group.producer.id }}" class="address-input" value="{{ user_address.street|default:'' }}">
+                                    <span class="address-label">1. Enter your postcode</span>
+                                    <div style="display: flex; gap: 10px;">
+                                        <input type="text" id="postcode-input-{{ group.producer.id }}" 
+                                            class="address-input" 
+                                            placeholder="e.g. CM20 1SH"
+                                            style="flex: 2;" 
+                                            value="{{ user_address.postcode|default:'' }}">
+                                        <button onclick="findAddresses('{{ group.producer.id }}')" 
+                                                class="btn-secondary" 
+                                                style="flex: 1; padding: 10px; background: #406083; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                            Find Address
+                                        </button>
+                                    </div>
+                                    <div id="postcode-status-{{ group.producer.id }}" style="font-size: 12px; margin-top: 5px; min-height: 20px;"></div>
                                 </div>
-                                <div class="address-item">
-                                    <span class="address-label">Postcode</span>
-                                    <input type="text" id="edit-customer-postcode-{{ group.producer.id }}" class="address-input" value="{{ user_address.postcode|default:'' }}">
+                                
+                                <!-- Address Selection Dropdown (hidden initially) -->
+                                <div class="address-item address-full" id="address-selector-container-{{ group.producer.id }}" style="display: none;">
+                                    <span class="address-label">2. Select your address</span>
+                                    <select id="address-select-{{ group.producer.id }}" 
+                                            class="address-select" 
+                                            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-top: 5px; margin-bottom: 10px;"
+                                            onchange="addressSelected('{{ group.producer.id }}')">
+                                        <option value="">-- Choose your address --</option>
+                                    </select>
                                 </div>
-                                <div class="edit-actions">
-                                    <button onclick="saveCustomerAddress('{{ group.producer.id }}')" class="save-btn">Save</button>
-                                    <button onclick="cancelCustomerAddressEdit('{{ group.producer.id }}')" class="cancel-btn">Cancel</button>
+                                
+                                <!-- Hidden fields to store selected address -->
+                                <input type="hidden" id="selected-street-{{ group.producer.id }}" value="">
+                                <input type="hidden" id="selected-postcode-{{ group.producer.id }}" value="">
+                                
+                                <!-- Action Buttons -->
+                                <div class="edit-actions" style="margin-top: 15px; display: flex; gap: 10px;">
+                                    <button onclick="saveCustomerAddress('{{ group.producer.id }}')" class="save-btn" style="flex: 1; padding: 10px; background: #406083; color: white; border: none; border-radius: 4px; cursor: pointer;">Save Address</button>
+                                    <button onclick="resetAddressEdit('{{ group.producer.id }}')" class="btn-secondary" style="flex: 1; padding: 10px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;">Cancel</button>
                                 </div>
                             </div>
                         </div>
@@ -188,13 +219,15 @@
             {% for group in producer_groups %}
             <div class="summary-row">
                 <span class="summary-label">{{ group.producer.name }}:</span>
-                <span class="summary-value">£{{ group.total }}</span>
+                <!-- UPDATED: Use total_formatted instead of total -->
+                <span class="summary-value">£{{ group.total_formatted }}</span>
             </div>
             {% endfor %}
             
             <div class="summary-row total">
                 <span class="summary-label">Order Total:</span>
-                <span class="summary-value">£{{ total }}</span>
+                <!-- UPDATED: Use total_formatted instead of total -->
+                <span class="summary-value">£{{ total_formatted }}</span>
             </div>
             
             <div class="summary-row">
@@ -223,10 +256,11 @@
                        id="global-method-{{ group.producer.id }}" value="delivery">
                 {% endfor %}
                 
+                <!-- UPDATED: Use total_formatted in button text too -->
                 <input type="hidden" name="total" value="{{ total }}">
                 
                 <button type="submit" class="btn-primary" id="globalPayBtn" disabled>
-                    Pay Total: £{{ total }}
+                    Pay Total: £{{ total_formatted }}
                 </button>
             </form>
         </div>
@@ -262,6 +296,7 @@ document.addEventListener("DOMContentLoaded", function() {
     updateGlobalPaymentButton();
 });
 
+// ===== DELIVERY/COLLECT MODE TOGGLING =====
 function setProducerMode(producerId, isDelivery) {
     console.log(`Setting producer ${producerId} to ${isDelivery ? 'Delivery' : 'Collect'}`);
     
@@ -324,6 +359,7 @@ function setProducerMode(producerId, isDelivery) {
     updateGlobalPaymentButton();
 }
 
+// ===== DATE VALIDATION =====
 function validateProducerDate(producerId) {
     const dateInput = document.getElementById(`date-${producerId}`);
     const hiddenInput = document.getElementById(`global-hidden-${producerId}`);
@@ -356,6 +392,7 @@ function validateProducerDate(producerId) {
     updateGlobalPaymentButton();
 }
 
+// ===== GLOBAL PAYMENT VALIDATION =====
 function allDeliveryDatesSelected() {
     console.log("=== CHECKING PRODUCER STATES FOR GLOBAL WARNING ===");
     
@@ -387,8 +424,6 @@ function updateGlobalPaymentButton() {
     const globalWarning = document.getElementById('globalWarning');
     
     console.log("=== UPDATING GLOBAL PAYMENT BUTTON ===");
-    console.log("globalPayBtn element:", globalPayBtn);
-    console.log("globalWarning element:", globalWarning);
     
     if (!globalWarning) {
         console.log(" globalWarning element not found! Check ID in HTML");
@@ -396,22 +431,18 @@ function updateGlobalPaymentButton() {
     }
     
     const allGood = allDeliveryDatesSelected();
-    console.log("allDeliveryDatesSelected result:", allGood);
     
     if (allGood) {
         globalPayBtn.disabled = false;
         globalPayBtn.classList.remove('disabled');
         globalWarning.classList.add('hidden');
-        console.log(" Payment enabled - added 'hidden' class to warning");
+        console.log(" Payment enabled");
     } else {
         globalPayBtn.disabled = true;
         globalPayBtn.classList.add('disabled');
         globalWarning.classList.remove('hidden');
-        console.log(" Payment disabled - removed 'hidden' class from warning");
+        console.log(" Payment disabled");
     }
-    
-    // Check what classes the warning has now
-    console.log("Warning classes after update:", globalWarning.className);
 }
 
 function validateGlobalPayment() {
@@ -422,20 +453,92 @@ function validateGlobalPayment() {
     return true;
 }
 
+// ===== ADDRESS EDIT FUNCTIONS =====
 function enableCustomerAddressEdit(producerId) {
     document.getElementById(`customer-address-display-${producerId}`).classList.add('hidden');
     document.getElementById(`customer-address-edit-${producerId}`).classList.remove('hidden');
 }
 
-function cancelCustomerAddressEdit(producerId) {
+function resetAddressEdit(producerId) {
     document.getElementById(`customer-address-display-${producerId}`).classList.remove('hidden');
     document.getElementById(`customer-address-edit-${producerId}`).classList.add('hidden');
 }
 
-// Save address to session via AJAX
+// ===== NEW: POSTCODE LOOKUP WITH GETADDRESS.IO =====
+function findAddresses(producerId) {
+    const postcode = document.getElementById(`postcode-input-${producerId}`).value.trim();
+    const statusDiv = document.getElementById(`postcode-status-${producerId}`);
+    const selectorContainer = document.getElementById(`address-selector-container-${producerId}`);
+    const selectEl = document.getElementById(`address-select-${producerId}`);
+    
+    if (!postcode) {
+        statusDiv.innerHTML = 'Please enter a postcode';
+        statusDiv.style.color = 'red';
+        return;
+    }
+    
+    statusDiv.innerHTML = ' Searching for addresses...';
+    statusDiv.style.color = '#666';
+    
+    fetch(`/orders/lookup-postcode/?postcode=${encodeURIComponent(postcode)}`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.addresses && data.addresses.length > 0) {
+            // Clear and populate dropdown with real addresses
+            selectEl.innerHTML = '<option value="">-- Select your address --</option>';
+            data.addresses.forEach(addr => {
+                const option = document.createElement('option');
+                option.value = JSON.stringify({
+                    street: addr.line_1,
+                    full: addr.full_address
+                });
+                option.textContent = addr.full_address;
+                selectEl.appendChild(option);
+            });
+            
+            selectorContainer.style.display = 'block';
+            statusDiv.innerHTML = ` Found ${data.addresses.length} addresses`;
+            statusDiv.style.color = 'green';
+            
+            // Store postcode
+            document.getElementById(`selected-postcode-${producerId}`).value = postcode;
+        } else {
+            statusDiv.innerHTML = ' No addresses found for this postcode';
+            statusDiv.style.color = 'red';
+            selectorContainer.style.display = 'none';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        statusDiv.innerHTML = ' Error looking up postcode';
+        statusDiv.style.color = 'red';
+        selectorContainer.style.display = 'none';
+    });
+}
+
+function addressSelected(producerId) {
+    const selectEl = document.getElementById(`address-select-${producerId}`);
+    const selectedValue = selectEl.value;
+    
+    if (selectedValue) {
+        const addressData = JSON.parse(selectedValue);
+        document.getElementById(`selected-street-${producerId}`).value = addressData.street;
+        
+        // Update status
+        document.getElementById(`postcode-status-${producerId}`).innerHTML = ' Address selected';
+        document.getElementById(`postcode-status-${producerId}`).style.color = 'green';
+    }
+}
+
+// ===== UPDATED SAVE ADDRESS FUNCTION =====
 function saveCustomerAddress(producerId) {
-    const street = document.getElementById(`edit-customer-street-${producerId}`).value;
-    const postcode = document.getElementById(`edit-customer-postcode-${producerId}`).value;
+    const street = document.getElementById(`selected-street-${producerId}`).value;
+    const postcode = document.getElementById(`selected-postcode-${producerId}`).value;
+    
+    if (!street || !postcode) {
+        alert('Please find and select an address first');
+        return;
+    }
     
     console.log("Saving address:", {street, postcode});
     
@@ -484,7 +587,6 @@ function saveCustomerAddress(producerId) {
     })
     .catch(error => {
         console.error('Error:', error);
-        // Error toast
         showToast(
             'Error', 
             'Something went wrong while saving address',
@@ -494,27 +596,12 @@ function saveCustomerAddress(producerId) {
     });
 }
 
-// Function for cancelling address edit
-function cancelCustomerAddressEdit(producerId) {
-    document.getElementById(`customer-address-display-${producerId}`).classList.remove('hidden');
-    document.getElementById(`customer-address-edit-${producerId}`).classList.add('hidden');
-    
-    // Cancel toast (info)
-    showToast(
-        'Edit Cancelled', 
-        'Address changes were not saved',
-        'info',
-        3000
-    );
-}
-
-// Toast notification function
+// ===== TOAST NOTIFICATION FUNCTION =====
 function showToast(title, message, type = 'success', duration = 5000) {
     // Create toast element
     const toast = document.createElement('div');
     toast.className = `toast-notification ${type}`;
     
-    // No icons - just text
     toast.innerHTML = `
         <div class="toast-content">
             <div class="toast-title">${title}</div>
