@@ -141,7 +141,7 @@
 
 <script>
 function reorder(orderId) {
-    console.log("🔄 Reorder clicked for order:", orderId);
+    console.log(" Reorder clicked for order:", orderId);
     
     fetch(`/orders/reorder/${orderId}/`, {
         method: 'POST',
@@ -168,7 +168,7 @@ function reorder(orderId) {
         
         if (data.success) {
             // Show success message with totals
-            let message = `✅ Successfully added ${data.added_count} items`;
+            let message = ` Successfully added ${data.added_count} items`;
             if (data.total_amount) {
                 message += ` (Total: £${data.total_amount.toFixed(2)})`;
             }
@@ -187,7 +187,7 @@ function reorder(orderId) {
                     }
                     unavailableList.innerHTML += `
                         <li>
-                            ❌ ${item.name} (${item.producer})<br>
+                             ${item.name} (${item.producer})<br>
                             <small>${item.quantity} x £${item.price ? item.price.toFixed(2) : '0.00'} = £${item.total ? item.total.toFixed(2) : '0.00'}</small>
                             ${reasonText}
                         </li>
@@ -203,7 +203,7 @@ function reorder(orderId) {
             viewCartBtn.style.display = 'inline-block';
             checkoutBtn.style.display = 'inline-block';
         } else {
-            statusDiv.innerHTML = `<p class="error-message">❌ Error: ${data.error}</p>`;
+            statusDiv.innerHTML = `<p class="error-message"> Error: ${data.error}</p>`;
             viewCartBtn.style.display = 'none';
             checkoutBtn.style.display = 'none';
         }
