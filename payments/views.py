@@ -9,6 +9,8 @@ from order_management.models import Order, SubOrder, OrderItem
 from shopping_cart.models import Cart
 from user_accounts.models import ProducerAccount
 from product.models import Product
+from django.contrib import messages
+
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -52,6 +54,7 @@ def payment_page(request):
             'stripe_public_key': settings.STRIPE_PUBLIC_KEY
         })
     return redirect('multi_checkout')
+
 
 
 

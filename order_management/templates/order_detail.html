@@ -7,65 +7,130 @@
 
 {% block content %}
 <div class="detail-container">
-    <a href="{% url 'order_history' %}" class="back-link">← Back to Orders</a>
+    <a href="{% url 'order_history' %}" class="back-button"> Back to Orders</a>
     
+    <!-- Order Header with Status -->
     <div class="order-header">
-        <h1>Order #{{ order.order_id }} <span class="status-badge">{{ order.status }}</span></h1>
-        <div class="order-meta">
-            <span>Placed on {{ order_date|date:"F j, Y" }}</span>
+        <div>
+            <h1>Order {{ order_number }}</h1>
+            <div class="order-meta">
+                <span>Placed on {{ order_date|date:"F j, Y" }}</span>
+            </div>
+        </div>
+        <span class="status-badge status-{{ status|lower }}">{{ status }}</span>
+    </div>
+    
+    <!-- Delivery Address and Payment Info -->
+    <div class="info-grid">
+        <div class="info-card">
+            <h4>{% if has_collection %}Collection Details{% else %}Delivery Address{% endif %}</h4>
+            
+            {% if has_collection %}
+                <!-- Show producer addresses for collection -->
+                {% for producer in producers %}
+                    {% if producer.is_collection and producer.producer_address %}
+                    <div class="collection-item">
+                        <p class="producer-name">{{ producer.name }}</p>
+                        <p class="address">{{ producer.producer_address.street }}</p>
+                        <p class="postcode">{{ producer.producer_address.postcode }}</p>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if delivery_address %}
+                <div class="delivery-note">
+                    <small>Items for delivery will be sent to:</small>
+                    <p>{{ delivery_address }}</p>
+                    <p>{{ delivery_postcode }}</p>
+                </div>
+                {% endif %}
+            {% else %}
+                <!-- Show regular delivery address -->
+                <p class="address">{{ delivery_address }}</p>
+                <p class="postcode">{{ delivery_postcode }}</p>
+            {% endif %}
+        </div>
+        
+        <div class="info-card">
+            <h4>Payment Information</h4>
+            <p class="payment-method">{{ payment.card_type }} ending in {{ payment.card_last4 }}</p>
+            <p class="masked-card">•••• •••• •••• {{ payment.card_last4 }}</p>
+            <p class="billing-address">{{ payment.billing_address }}</p>
         </div>
     </div>
     
-    <div class="info-card">
-        <div class="info-grid">
-            <div class="info-item">
-                <span class="info-label">Delivery Address</span>
-                <span class="info-value">{{ delivery_address }}</span>
-                <span class="info-value">{{ delivery_postcode }}</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">Payment Status</span>
-                <span class="info-value">Paid</span>
-            </div>
-        </div>
-    </div>
+    <!-- Order Items by Producer -->
+    <h2 class="section-title">Order Items</h2>
     
     {% for producer in producers %}
     <div class="producer-section">
         <div class="producer-header">
-            <h3>{{ producer.name }}</h3>
-            <div class="producer-meta">
-                <span>Delivery: {{ producer.delivery_date|date:"M j, Y" }}</span>
-                <span>Status: {{ producer.status }}</span>
+            <div>
+                <h3>{{ producer.name }}</h3>
+                <div class="producer-meta">
+                    <span>Delivery: {{ producer.delivery_date|date:"F j, Y" }}</span>
+                    <span class="status-badge status-{{ producer.status|lower }}">{{ producer.status }}</span>
+                </div>
             </div>
         </div>
         
+        <!-- Itemised List (TC-021 step 5) -->
         <div class="items-table">
+            <div class="items-header">
+                <div>Product</div>
+                <div>Quantity</div>
+                <div>Price</div>
+                <div>Total</div>
+            </div>
+            
             {% for item in producer.items %}
             <div class="item-row">
-                <div class="item-image">
-                    {% if item.image %}
-                        <img src="{{ item.image }}" alt="{{ item.name }}">
-                    {% else %}
-                        <img src="{% static 'images/default-product.png' %}" alt="{{ item.name }}">
-                    {% endif %}
-                </div>
                 <div class="item-details">
-                    <div class="item-name">{{ item.name }}</div>
+                    {% if item.image %}
+                        <img src="{{ item.image }}" alt="{{ item.name }}" class="item-image">
+                    {% else %}
+                        <img src="{% static 'images/default-product.png' %}" alt="{{ item.name }}" class="item-image">
+                    {% endif %}
+                    <span class="item-name">{{ item.name }}</span>
                 </div>
-                <div class="item-quantity">x{{ item.quantity }}</div>
-                <div class="item-price">£{{ item.price }}</div>
+                <div class="item-quantity">{{ item.quantity }}</div>
+                <div class="item-price">£{{ item.price|floatformat:2 }}</div>
+                <div class="item-total">£{{ item.total|floatformat:2 }}</div>
             </div>
             {% endfor %}
+            
+            <!-- Producer Subtotal -->
+            <div class="producer-subtotal">
+                <span>Subtotal for {{ producer.name }}:</span>
+                <span>£{{ producer.subtotal|floatformat:2 }}</span>
+            </div>
         </div>
         
-        <div class="producer-totals">
-            <div>Subtotal: £{{ producer.subtotal|floatformat:2 }}</div>
+        <!-- Status History (if available) -->
+        {% if producer.status_history %}
+        <div class="status-history">
+            <h4>Order Status History</h4>
+            <div class="timeline">
+                {% for history in producer.status_history %}
+                <div class="timeline-item">
+                    <div class="timeline-badge"></div>
+                    <div class="timeline-content">
+                        <span class="timeline-date">{{ history.changed_at|date:"M j, Y H:i" }}</span>
+                        <span class="timeline-status">
+                            {{ history.old_status }}  <strong>{{ history.new_status }}</strong>
+                        </span>
+                        <span class="timeline-actor">by {{ history.changed_by }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
         </div>
+        {% endif %}
     </div>
     {% endfor %}
     
-    <div class="order-total">
+    <!-- Order Totals -->
+    <div class="order-totals">
         <div class="total-row">
             <span>Subtotal:</span>
             <span>£{{ order.total_amount|add:commission|floatformat:2 }}</span>
@@ -79,5 +144,83 @@
             <span>£{{ total|floatformat:2 }}</span>
         </div>
     </div>
+    
+    <!-- Action Buttons (Reorder and Download) -->
+    <div class="action-buttons">
+        <button onclick="reorder('{{ order.order_id }}')" class="reorder-btn">
+             Reorder Items
+        </button>
+        <a href="{% url 'download_receipt' order.order_id %}" class="download-btn">
+             Download Receipt
+        </a>
+    </div>
 </div>
+
+<!-- Reorder Modal (same as history page) -->
+<div id="reorderModal" class="modal">
+    <div class="modal-content">
+        <h3> Reorder Items</h3>
+        <div id="reorderStatus"></div>
+        <div id="unavailableItems" style="display: none;">
+            <h4>Unavailable Items:</h4>
+            <ul id="unavailableList"></ul>
+        </div>
+        <div class="modal-actions">
+            <a href="/cart/" id="viewCartBtn" class="modal-btn primary" style="display: none;">View Cart</a>
+            <a href="/orders/checkout/multi/" id="checkoutBtn" class="modal-btn primary" style="display: none;">Checkout</a>
+            <button onclick="closeModal()" class="modal-btn secondary">Continue Shopping</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function reorder(orderId) {
+    fetch(`/orders/reorder/${orderId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const modal = document.getElementById('reorderModal');
+        const statusDiv = document.getElementById('reorderStatus');
+        const unavailableDiv = document.getElementById('unavailableItems');
+        const unavailableList = document.getElementById('unavailableList');
+        const viewCartBtn = document.getElementById('viewCartBtn');
+        const checkoutBtn = document.getElementById('checkoutBtn');
+        
+        if (data.success) {
+            statusDiv.innerHTML = `<p class="success-message"> Successfully added ${data.added_count} items to your cart.</p>`;
+            
+            if (data.unavailable_count > 0) {
+                unavailableDiv.style.display = 'block';
+                unavailableList.innerHTML = '';
+                data.unavailable_items.forEach(item => {
+                    unavailableList.innerHTML += `<li> ${item.name} (${item.producer}) - Currently unavailable</li>`;
+                });
+            }
+            
+            viewCartBtn.style.display = 'inline-block';
+            checkoutBtn.style.display = 'inline-block';
+        } else {
+            statusDiv.innerHTML = `<p class="error-message"> Error: ${data.error}</p>`;
+        }
+        
+        modal.style.display = 'block';
+    });
+}
+
+function closeModal() {
+    document.getElementById('reorderModal').style.display = 'none';
+}
+
+window.onclick = function(event) {
+    const modal = document.getElementById('reorderModal');
+    if (event.target == modal) {
+        modal.style.display = 'none';
+    }
+}
+</script>
 {% endblock %}

@@ -7,14 +7,42 @@
 
 {% block content %}
 <div class="history-container">
-    <h1 class="page-title">📦 My Orders</h1>
+    <h1 class="page-title"> My Orders</h1>
+    
+    <!-- Filter Section -->
+    <div class="filters-section">
+        <h3>Filter Orders</h3>
+        <form method="GET" class="filters-form">
+            <div class="filter-group">
+                <label>From</label>
+                <input type="date" name="date_from" value="{{ date_from }}" class="filter-input">
+            </div>
+            <div class="filter-group">
+                <label>To</label>
+                <input type="date" name="date_to" value="{{ date_to }}" class="filter-input">
+            </div>
+            <div class="filter-group">
+                <label>Producer</label>
+                <select name="producer" class="filter-select">
+                    <option value="all" {% if selected_producer == 'all' %}selected{% endif %}>All Producers</option>
+                    {% for producer in producer_filters %}
+                    <option value="{{ producer }}" {% if selected_producer == producer %}selected{% endif %}>
+                        {{ producer }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="filter-btn">Apply Filters</button>
+        </form>
+    </div>
     
     {% if orders %}
         {% for order in orders %}
         <div class="order-card">
+            <!-- Order Header -->
             <div class="order-header">
-                <div>
-                    <span class="order-number">Order #{{ order.order_id }}</span>
+                <div class="order-header-left">
+                    <span class="order-number">#{{ order.order_number }}</span>
                     <span class="order-date">{{ order.date|date:"F j, Y" }}</span>
                 </div>
                 <span class="order-status status-{{ order.status|lower }}">
@@ -22,36 +50,188 @@
                 </span>
             </div>
             
-            <div class="order-content">
-                <div class="order-preview">
-                    {% for item in order.items %}
-                    <div class="preview-item">
-                        <span>{{ item.name }}</span>
-                        <span>x{{ item.quantity }}</span>
-                    </div>
-                    {% endfor %}
-                    {% if order.more_items %}
-                    <div class="more-items">+ {{ order.item_count|add:"-3" }} more items</div>
-                    {% endif %}
+            <!-- Producers Breakdown -->
+            <div class="producers-breakdown">
+                {% for producer in order.producers %}
+                <div class="producer-badge">
+                    <span class="producer-name">{{ producer.name }}</span>
+                    <span class="producer-delivery">Del: {{ producer.delivery_date|date:"d M Y"|default:"collect" }}</span>
+                    <span class="producer-status">{{ producer.status }}</span>
+                    <span class="producer-items">{{ producer.item_count }} items</span>
+                    <span class="producer-amount">£{{ producer.subtotal|floatformat:2 }}</span>
                 </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Preview Items -->
+            <div class="preview-grid">
+                {% for item in order.preview_items %}
+                <div class="preview-item">
+                    <div class="preview-item-details">
+                        <div class="preview-item-name">{{ item.name }}</div>
+                        <div class="preview-item-producer">{{ item.producer }}</div>
+                    </div>
+                    <div class="preview-item-quantity">x{{ item.quantity }}</div>
+                    <div class="preview-item-price">£{{ item.price|floatformat:2 }}</div>
+                </div>
+                {% endfor %}
                 
-                <div class="order-summary">
-                    <div class="total">£{{ order.total|floatformat:2 }}</div>
-                    <div class="item-count">{{ order.item_count }} items</div>
-                    <a href="{% url 'order_detail' order.order_id %}" class="view-btn">
-                        View Details →
-                    </a>
+                {% if order.more_items %}
+                <div class="more-items-badge">
+                    +{{ order.item_count|add:"-4" }} more items
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Order Summary -->
+            <div class="order-summary">
+                <div class="total">Total price= £{{ order.total|floatformat:2 }}</div>
+                <div class="item-count">Total items= {{ order.item_count }} </div>
+                <div class="action-buttons">
+                    <a href="{% url 'order_detail' order.order_id %}" class="view-btn">View Details</a>
+                    <button onclick="reorder('{{ order.order_id }}')" class="reorder-btn">Reorder</button>
                 </div>
             </div>
         </div>
         {% endfor %}
+        
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <div class="pagination">
+            {% if page_obj.has_previous %}
+            <a href="?page=1{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if selected_producer %}&producer={{ selected_producer }}{% endif %}" class="page-link">« First</a>
+            <a href="?page={{ page_obj.previous_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if selected_producer %}&producer={{ selected_producer }}{% endif %}" class="page-link">Previous</a>
+            {% endif %}
+            
+            <span class="current-page">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if selected_producer %}&producer={{ selected_producer }}{% endif %}" class="page-link">Next</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if selected_producer %}&producer={{ selected_producer }}{% endif %}" class="page-link">Last »</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        
     {% else %}
     <div class="empty-state">
-        <div class="empty-icon">🛒</div>
+        <div class="empty-icon"></div>
         <h2>No orders yet</h2>
         <p>Looks like you haven't placed any orders.</p>
         <a href="/" class="shop-btn">Start Shopping</a>
     </div>
     {% endif %}
 </div>
+
+<!-- Reorder Modal -->
+<div id="reorderModal" class="modal">
+    <div class="modal-content">
+        <h3> Reorder Items</h3>
+        <div id="reorderStatus"></div>
+        <div id="unavailableItems" style="display: none;">
+            <h4>Unavailable Items:</h4>
+            <ul id="unavailableList"></ul>
+        </div>
+        <div class="modal-actions">
+            <a href="/cart/" id="viewCartBtn" class="modal-btn primary" style="display: none;">View Cart</a>
+            <a href="/orders/checkout/multi/" id="checkoutBtn" class="modal-btn primary" style="display: none;">Checkout</a>
+            <button onclick="closeModal()" class="modal-btn secondary">Continue Shopping</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function reorder(orderId) {
+    console.log("🔄 Reorder clicked for order:", orderId);
+    
+    fetch(`/orders/reorder/${orderId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            console.error("Response not OK:", response.status);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log("Response data:", data);
+        
+        const modal = document.getElementById('reorderModal');
+        const statusDiv = document.getElementById('reorderStatus');
+        const unavailableDiv = document.getElementById('unavailableItems');
+        const unavailableList = document.getElementById('unavailableList');
+        const viewCartBtn = document.getElementById('viewCartBtn');
+        const checkoutBtn = document.getElementById('checkoutBtn');
+        
+        if (data.success) {
+            // Show success message with totals
+            let message = `✅ Successfully added ${data.added_count} items`;
+            if (data.total_amount) {
+                message += ` (Total: £${data.total_amount.toFixed(2)})`;
+            }
+            statusDiv.innerHTML = `<p class="success-message">${message}</p>`;
+            
+            // Show unavailable items if any
+            if (data.unavailable_count > 0) {
+                unavailableDiv.style.display = 'block';
+                unavailableList.innerHTML = '<h4>Unavailable Items:</h4>';
+                data.unavailable_items.forEach(item => {
+                    let reasonText = '';
+                    if (item.reason) {
+                        reasonText = `<br><small>Reason: ${item.reason}</small>`;
+                    } else if (item.error) {
+                        reasonText = `<br><small>Error: ${item.error}</small>`;
+                    }
+                    unavailableList.innerHTML += `
+                        <li>
+                            ❌ ${item.name} (${item.producer})<br>
+                            <small>${item.quantity} x £${item.price ? item.price.toFixed(2) : '0.00'} = £${item.total ? item.total.toFixed(2) : '0.00'}</small>
+                            ${reasonText}
+                        </li>
+                    `;
+                });
+                if (data.unavailable_total) {
+                    unavailableList.innerHTML += `<li><strong>Unavailable total: £${data.unavailable_total.toFixed(2)}</strong></li>`;
+                }
+            } else {
+                unavailableDiv.style.display = 'none';
+            }
+            
+            viewCartBtn.style.display = 'inline-block';
+            checkoutBtn.style.display = 'inline-block';
+        } else {
+            statusDiv.innerHTML = `<p class="error-message">❌ Error: ${data.error}</p>`;
+            viewCartBtn.style.display = 'none';
+            checkoutBtn.style.display = 'none';
+        }
+        
+        modal.style.display = 'block';
+    })
+    .catch(error => {
+        console.error("Fetch error:", error);
+        alert("Error: " + error);
+    });
+}
+
+function closeModal() {
+    document.getElementById('reorderModal').style.display = 'none';
+    // Reset modal content when closing
+    document.getElementById('reorderStatus').innerHTML = '';
+    document.getElementById('unavailableItems').style.display = 'none';
+    document.getElementById('unavailableList').innerHTML = '';
+    document.getElementById('viewCartBtn').style.display = 'none';
+    document.getElementById('checkoutBtn').style.display = 'none';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('reorderModal');
+    if (event.target == modal) {
+        closeModal();
+    }
+}
+</script>
 {% endblock %}
