@@ -448,23 +448,25 @@ def order_history(request):
                 })
         
         # Determine overall status 
+        
         all_statuses = [p['status'] for p in producers_data]
 
-        # Check if ALL producers are Delivered/Collected
-        if all(s in ['Delivered'] for s in all_statuses):
-            overall_status = 'Delivered'
-        # Check if ANY producer is still Pending
-        elif any(s == 'Pending' for s in all_statuses):
+        # Check for Pending first (if any producer is still pending)
+        if any(s == 'Pending' for s in all_statuses):
             overall_status = 'Pending'
-        # Check if ANY producer is Ready (and none are Pending)
-        elif any(s == 'Ready' for s in all_statuses):
-            overall_status = 'Ready'
-        # Check if ANY producer is Confirmed (and none are Pending/Ready)
-        elif any(s == 'Confirmed' for s in all_statuses):
-            overall_status = 'Confirmed'
+        # If no Pending, check if all are at least Confirmed (some might be Ready/Delivered)
+        elif all(s in ['Confirmed', 'Ready', 'Delivered'] for s in all_statuses):
+            # Now check if all are at least Ready
+            if all(s in ['Ready', 'Delivered'] for s in all_statuses):
+                # Check if all are Delivered
+                if all(s == 'Delivered' for s in all_statuses):
+                    overall_status = 'Delivered'
+                else:
+                    overall_status = 'Ready'
+            else:
+                overall_status = 'Confirmed'
         else:
             overall_status = order.order_status
-        
         order_data.append({
             'order_id': order.order_id,
             'order_number': f"ORD-{order.order_id:06d}",  
