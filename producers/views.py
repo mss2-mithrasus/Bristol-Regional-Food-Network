@@ -277,7 +277,11 @@ class ProducerUpdateOrderStatusAPI(APIView):
 
     def patch(self, request, order_id):
         producer = ProducerAccount.objects.filter(user=request.user).first()
+        
+        if not producer:
+            return Response({"error": "Producer account not found"}, status=404)
 
+        # Get all suborders for this producer and order
         suborders = SubOrder.objects.filter(
             order__order_id=order_id,
             producer=producer
@@ -287,25 +291,160 @@ class ProducerUpdateOrderStatusAPI(APIView):
             return Response({"error": "Order not found"}, status=404)
 
         new_status = request.data.get("status")
+        note = request.data.get("note", "")  # Optional note from producer
 
         allowed = ["Pending", "Confirmed", "Ready", "Delivered"]
-
+        
         if new_status not in allowed:
             return Response({"error": "Invalid status"}, status=400)
+            
+        # Define the valid status flow
+        status_flow = ["Pending", "Confirmed", "Ready", "Delivered"]
+        
+        # CHECK 48-HOUR PREPARATION WINDOW
+        if new_status == "Confirmed" and suborders.first().status == "Pending":
+            order_created_at = suborders.first().order.created_at
+            hours_passed = (timezone.now() - order_created_at).total_seconds() / 3600
+            if hours_passed < 48:
+                hours_remaining = round(48 - hours_passed, 1)
+                return Response({
+                    "error": f"Cannot confirm this order yet. The 48-hour preparation window has not passed. "
+                             f"Please wait {hours_remaining} more hours before confirming. "
+                }, status=400)
+
+        # Check each suborder for valid status progression
+        for sub in suborders:
+            current_status = sub.status
+            
+            # If status is the same, skip
+            if current_status == new_status:
+                continue
+                
+            # Find indices in the flow
+            try:
+                current_index = status_flow.index(current_status)
+                new_index = status_flow.index(new_status)
+            except ValueError:
+                return Response({
+                    "error": f"Invalid status transition"
+                }, status=400)
+            
+            # Check if trying to skip a stage
+            if new_index != current_index + 1:
+                # Calculate what the next status should be
+                next_status = status_flow[current_index + 1] if current_index + 1 < len(status_flow) else None
+                
+                return Response({
+                    "error": f"Cannot change status from {current_status} to {new_status}. "
+                            f"{'Next status should be: ' + next_status if next_status else 'Order is complete.'}"
+                }, status=400)
+        
+        # Update all suborders for this producer
+        updated_suborders = []
         for sub in suborders:
             old_status = sub.status
-
+            
             if old_status != new_status:
+                # Create status history
                 OrderStatusHistory.objects.create(
                     suborder=sub,
                     old_status=old_status,
                     new_status=new_status,
                     stock_time_change=producer
                 )
+                
+                # Update suborder status
+                sub.status = new_status
+                sub.save()
+                updated_suborders.append(sub)
         
-        suborders.update(status=new_status)
+        # Check if ALL suborders for this order are now at the same status
+        order = suborders.first().order
+        all_suborders = order.suborders.all()
+        
+        # If all suborders have the same status, update the main order
+        statuses = set(sub.status for sub in all_suborders)
+        if len(statuses) == 1:
+            # All suborders have the same status
+            order.order_status = list(statuses)[0]
+            order.save()
+            print(f"Updated main order #{order.order_id} status to {order.order_status}")
+        
+        # ===== SEND NOTIFICATIONS TO CUSTOMER =====
+        from notifications.models import Notification
+        
+        customer = order.customer.user  # Get the customer user
+        is_delivery = suborders.first().delivery_date is not None
+        # Create notification based on status
+        if new_status == "Confirmed":
+            title = f"Order #{order_id} Confirmed by {producer.business_name}"
+            message = f"Good news! {producer.business_name} has confirmed your order."
+            if note:
+                message += f" Note from producer: {note}"
+                
+        elif new_status == "Ready":
+            title = f"Order #{order_id} Ready for {'Collection' if not suborders.first().delivery_date else 'Delivery'}"
+            message = f"Great news! {producer.business_name} has marked your order as ready. "
+            if suborders.first().delivery_date:
+                message += f"Expected delivery on {suborders.first().delivery_date.strftime('%d %b %Y')}."
+            else:
+                message += "You can now collect your order."
+            if note:
+                message += f" Note from producer: {note}"
+                
+        elif new_status == "Delivered":
+            if is_delivery:
+                title = f"Order #{order_id} Delivered by {producer.business_name}"
+                message = f"Your order from {producer.business_name} has been delivered. We hope you enjoy your products!"
+            else:
+                title = f"Order #{order_id} Collected from {producer.business_name}"
+                message = f"Your order from {producer.business_name} has been collected. Thank you for shopping with us!"
+            if note:
+                message += f" Note from producer: {note}"
+        else:
+            # For other statuses, still send a notification
+            title = f"Order #{order_id} Status Update"
+            message = f"Your order from {producer.business_name} is now {new_status}."
+            if note:
+                message += f" Note: {note}"
+        
+        # Create the notification
+        notification = Notification.objects.create(
+            recipient=customer,
+            notification_type='order_update',
+            title=title,
+            message=message,
+            is_read=False,
+            is_seen=False
+        )
+        
+        print(f"Notification sent to {customer.email} for order #{order_id}")
+        
+        # If this is the last producer to mark as Delivered, send a summary
+        if new_status == "Delivered":
+            # Check if all suborders are delivered
+            all_delivered = all(sub.status == "Delivered" for sub in all_suborders)
+            if all_delivered:
+                # Order is complete
+                print(f"Order #{order_id} is now fully delivered!")
+                
+                # Send final notification
+                Notification.objects.create(
+                    recipient=customer,
+                    notification_type='order_update',
+                    title=f"Order #{order_id} Complete!",
+                    message=f"All items from your order have been delivered. Thank you for shopping with us!",
+                    is_read=False,
+                    is_seen=False
+                )
 
-        return Response({"message": "Status updated"})
+        return Response({
+            "message": "Status updated successfully",
+            "new_status": new_status,
+            "order_id": order_id,
+            "producer": producer.business_name,
+            "notification_sent": True
+        })
     
 class ProducerWeeklyPaymentsAPI(APIView):
     permission_classes = [IsAuthenticated, IsProducer]

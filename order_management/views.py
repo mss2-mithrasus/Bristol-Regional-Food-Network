@@ -1,8 +1,9 @@
+from django.contrib import messages
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from datetime import timedelta
 from user_accounts.models import CustomerAccount, Person, Address, ProducerAccount
-from shopping_cart.models import Cart
+from shopping_cart.models import Cart, CartItem
 import logging
 import random
 from django.contrib.auth.decorators import login_required
@@ -12,7 +13,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 import json
 import traceback
-
+from django.db.models import Sum
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +131,7 @@ def multi_checkout(request):
                 'name': product.name,
                 'quantity': item.quantity,
                 'price': float(product.price),
+                'price_formatted': f"{float(product.price):.2f}",  
                 'unit': unit,
                 'image': image_url,
                 'organic_certified': organic,
@@ -138,19 +140,24 @@ def multi_checkout(request):
         producer_groups.append({
             "producer": {
                 "id": data['producer_id'],
-                "name": data['producer_name']  # Now using the fixed name
+                "name": data['producer_name']
             },
             "producer_address": producer_address,  # Just street and postcode
             "items": formatted_items,
             "min_delivery_date": min_delivery_date,
             "subtotal": producer_subtotal,
+            "subtotal_formatted": f"{producer_subtotal:.2f}",  
             "commission": producer_commission,
+            "commission_formatted": f"{producer_commission:.2f}",  
             "total": producer_total,
+            "total_formatted": f"{producer_total:.2f}",  
         })
         
         overall_subtotal += producer_subtotal
     
     overall_total = round(overall_subtotal * 1.05, 2)
+    overall_total_formatted = f"{overall_total:.2f}"  
+    overall_subtotal_formatted = f"{overall_subtotal:.2f}" 
     
     # Get user address - SIMPLIFIED - JUST ADDRESS (NO PERSONAL INFO)
     user_address = None
@@ -221,6 +228,7 @@ def multi_checkout(request):
     context = {
         "producer_groups": producer_groups,
         "total": overall_total,
+        "total_formatted": f"{overall_total:.2f}",  
         "user_address": user_address,
         "total_quantity": total_quantity,
         "summary_items": [],
@@ -232,69 +240,54 @@ def multi_checkout(request):
 
 
 @login_required
-def order_history(request):
-    """Display all orders for the logged-in customer"""
-    orders_list = Order.objects.filter(
-        customer=request.user.customeraccount
-    ).order_by('-created_at')
-    
-    # Add pagination (10 orders per page)
-    paginator = Paginator(orders_list, 10)
-    page_number = request.GET.get('page')
-    orders = paginator.get_page(page_number)
-    
-    # Prepare order data with items
-    order_data = []
-    for order in orders:
-        items = []
-        for suborder in order.suborders.all():
-            for item in suborder.items.all():
-                items.append({
-                    'name': item.product.name,
-                    'quantity': item.quantity,
-                    'price': item.price_at_purchase,
-                    'producer': suborder.producer.business_name,
-                    'delivery_date': suborder.delivery_date,
-                    'status': suborder.status
-                })
-        
-        order_data.append({
-            'order_id': order.order_id,
-            'date': order.created_at,
-            'total': order.total_amount,
-            'status': order.order_status,
-            'item_count': len(items),
-            'items': items[:3],  # Show first 3 items in preview
-            'more_items': len(items) > 3
-        })
-    
-    return render(request, 'order_history.html', {
-        'orders': order_data,
-        'page_obj': orders,
-        'is_paginated': orders.has_other_pages()
-    })
-
-
-@login_required
 def order_detail(request, order_id):
-    """Display details for a specific order"""
-    # Get the order or return 404
-    order = get_object_or_404(
-        Order, 
-        order_id=order_id, 
-        customer=request.user.customeraccount
-    )
+    try:
+        order = Order.objects.get(
+            order_id=order_id,
+            customer=request.user.customeraccount
+        )
+    except Order.DoesNotExist:
+        messages.error(request, "Order not found")
+        return redirect('order_history')
     
-    # Group items by suborder/producer
+    # Group by producer
     producers = []
+    has_collection = False
+    
     for suborder in order.suborders.all():
         items = []
+        
+        # Check if this is a collection order
+        is_collection = not suborder.delivery_date
+        
         for item in suborder.items.all():
             items.append({
                 'name': item.product.name,
                 'quantity': item.quantity,
                 'price': item.price_at_purchase,
-                'image': item.product.image.url if item.product.image else None
+                'total': item.quantity * item.price_at_purchase,
+                'image': item.product.image.url if item.product.image else None,
+                'producer': suborder.producer.business_name,
+                'product_id': item.product.product_id
+            })
+        
+        # Get producer address for collection
+        producer_address = None
+        if is_collection and suborder.producer.address:
+            producer_address = {
+                'street': suborder.producer.address.address_line,
+                'postcode': suborder.producer.address.postcode
+            }
+            has_collection = True
+        
+    
+        status_history = []
+        for history in suborder.status_history.all().order_by('-order_status_changed_at'):
+            status_history.append({
+                'old_status': history.old_status,
+                'new_status': history.new_status,
+                'changed_at': history.order_status_changed_at,
+                'changed_by': history.stock_time_change.business_name if history.stock_time_change else 'System'
             })
         
         producers.append({
@@ -303,22 +296,436 @@ def order_detail(request, order_id):
             'status': suborder.status,
             'items': items,
             'subtotal': suborder.subtotal,
-            'payout': suborder.payout_amount
+            'payout': suborder.payout_amount,
+            'status_history': status_history,  
+            'is_collection': is_collection,    
+            'producer_address': producer_address  
         })
     
-    # Calculate commission (5% of total)
-    commission = round(order.total_amount * 0.05, 2)
+    # Masked payment info 
+    masked_payment = {
+        'card_last4': '4242',
+        'card_type': 'VISA',
+        'billing_address': order.delivery_address
+    }
     
-    return render(request, 'order_detail.html', {
+    # Calculate commission (5% of total)
+    commission = round(float(order.total_amount) * 0.05, 2)
+    
+    context = {
         'order': order,
+        'order_number': f"ORD-{order.order_id:06d}", 
         'producers': producers,
         'total': order.total_amount,
-        'commission': commission,
+        'commission': commission, 
         'delivery_address': order.delivery_address,
         'delivery_postcode': order.delivery_postcode,
         'order_date': order.created_at,
-        'status': order.order_status
-    })
+        'status': order.order_status,
+        'payment': masked_payment,  
+        'can_download': True,  
+        'has_collection': has_collection,  
+    }
+    
+    return render(request, 'order_detail.html', context)
+
+
+@login_required
+def order_history(request):
+    """Display all orders for the logged-in customer"""
+    try:
+        customer = request.user.customeraccount
+    except:
+        messages.error(request, "Customer account not found")
+        return redirect('home')
+    
+    # Get all orders for this customer
+    orders_list = Order.objects.filter(
+        customer=customer
+    ).order_by('-created_at')
+    
+    
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    producer_filter = request.GET.get('producer')
+    
+    if date_from:
+        orders_list = orders_list.filter(created_at__date__gte=date_from)
+    if date_to:
+        orders_list = orders_list.filter(created_at__date__lte=date_to)
+    
+    # Get unique producers for filter
+    all_producers = set()
+    for order in orders_list:
+        for suborder in order.suborders.all():
+            all_producers.add(suborder.producer.business_name)
+    
+    if producer_filter and producer_filter != 'all':
+        orders_list = orders_list.filter(
+            suborders__producer__business_name=producer_filter
+        ).distinct()
+    
+    # Pagination
+    paginator = Paginator(orders_list, 5)
+    page_number = request.GET.get('page')
+    orders = paginator.get_page(page_number)
+    
+    # Prepare order data with items and producer status
+    order_data = []
+    for order in orders:
+        items = []
+        preview_items = []  
+        producers_data = []
+        
+        confirmed_count = 0
+        ready_count = 0
+        delivered_count = 0
+        collected_count = 0
+        total_producers = order.suborders.count()  # Get total number of producers for this order
+        
+        for suborder in order.suborders.all():
+            # Determine if it's delivery or collection
+            is_delivery = suborder.delivery_date is not None
+            display_status = suborder.status
+            
+            # For Delivered status, show different display text
+            if suborder.status == "Delivered":
+                if is_delivery:
+                    display_status = "Delivered"
+                    delivered_count += 1  # Count as delivered
+                else:
+                    display_status = "Collected"
+                    collected_count += 1  # Count as collected
+            # For counting confirmed and ready (based on producer status, NOT item quantity)
+            
+            # Count confirmed producers (those at Confirmed, Ready, or Delivered stage)
+            if suborder.status in ["Confirmed", "Ready", "Delivered"]:
+                confirmed_count += 1
+            
+            # Count ready producers (those at Ready or Delivered stage)
+            if suborder.status in ["Ready", "Delivered"]:
+                ready_count += 1
+            
+            # Track producer status
+            producer_info = {
+                'name': suborder.producer.business_name,
+                'status': suborder.status,
+                'display_status': display_status,
+                'is_delivery': is_delivery,
+                'delivery_date': suborder.delivery_date,  
+                'item_count': suborder.items.count(),
+                'subtotal': suborder.subtotal,  
+                'hours_remaining': None
+            }
+            
+            # Calculate hours remaining for pending orders
+            if suborder.status == "Pending":
+                hours_passed = (timezone.now() - order.created_at).total_seconds() / 3600
+                if hours_passed < 48:
+                    producer_info['hours_remaining'] = round(48 - hours_passed)
+            
+            producers_data.append(producer_info)
+            
+            # Get items for preview
+            for item in suborder.items.all():
+                items.append({
+                    'name': item.product.name,
+                    'quantity': item.quantity,
+                    'price': item.price_at_purchase,
+                    'producer': suborder.producer.business_name,
+                    'delivery_date': suborder.delivery_date,
+                    'status': suborder.status,
+                    'is_delivery': is_delivery
+                })
+            
+            
+            for item in suborder.items.all()[:2]:
+                preview_items.append({
+                    'name': item.product.name,
+                    'quantity': item.quantity,
+                    'price': item.price_at_purchase,
+                    'producer': suborder.producer.business_name
+                })
+        
+        # Determine overall status 
+        all_statuses = [p['status'] for p in producers_data]
+
+        # Check if ALL producers are Delivered/Collected
+        if all(s in ['Delivered'] for s in all_statuses):
+            overall_status = 'Delivered'
+        # Check if ANY producer is still Pending
+        elif any(s == 'Pending' for s in all_statuses):
+            overall_status = 'Pending'
+        # Check if ANY producer is Ready (and none are Pending)
+        elif any(s == 'Ready' for s in all_statuses):
+            overall_status = 'Ready'
+        # Check if ANY producer is Confirmed (and none are Pending/Ready)
+        elif any(s == 'Confirmed' for s in all_statuses):
+            overall_status = 'Confirmed'
+        else:
+            overall_status = order.order_status
+        
+        order_data.append({
+            'order_id': order.order_id,
+            'order_number': f"ORD-{order.order_id:06d}",  
+            'date': order.created_at,
+            'total': order.total_amount,
+            'status': overall_status,  
+            'item_count': len(items),  
+            'items': items[:3],  
+            'more_items': len(items) > 3,  
+            'preview_items': preview_items[:4],  
+            'friend_more_items': len(preview_items) > 4,  
+            'producers': producers_data,
+            'total_producers': total_producers,  
+            'confirmed_count': confirmed_count,
+            'ready_count': ready_count,
+            'delivered_count': delivered_count,
+            'collected_count': collected_count
+        })
+    
+    context = {
+        'orders': order_data,
+        'page_obj': orders,
+        'is_paginated': orders.has_other_pages(),
+        'producer_filters': sorted(list(all_producers)), 
+        'date_from': date_from,  
+        'date_to': date_to,  
+        'selected_producer': producer_filter if producer_filter else 'all', 
+    }
+    
+    return render(request, 'order_history.html', context)
+
+
+@login_required
+def reorder(request, order_id):
+    """Reorder all items from a previous order"""
+    print(f" REORDER FUNCTION CALLED for order {order_id}")
+    
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        # Get the original order
+        order = Order.objects.get(
+            order_id=order_id,
+            customer=request.user.customeraccount
+        )
+        print(f" Order found: {order}")
+    except Order.DoesNotExist:
+        return JsonResponse({'error': 'Order not found'}, status=404)
+    
+    # Get or create cart for user
+    from django.db import transaction
+    
+    with transaction.atomic():
+        cart, created = Cart.objects.get_or_create(customer=request.user)
+        print(f" Cart {'created' if created else 'found'}")
+        
+        # Clean up expired items first
+        now = timezone.now()
+        expired = cart.items.filter(reserved_until__lt=now)
+        if expired.exists():
+            print(f" Cleaning {expired.count()} expired items")
+            expired.delete()
+        
+        # Track items
+        unavailable_items = []
+        added_items = []
+        total_amount = 0
+        total_items = 0
+        
+        # Process each suborder
+        for suborder in order.suborders.all():
+            for order_item in suborder.items.all():
+                product = order_item.product
+                quantity = order_item.quantity
+                # Use the historical price from when order was placed
+                price = float(order_item.price_at_purchase)
+                item_total = price * quantity
+                
+                print(f"  - Processing: {product.name}, Qty: {quantity}, Price from order: £{price}")
+                
+                try:
+                    # FIXED: Check if product exists
+                    if not product:
+                        unavailable_items.append({
+                            'name': order_item.product.name,
+                            'quantity': quantity,
+                            'price': price,
+                            'total': item_total,
+                            'producer': suborder.producer.business_name,
+                            'reason': 'Product no longer exists'
+                        })
+                        continue
+                    
+                    # FIXED: Check availability status
+                    if hasattr(product, 'availability_status') and not product.availability_status:
+                        unavailable_items.append({
+                            'name': product.name,
+                            'quantity': quantity,
+                            'price': price,
+                            'total': item_total,
+                            'producer': suborder.producer.business_name,
+                            'reason': 'Product is currently unavailable'
+                        })
+                        continue
+                    
+                    # Check stock
+                    if hasattr(product, 'stock_quantity') and product.stock_quantity == 0:
+                        unavailable_items.append({
+                            'name': product.name,
+                            'quantity': quantity,
+                            'price': price,
+                            'total': item_total,
+                            'producer': suborder.producer.business_name,
+                            'reason': 'Product is out of stock'
+                        })
+                        continue
+                    
+                    # Check stock availability (more lenient)
+                    # Get ALL active reservations from OTHER users
+                    other_users_reservations = CartItem.objects.filter(
+                        product=product,
+                        reserved_until__gt=timezone.now()
+                    ).exclude(
+                        cart__customer=request.user
+                    ).aggregate(total=Sum('quantity'))['total'] or 0
+                    
+                    # Get what this user already has in cart
+                    user_cart_item = CartItem.objects.filter(
+                        cart=cart,
+                        product=product
+                    ).first()
+                    
+                    user_current_quantity = user_cart_item.quantity if user_cart_item else 0
+                    
+                    # Calculate available for this user to add
+                    if hasattr(product, 'stock_quantity'):
+                        available_to_add = product.stock_quantity - other_users_reservations - user_current_quantity
+                        print(f"    Stock: {product.stock_quantity}, Others reserved: {other_users_reservations}")
+                    else:
+                        # If no stock tracking, assume unlimited
+                        available_to_add = 999999
+                        print(f"    No stock tracking - assuming unlimited")
+                    
+                    print(f"    User currently has: {user_current_quantity}, Can add: {available_to_add}")
+                    
+                    # If stock tracking exists and we don't have enough
+                    if hasattr(product, 'stock_quantity') and quantity > available_to_add:
+                        unavailable_items.append({
+                            'name': product.name,
+                            'quantity': quantity,
+                            'price': price,
+                            'total': item_total,
+                            'producer': suborder.producer.business_name,
+                            'available': available_to_add,
+                            'reason': f'Only {available_to_add} available (requested {quantity})'
+                        })
+                        continue
+                    
+                    # Set reservation expiry (30 minutes from now)
+                    reservation_expiry = timezone.now() + timedelta(minutes=30)
+                    
+                    if user_cart_item:
+                        # Update existing cart item
+                        user_cart_item.quantity += quantity
+                        user_cart_item.reserved_until = reservation_expiry
+                        user_cart_item.save()
+                        print(f"     Updated existing cart item: now {user_cart_item.quantity}")
+                    else:
+                        # Create new cart item
+                        CartItem.objects.create(
+                            cart=cart,
+                            product=product,
+                            quantity=quantity,
+                            reserved_until=reservation_expiry
+                        )
+                        print(f"     Created new cart item")
+                    
+                    added_items.append({
+                        'name': product.name,
+                        'quantity': quantity,
+                        'price': price,
+                        'total': item_total,
+                        'producer': suborder.producer.business_name
+                    })
+                    
+                    total_amount += item_total
+                    total_items += quantity
+                    
+                except Exception as e:
+                    print(f"     Error: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    unavailable_items.append({
+                        'name': order_item.product.name,
+                        'quantity': quantity,
+                        'price': price,
+                        'total': item_total,
+                        'producer': suborder.producer.business_name,
+                        'error': str(e)
+                    })
+        
+        response_data = {
+            'success': True,
+            'added_count': len(added_items),
+            'added_items': added_items,
+            'unavailable_count': len(unavailable_items),
+            'unavailable_items': unavailable_items,
+            'total_amount': total_amount,
+            'total_amount_formatted': f"£{total_amount:.2f}",
+            'total_items': total_items,
+            'cart_url': '/cart/',
+            'checkout_url': '/orders/checkout/multi/'
+        }
+        
+        if unavailable_items:
+            unavailable_total = sum(item['total'] for item in unavailable_items)
+            response_data['unavailable_total'] = unavailable_total
+            response_data['unavailable_total_formatted'] = f"£{unavailable_total:.2f}"
+            response_data['warning'] = f"{len(unavailable_items)} items were unavailable"
+        
+        print(f" Reorder complete: {len(added_items)} added (£{total_amount}), {len(unavailable_items)} unavailable")
+        return JsonResponse(response_data)
+
+
+@login_required
+def download_receipt(request, order_id):
+    try:
+        order = Order.objects.get(
+            order_id=order_id,
+            customer=request.user.customeraccount
+        )
+    except Order.DoesNotExist:
+        messages.error(request, "Order not found")
+        return redirect('order_history')
+    
+    # Collect items (similar to payment_success)
+    items = []
+    for suborder in order.suborders.all():
+        for item in suborder.items.all():
+            items.append({
+                'name': item.product.name,
+                'quantity': item.quantity,
+                'price': item.price_at_purchase,
+                'unit': item.product.unit if hasattr(item.product, 'unit') else '',
+                'image': item.product.image.url if item.product.image else None,
+                'producer': suborder.producer.business_name
+            })
+    
+    context = {
+        'order_id': order.order_id,
+        'total': order.total_amount,
+        'items': items,
+        'order_date': order.created_at,
+        'customer_name': request.user.get_full_name() or request.user.email,
+        'delivery_address': order.delivery_address,
+        'delivery_postcode': order.delivery_postcode,
+        'is_receipt_view': True,  # Flag to hide success message
+    }
+    
+    return render(request, 'payment_success.html', context)
 
 
 def update_checkout_address(request):
@@ -350,7 +757,7 @@ def update_checkout_address(request):
             # Save to session
             print(f"Saving to session: street={street}, postcode={postcode}")
             
-            # Make sure session is working
+            # Making sure session is working
             request.session['checkout_address'] = {
                 'street': street,
                 'postcode': postcode,

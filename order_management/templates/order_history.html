@@ -3,17 +3,567 @@
 
 {% block head %}
 <link rel="stylesheet" href="{% static 'order_history.css' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+.producer-status-breakdown {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #e0e0e0;
+}
+
+.producer-mini-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    padding: 4px 0;
+}
+
+.producer-mini-name {
+    color: #666;
+    min-width: 100px;
+}
+
+.producer-mini-badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.producer-mini-badge.pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.producer-mini-badge.confirmed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.producer-mini-badge.ready {
+    background: #cce5ff;
+    color: #004085;
+}
+
+.producer-mini-badge.delivered {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
+.producer-mini-badge.collected {
+    background: #d1c4e9;
+    color: #512da8;
+}
+
+.progress-summary {
+    display: flex;
+    gap: 15px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #666;
+}
+
+.progress-summary span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.progress-summary i {
+    color: #406083;
+}
+
+.countdown-badge {
+    background: #dc3545;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    margin-left: 8px;
+}
+
+.delivered-indicator {
+    font-size: 11px;
+    color: #28a745;
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.delivered-indicator i {
+    color: #28a745;
+}
+
+.all-delivered-badge {
+    color: #28a745;
+    margin-left: 5px;
+    font-weight: 600;
+}
+
+.page-title i {
+    color: #406083;
+    margin-right: 8px;
+}
+
+.empty-icon {
+    font-size: 60px;
+    color: #406083;
+    margin-bottom: 20px;
+}
+
+.collection-icon {
+    color: #512da8;
+    margin-right: 2px;
+}
+
+.delivery-icon {
+    color: #28a745;
+    margin-right: 2px;
+}
+
+
+.filters-section {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border: 1px solid #e0e0e0;
+}
+
+.filters-section h3 {
+    margin: 0 0 15px 0;
+    color: #406083;
+    font-size: 16px;
+}
+
+.filters-form {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 150px;
+}
+
+.filter-group label {
+    font-size: 12px;
+    color: #666;
+    font-weight: 500;
+}
+
+.filter-input, .filter-select {
+    padding: 8px 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.filter-input:focus, .filter-select:focus {
+    outline: none;
+    border-color: #406083;
+    box-shadow: 0 0 0 2px rgba(64,96,131,0.1);
+}
+
+.filter-btn {
+    padding: 8px 20px;
+    background: #406083;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    height: 38px;
+}
+
+.filter-btn:hover {
+    background: #2d4460;
+}
+
+
+.order-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border: 1px solid #e0e0e0;
+    transition: all 0.2s;
+}
+
+.order-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.order-header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.order-number {
+    font-weight: 700;
+    color: #406083;
+    font-size: 16px;
+}
+
+.order-date {
+    color: #999;
+    font-size: 13px;
+}
+
+.order-status {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-pending { background: #fff3cd; color: #856404; }
+.status-confirmed { background: #d4edda; color: #155724; }
+.status-ready { background: #cce5ff; color: #004085; }
+.status-delivered { background: #e2e3e5; color: #383d41; }
+
+
+.producers-breakdown {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 15px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 10px;
+}
+
+.producer-badge {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: white;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+.producer-name {
+    font-weight: 600;
+    color: #406083;
+}
+
+.producer-delivery {
+    color: #666;
+    font-size: 11px;
+}
+
+.producer-status {
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: #f0f0f0;
+    font-size: 10px;
+}
+
+.producer-items {
+    color: #666;
+}
+
+.producer-amount {
+    font-weight: 600;
+    color: #28a745;
+    margin-left: auto;
+}
+
+
+.preview-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.preview-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+.preview-item-details {
+    flex: 1;
+}
+
+.preview-item-name {
+    font-weight: 500;
+    color: #333;
+}
+
+.preview-item-producer {
+    font-size: 10px;
+    color: #999;
+}
+
+.preview-item-quantity {
+    color: #666;
+    margin: 0 8px;
+}
+
+.preview-item-price {
+    font-weight: 600;
+    color: #28a745;
+}
+
+.more-items-badge {
+    grid-column: span 2;
+    text-align: center;
+    padding: 8px;
+    background: #f0f0f0;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #666;
+}
+
+.producer-status-breakdown {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px dashed #e0e0e0;
+}
+
+
+.order-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 2px solid #f0f0f0;
+}
+
+.total {
+    font-size: 18px;
+    font-weight: 700;
+    color: #406083;
+}
+
+.item-count {
+    color: #666;
+    font-size: 14px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.view-btn, .reorder-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.view-btn {
+    background: #406083;
+    color: white;
+}
+
+.view-btn:hover {
+    background: #2d4460;
+}
+
+.reorder-btn {
+    background: #28a745;
+    color: white;
+}
+
+.reorder-btn:hover {
+    background: #1e7e34;
+}
+
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 30px;
+}
+
+.page-link {
+    padding: 8px 12px;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    color: #406083;
+    text-decoration: none;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.page-link:hover {
+    background: #406083;
+    color: white;
+    border-color: #406083;
+}
+
+.current-page {
+    padding: 8px 12px;
+    color: #666;
+    font-size: 13px;
+}
+
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 15% auto;
+    padding: 25px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+}
+
+.modal h3 {
+    margin: 0 0 20px 0;
+    color: #406083;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.modal-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+    flex: 1;
+}
+
+.modal-btn.primary {
+    background: #406083;
+    color: white;
+}
+
+.modal-btn.secondary {
+    background: #f8f9fa;
+    color: #666;
+    border: 1px solid #e0e0e0;
+}
+
+.success-message {
+    color: #28a745;
+    font-weight: 500;
+}
+
+.error-message {
+    color: #dc3545;
+    font-weight: 500;
+}
+
+#unavailableItems {
+    margin-top: 15px;
+    padding: 15px;
+    background: #fff3cd;
+    border-radius: 8px;
+}
+
+#unavailableList {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+#unavailableList li {
+    margin-bottom: 8px;
+    color: #856404;
+}
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="history-container">
-    <h1 class="page-title">📦 My Orders</h1>
+    <h1 class="page-title">
+        <i class="fa-solid fa-box-open"></i> My Orders
+    </h1>
+    
+    <!-- Filter Section -->
+    <div class="filters-section">
+        <h3><i class="fa-solid fa-filter"></i> Filter Orders</h3>
+        <form method="GET" class="filters-form">
+            <div class="filter-group">
+                <label>From</label>
+                <input type="date" name="date_from" value="{{ date_from|default:'' }}" class="filter-input">
+            </div>
+            <div class="filter-group">
+                <label>To</label>
+                <input type="date" name="date_to" value="{{ date_to|default:'' }}" class="filter-input">
+            </div>
+            <div class="filter-group">
+                <label>Producer</label>
+                <select name="producer" class="filter-select">
+                    <option value="all" {% if selected_producer == 'all' %}selected{% endif %}>All Producers</option>
+                    {% for producer in producer_filters %}
+                    <option value="{{ producer }}" {% if selected_producer == producer %}selected{% endif %}>
+                        {{ producer }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="filter-btn">Apply Filters</button>
+        </form>
+    </div>
     
     {% if orders %}
         {% for order in orders %}
         <div class="order-card">
+            <!-- Order Header (combined) -->
             <div class="order-header">
-                <div>
+                <div class="order-header-left">
                     <span class="order-number">Order #{{ order.order_id }}</span>
                     <span class="order-date">{{ order.date|date:"F j, Y" }}</span>
                 </div>
@@ -22,36 +572,336 @@
                 </span>
             </div>
             
-            <div class="order-content">
-                <div class="order-preview">
-                    {% for item in order.items %}
-                    <div class="preview-item">
-                        <span>{{ item.name }}</span>
-                        <span>x{{ item.quantity }}</span>
+            <!-- Producers Breakdown  -->
+            <div class="producers-breakdown">
+                {% for producer in order.producers %}
+                <div class="producer-badge">
+                    <span class="producer-name">{{ producer.name }}</span>
+                    <span class="producer-delivery">
+                        {% if producer.delivery_date %}
+                            <i class="fa-solid fa-truck delivery-icon"></i> Del: {{ producer.delivery_date|date:"d M Y" }}
+                        {% else %}
+                            <i class="fa-solid fa-hand-holding-box collection-icon"></i> Collect
+                        {% endif %}
+                    </span>
+                    <span class="producer-status">{{ producer.status }}</span>
+                    <span class="producer-items">{{ producer.item_count }} items</span>
+                    <span class="producer-amount">£{{ producer.subtotal|floatformat:2 }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Preview Items -->
+            <div class="preview-grid">
+                {% for item in order.items|slice:":4" %}
+                <div class="preview-item">
+                    <div class="preview-item-details">
+                        <div class="preview-item-name">{{ item.name }}</div>
+                        <div class="preview-item-producer">{{ item.producer }}</div>
                     </div>
-                    {% endfor %}
-                    {% if order.more_items %}
-                    <div class="more-items">+ {{ order.item_count|add:"-3" }} more items</div>
-                    {% endif %}
+                    <div class="preview-item-quantity">x{{ item.quantity }}</div>
+                    <div class="preview-item-price">£{{ item.price|floatformat:2 }}</div>
+                </div>
+                {% endfor %}
+                
+                {% if order.more_items %}
+                <div class="more-items-badge">
+                    <i class="fa-solid fa-ellipsis"></i> +{{ order.item_count|add:"-4" }} more items
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Producer Status Breakdown  -->
+            <div class="producer-status-breakdown">
+                <div style="font-weight: 600; color: #406083; margin-bottom: 8px; font-size: 13px;">
+                    <i class="fa-solid fa-chart-simple"></i> Progress by Producer:
                 </div>
                 
-                <div class="order-summary">
-                    <div class="total">£{{ order.total|floatformat:2 }}</div>
-                    <div class="item-count">{{ order.item_count }} items</div>
+                {% for producer in order.producers %}
+                <div class="producer-mini-status">
+                    <span class="producer-mini-name">{{ producer.name }}</span>
+                    
+                    <span class="producer-mini-badge 
+                        {% if producer.status == 'Delivered' and not producer.is_delivery %}
+                            collected
+                        {% else %}
+                            {{ producer.status|lower }}
+                        {% endif %}">
+                        
+                        {% if producer.status == 'Delivered' and not producer.is_delivery %}
+                            <i class="fa-solid fa-box collection-icon"></i> Collected
+                        {% elif producer.status == 'Delivered' and producer.is_delivery %}
+                            <i class="fa-solid fa-truck delivery-icon"></i> Delivered
+                        {% elif producer.status == 'Ready' %}
+                            <i class="fa-solid fa-circle-check"></i> Ready
+                        {% elif producer.status == 'Confirmed' %}
+                            <i class="fa-solid fa-check"></i> Confirmed
+                        {% elif producer.status == 'Pending' %}
+                            <i class="fa-regular fa-clock"></i> Pending
+                        {% endif %}
+                    </span>
+                    
+                    {% if producer.status == "Pending" and producer.hours_remaining %}
+                        <span class="countdown-badge"><i class="fa-regular fa-clock"></i> {{ producer.hours_remaining }}h left</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                
+                <!-- Quick Progress Summary  -->
+                <div class="progress-summary">
+                    <span>
+                        <i class="fa-solid fa-circle-check"></i>
+                        {{ order.confirmed_count }}/{{ order.total_producers }} Confirmed
+                        {% if order.delivered_count|add:order.collected_count == order.total_producers %}
+                            <span class="all-delivered-badge">
+                                <i class="fa-solid fa-check-circle"></i> 
+                                {% if order.collected_count > 0 and order.delivered_count > 0 %}
+                                    All Complete
+                                {% elif order.collected_count > 0 %}
+                                    All Collected
+                                {% else %}
+                                    All Delivered
+                                {% endif %}
+                            </span>
+                        {% endif %}
+                    </span>
+                    <span>
+                        <i class="fa-solid fa-truck-fast"></i>
+                        {{ order.ready_count }}/{{ order.total_producers }} Ready
+                    </span>
+                </div>
+
+                <!-- Small indicator for completed items -->
+                {% if order.delivered_count > 0 or order.collected_count > 0 %}
+                <div style="font-size: 11px; color: #666; margin-top: 5px; display: flex; gap: 10px;">
+                    {% if order.delivered_count > 0 %}
+                    <span style="color: #28a745;">
+                        <i class="fa-solid fa-truck"></i> {{ order.delivered_count }} delivered
+                    </span>
+                    {% endif %}
+                    {% if order.collected_count > 0 %}
+                    <span style="color: #512da8;">
+                        <i class="fa-solid fa-box"></i> {{ order.collected_count }} collected
+                    </span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Order Summary with Action Buttons  -->
+            <div class="order-summary">
+                <div class="total">Total: £{{ order.total|floatformat:2 }}</div>
+                <div class="item-count">{{ order.item_count }} items</div>
+                <div class="action-buttons">
                     <a href="{% url 'order_detail' order.order_id %}" class="view-btn">
-                        View Details →
+                        View Details <i class="fa-solid fa-arrow-right"></i>
                     </a>
+                    <button onclick="reorder('{{ order.order_id }}')" class="reorder-btn">
+                        <i class="fa-solid fa-cart-plus"></i> Reorder
+                    </button>
                 </div>
             </div>
         </div>
         {% endfor %}
+        
+        <!-- Pagination  -->
+        {% if is_paginated %}
+        <div class="pagination">
+            {% if page_obj.has_previous %}
+            <a href="?page=1{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if selected_producer %}&producer={{ selected_producer }}{% endif %}" class="page-link">« First</a>
+            <a href="?page={{ page_obj.previous_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if selected_producer %}&producer={{ selected_producer }}{% endif %}" class="page-link">Previous</a>
+            {% endif %}
+            
+            <span class="current-page">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if selected_producer %}&producer={{ selected_producer }}{% endif %}" class="page-link">Next</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if selected_producer %}&producer={{ selected_producer }}{% endif %}" class="page-link">Last »</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        
     {% else %}
+    <!-- Empty State (combined) -->
     <div class="empty-state">
-        <div class="empty-icon">🛒</div>
+        <div class="empty-icon">
+            <i class="fa-solid fa-basket-shopping"></i>
+        </div>
         <h2>No orders yet</h2>
         <p>Looks like you haven't placed any orders.</p>
-        <a href="/" class="shop-btn">Start Shopping</a>
+        <a href="/" class="shop-btn"><i class="fa-solid fa-store"></i> Start Shopping</a>
     </div>
     {% endif %}
 </div>
+
+<!-- Reorder Modal  -->
+<div id="reorderModal" class="modal">
+    <div class="modal-content">
+        <h3><i class="fa-solid fa-cart-plus"></i> Reorder Items</h3>
+        <div id="reorderStatus"></div>
+        <div id="unavailableItems" style="display: none;">
+            <h4>Unavailable Items:</h4>
+            <ul id="unavailableList"></ul>
+        </div>
+        <div class="modal-actions">
+            <a href="javascript:void(0);" onclick="goToCartWithForce()" id="viewCartBtn" class="modal-btn primary" style="display: none;">View Cart</a>
+            <a href="/orders/checkout/multi/" id="checkoutBtn" class="modal-btn primary" style="display: none;">Checkout</a>
+            <button onclick="closeModal()" class="modal-btn secondary">Continue Shopping</button>
+        </div>
+    </div>
+</div>
+
+<!-- Reorder Modal Script -->
+<script>
+// Function to update cart badge after reorder
+function updateCartBadgeAfterReorder(totalItems) {
+    // Update the cart badge in the navigation
+    const cartBadge = document.getElementById('cart-badge');
+    if (cartBadge) {
+        if (totalItems > 0) {
+            cartBadge.textContent = totalItems;
+            cartBadge.style.display = 'flex';
+        } else {
+            cartBadge.style.display = 'none';
+        }
+    }
+    
+    // Also update any other cart indicators on the page
+    const cartIcon = document.querySelector('.cart-icon');
+    if (cartIcon) {
+        const iconBadge = cartIcon.querySelector('.cart-badge');
+        if (iconBadge) {
+            if (totalItems > 0) {
+                iconBadge.textContent = totalItems;
+                iconBadge.style.display = 'flex';
+            } else {
+                iconBadge.style.display = 'none';
+            }
+        }
+    }
+}
+
+// Function to go to cart with cache busting
+function goToCartWithForce() {
+    const viewCartBtn = document.getElementById('viewCartBtn');
+    viewCartBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading Cart...';
+    viewCartBtn.style.pointerEvents = 'none';
+    viewCartBtn.style.opacity = '0.7';
+
+    setTimeout(function() {
+        const token = localStorage.getItem("access") || sessionStorage.getItem("access");
+        if (!token) { window.location.href = "/login/"; return; }
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/cart/';
+
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = 'token';
+        tokenInput.value = token;
+
+        form.appendChild(csrfInput);
+        form.appendChild(tokenInput);
+        document.body.appendChild(form);
+        form.submit();
+    }, 1500);
+}
+
+function reorder(orderId) {
+    console.log("Reorder clicked for order:", orderId);
+    
+    fetch(`/orders/reorder/${orderId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            console.error("Response not OK:", response.status);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log("Response data:", data);
+        
+        const modal = document.getElementById('reorderModal');
+        const statusDiv = document.getElementById('reorderStatus');
+        const unavailableDiv = document.getElementById('unavailableItems');
+        const unavailableList = document.getElementById('unavailableList');
+        const viewCartBtn = document.getElementById('viewCartBtn');
+        const checkoutBtn = document.getElementById('checkoutBtn');
+        
+        if (data.success) {
+            statusDiv.innerHTML = `<p class="success-message"><i class="fa-solid fa-circle-check"></i> Successfully added ${data.added_count} items to your cart!</p>
+            <p style="font-size: 12px; color: #666; margin-top: 5px;">Click "View Cart" to see your items (please wait a moment)...</p>`;
+            
+            if (data.unavailable_count > 0) {
+                unavailableDiv.style.display = 'block';
+                unavailableList.innerHTML = '';
+                data.unavailable_items.forEach(item => {
+                    let reasonText = '';
+                    if (item.reason) {
+                        reasonText = `<br><small>Reason: ${item.reason}</small>`;
+                    } else if (item.error) {
+                        reasonText = `<br><small>Error: ${item.error}</small>`;
+                    }
+                    unavailableList.innerHTML += `
+                        <li>
+                            <i class="fa-solid fa-circle-exclamation" style="color:#dc3545;"></i>
+                            ${item.name} (${item.producer})<br>
+                            <small>${item.quantity} x £${item.price ? item.price.toFixed(2) : '0.00'} = £${item.total ? item.total.toFixed(2) : '0.00'}</small>
+                            ${reasonText}
+                        </li>
+                    `;
+                });
+                if (data.unavailable_total) {
+                    unavailableList.innerHTML += `<li><strong>Unavailable total: £${data.unavailable_total.toFixed(2)}</strong></li>`;
+                }
+            } else {
+                unavailableDiv.style.display = 'none';
+            }
+            
+            // Update cart badge immediately
+            updateCartBadgeAfterReorder(data.total_items);
+            
+            viewCartBtn.style.display = 'inline-block';
+            checkoutBtn.style.display = 'inline-block';
+        } else {
+            statusDiv.innerHTML = `<p class="error-message"><i class="fa-solid fa-circle-exclamation"></i> Error: ${data.error}</p>`;
+            viewCartBtn.style.display = 'none';
+            checkoutBtn.style.display = 'none';
+        }
+        
+        modal.style.display = 'block';
+    })
+    .catch(error => {
+        console.error("Fetch error:", error);
+        alert("Error: " + error);
+    });
+}
+
+function closeModal() {
+    document.getElementById('reorderModal').style.display = 'none';
+    document.getElementById('reorderStatus').innerHTML = '';
+    document.getElementById('unavailableItems').style.display = 'none';
+    document.getElementById('unavailableList').innerHTML = '';
+    document.getElementById('viewCartBtn').style.display = 'none';
+    document.getElementById('checkoutBtn').style.display = 'none';
+}
+
+window.onclick = function(event) {
+    const modal = document.getElementById('reorderModal');
+    if (event.target == modal) {
+        closeModal();
+    }
+}
+</script>
 {% endblock %}

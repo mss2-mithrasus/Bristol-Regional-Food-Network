@@ -1,5 +1,7 @@
 from django.utils import timezone
 from .models import Notification, StockAlert
+from .models import ProducerNotification
+from order_management.models import SubOrder
 from shopping_cart.models import CartItem
 from django.db.models import Sum
 
@@ -46,5 +48,38 @@ def notify_stock_available(product):
         else:
             print(f"  Not notifying {alert.customer.email} - requested {alert.requested_quantity}, only {current_available} available")
     
+    
+    return notifications_created
+
+def notify_producers_new_order(order):
+    """
+    Send notifications to all producers when a new order is placed
+    """
+    notifications_created = 0
+    
+    # Get all suborders for this order
+    suborders = SubOrder.objects.filter(order=order).select_related('producer')
+    
+    for suborder in suborders:
+        producer = suborder.producer
+        producer_user = producer.user  # Get the user account for the producer
+        
+        # Count items in this suborder
+        item_count = suborder.items.count()
+        
+        # Create notification
+        notification = ProducerNotification.objects.create(
+            recipient=producer_user,
+            notification_type='new_order',
+            title=f'New Order #{order.order_id} Received!',
+            message=f'You have a new order with {item_count} item(s). Total: £{suborder.subtotal}',
+            order=order,
+            suborder=suborder,
+            is_read=False,
+            is_seen=False
+        )
+        
+        notifications_created += 1
+        print(f"Notification sent to producer {producer.business_name} for order #{order.order_id}")
     
     return notifications_created

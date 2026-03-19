@@ -5,6 +5,23 @@
     {{ block.super }}
     <link rel="stylesheet" href="{% static 'notifications.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        /* Add style for highlighted order */
+        .highlight-order {
+            animation: highlightPulse 2s ease-in-out;
+            border: 2px solid #406083 !important;
+            box-shadow: 0 0 15px rgba(64,96,131,0.3) !important;
+            background-color: #f0f7ff !important;
+            position: relative;
+            z-index: 10;
+        }
+        
+        @keyframes highlightPulse {
+            0% { transform: scale(1); background-color: #fff; }
+            50% { transform: scale(1.02); background-color: #e8f0fe; }
+            100% { transform: scale(1); background-color: #fff; }
+        }
+    </style>
 {% endblock %}
 
 {% block nav %}
@@ -29,7 +46,7 @@
 {% block content %}
 <div class="notifications-container">
     <div class="notifications-header">
-        <h1 class="page-title">Notifications</h1>
+        <h1 class="page-title"> <i class="fa-solid fa-bell"></i> Notifications</h1>
         <button class="mark-all-read" onclick="markAllRead()">Mark all as read</button>
     </div>
     
@@ -49,6 +66,7 @@
     function getToken() {
         return localStorage.getItem("access") || sessionStorage.getItem("access");
     }
+    
     function goToCartWithToken() {
         const token = getToken();
         if (!token) {
@@ -115,22 +133,30 @@
         
         let html = '';
         notifications.forEach(notif => {
-            // Determine the link based on notification type
+            // Determining the link based on the notification type
             let linkUrl = '/customer/home/'; // Default to products page
+            let orderId = null;
             
             if (notif.notification_type === 'stock_available') {
-                // Stock available notifications go to the products page
+                // Stock available notifications go to products page
                 linkUrl = '/customer/home/';
             } else if (notif.notification_type === 'order_update') {
-                // Order updates go to orders page
-                linkUrl = '/orders/';
+                const orderMatch = notif.title.match(/Order #(\d+)/);
+                if (orderMatch && orderMatch[1]) {
+                    orderId = orderMatch[1];
+                    // Go to order history page
+                    linkUrl = `/orders/detail/${orderId}/`;
+                } else {
+                    linkUrl = '/orders/history/';
+                }
             }
             
             html += `
                 <a href="${linkUrl}" class="notification-link" style="text-decoration: none; color: inherit; display: block;" 
                    onclick="markAsReadOnClick(event, ${notif.notification_id}, '${linkUrl}')">
                     <div class="notification-item ${notif.is_read ? 'read' : 'unread'}" 
-                         data-id="${notif.notification_id}">
+                         data-id="${notif.notification_id}"
+                         data-order-id="${orderId || ''}">
                         <div class="notification-icon ${notif.notification_type}">
                             <i class="fa-solid ${getIconForType(notif.notification_type)}"></i>
                         </div>
@@ -226,6 +252,7 @@
             }
         }
     }
+    
     function markAsReadOnClick(event, notificationId, linkUrl) {
         event.preventDefault(); // Prevent immediate navigation
         
@@ -248,6 +275,7 @@
             window.location.href = linkUrl;
         }
     }
+    
     function switchTab(tab) {
         // Update active tab styling
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -351,6 +379,7 @@
             console.error('Error marking all as read:', error);
         }
     }
+    
     // Add notification icon to product pages
     function showStockAlertOption(productId, productName) {
         if (confirm(`Get notified when ${productName} is back in stock?`)) {
@@ -395,6 +424,293 @@
             updateUnreadCount();
         }
     }, 30000);
+
+    // Function to handle order highlighting across pages
+    async function findAndHighlightOrder(orderId) {
+        console.log("Looking for order:", orderId);
+        
+        // First try to find on current page
+        let foundOrder = findOrderOnCurrentPage(orderId);
+        
+        if (foundOrder) {
+            highlightOrder(foundOrder);
+            return;
+        }
+        
+    
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentPage = urlParams.get('page') || '1';
+        
+        // Get all page links
+        const paginationLinks = document.querySelectorAll('.pagination a');
+        let pagesToCheck = [];
+        
+        paginationLinks.forEach(link => {
+            const href = link.getAttribute('href');
+            const pageMatch = href.match(/[?&]page=(\d+)/);
+            if (pageMatch && pageMatch[1]) {
+                pagesToCheck.push({
+                    page: pageMatch[1],
+                    url: href
+                });
+            }
+        });
+        
+        // Remove duplicates and current page
+        pagesToCheck = [...new Map(pagesToCheck.map(item => [item.page, item])).values()]
+            .filter(p => p.page !== currentPage);
+        
+        console.log("Pages to check:", pagesToCheck);
+        
+        // Check each page
+        for (const pageInfo of pagesToCheck) {
+            console.log("Checking page:", pageInfo.page);
+            
+            try {
+                // Fetch the page content
+                const response = await fetch(pageInfo.url, {
+                    headers: { 
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                if (!response.ok) continue;
+                
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // Look for the order in this page's content
+                const orderOnPage = findOrderInDocument(doc, orderId);
+                
+                if (orderOnPage.found) {
+                    // Navigate to that page
+                    window.location.href = `${pageInfo.url}&highlight_order=${orderId}`;
+                    return;
+                }
+            } catch (error) {
+                console.error("Error checking page:", error);
+            }
+        }
+        
+        console.log("Order not found on any page");
+    }
+
+function findOrderOnCurrentPage(orderId) {
+    console.log("Searching for order:", orderId);
+    const orderCards = document.querySelectorAll('.order-card');
+    console.log("Found", orderCards.length, "order cards");
+    
+    for (let card of orderCards) {
+        // Get all text content from the card to search
+        const cardText = card.textContent || '';
+        
+        if (cardText.includes(`#${orderId}`) || 
+            cardText.includes(`Order #${orderId}`) ||
+            cardText.includes(`order #${orderId}`)) {
+            console.log("Found order via text content");
+            return card;
+        }
+        
+        // Check specific elements that might contain the order number
+        const orderNumberEl = card.querySelector('.order-number');
+        if (orderNumberEl) {
+            const orderText = orderNumberEl.textContent || '';
+            if (orderText.includes(orderId) || orderText.includes(`#${orderId}`)) {
+                console.log("Found order via .order-number");
+                return card;
+            }
+        }
+        
+        // Check the order header
+        const orderHeader = card.querySelector('.order-header-left');
+        if (orderHeader) {
+            const headerText = orderHeader.textContent || '';
+            if (headerText.includes(orderId) || headerText.includes(`#${orderId}`)) {
+                console.log("Found order via .order-header-left");
+                return card;
+            }
+        }
+        
+        // Check the main order header div
+        const mainHeader = card.querySelector('.order-header > div');
+        if (mainHeader) {
+            const headerText = mainHeader.textContent || '';
+            if (headerText.includes(orderId) || headerText.includes(`#${orderId}`)) {
+                console.log("Found order via order-header > div");
+                return card;
+            }
+        }
+        
+        // Check for any element containing the exact order number pattern
+        const allElements = card.querySelectorAll('*');
+        for (let el of allElements) {
+            const elText = el.textContent || '';
+            if (elText.includes(`#${orderId}`) || elText.includes(`Order #${orderId}`)) {
+                console.log("Found order via element with text:", elText);
+                return card;
+            }
+        }
+    }
+    
+    console.log("Order not found on current page");
+    return null;
+}
+
+function findOrderInDocument(doc, orderId) {
+    const orderCards = doc.querySelectorAll('.order-card');
+    
+    for (let card of orderCards) {
+        const cardText = card.textContent || '';
+        
+        if (cardText.includes(`#${orderId}`) || 
+            cardText.includes(`Order #${orderId}`) ||
+            cardText.includes(`order #${orderId}`)) {
+            return { found: true, card: card };
+        }
+        
+        const orderNumberEl = card.querySelector('.order-number');
+        if (orderNumberEl) {
+            const orderText = orderNumberEl.textContent || '';
+            if (orderText.includes(orderId) || orderText.includes(`#${orderId}`)) {
+                return { found: true, card: card };
+            }
+        }
+        
+        const orderHeader = card.querySelector('.order-header-left');
+        if (orderHeader) {
+            const headerText = orderHeader.textContent || '';
+            if (headerText.includes(orderId) || headerText.includes(`#${orderId}`)) {
+                return { found: true, card: card };
+            }
+        }
+        
+        const mainHeader = card.querySelector('.order-header > div');
+        if (mainHeader) {
+            const headerText = mainHeader.textContent || '';
+            if (headerText.includes(orderId) || headerText.includes(`#${orderId}`)) {
+                return { found: true, card: card };
+            }
+        }
+    }
+    
+    return { found: false };
+}
+
+async function findAndHighlightOrder(orderId) {
+    console.log("Looking for order:", orderId);
+    
+    // First try to find on current page
+    let foundOrder = findOrderOnCurrentPage(orderId);
+    
+    if (foundOrder) {
+        highlightOrder(foundOrder);
+        return;
+    }
+    
+    // If not found, need to check other pages
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentPage = urlParams.get('page') || '1';
+    
+    // Get all page links
+    const paginationLinks = document.querySelectorAll('.pagination a');
+    let pagesToCheck = [];
+    
+    paginationLinks.forEach(link => {
+        const href = link.getAttribute('href');
+        const pageMatch = href.match(/[?&]page=(\d+)/);
+        if (pageMatch && pageMatch[1]) {
+            pagesToCheck.push({
+                page: pageMatch[1],
+                url: href
+            });
+        }
+    });
+    
+    // Remove duplicates and current page
+    pagesToCheck = [...new Map(pagesToCheck.map(item => [item.page, item])).values()]
+        .filter(p => p.page !== currentPage);
+    
+    console.log("Pages to check:", pagesToCheck);
+    
+    // Check each page
+    for (const pageInfo of pagesToCheck) {
+        console.log("Checking page:", pageInfo.page);
+        
+        try {
+            // Fetch the page content
+            const response = await fetch(pageInfo.url, {
+                headers: { 
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (!response.ok) continue;
+            
+            const html = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            // Look for the order in this page's content
+            const orderOnPage = findOrderInDocument(doc, orderId);
+            
+            if (orderOnPage.found) {
+                // Navigate to that page with highlight parameter
+                const separator = pageInfo.url.includes('?') ? '&' : '?';
+                window.location.href = `${pageInfo.url}${separator}highlight_order=${orderId}`;
+                return;
+            }
+        } catch (error) {
+            console.error("Error checking page:", error);
+        }
+    }
+    
+    console.log("Order not found on any page");
+}
+
+function highlightOrder(orderCard) {
+    // Remove any existing highlights
+    document.querySelectorAll('.highlight-order').forEach(el => {
+        el.classList.remove('highlight-order');
+    });
+    
+    // Add highlight to the found order
+    orderCard.classList.add('highlight-order');
+    
+    // Scroll to the highlighted order
+    orderCard.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+    });
+    
+    console.log("Order highlighted successfully");
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const highlightOrderId = urlParams.get('highlight_order');
+    
+    if (highlightOrderId) {
+        console.log("Highlight order requested:", highlightOrderId);
+        
+        setTimeout(() => {
+            // Direct approach - find by order number text
+            const orderId = highlightOrderId;
+            let found = false;
+            document.querySelectorAll('.order-card').forEach(card => {
+                const orderNumEl = card.querySelector('.order-number');
+                if (orderNumEl && orderNumEl.textContent.includes(`#${orderId}`)) {
+                    card.classList.add('highlight-order');
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    found = true;
+                }
+            });
+            if (!found) {
+                console.log('Order not on this page:', orderId);
+            }
+        }, 500);
+    }
+});
 </script>
 
 <style>
@@ -575,6 +891,20 @@
 .notification-link:hover .notification-item {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* Highlight style for order cards */
+.highlight-order {
+    animation: highlightPulse 2s ease-in-out;
+    border: 2px solid #406083 !important;
+    box-shadow: 0 0 15px rgba(64,96,131,0.3) !important;
+    background-color: #f0f7ff !important;
+}
+
+@keyframes highlightPulse {
+    0% { transform: scale(1); background-color: #fff; }
+    50% { transform: scale(1.02); background-color: #e8f0fe; }
+    100% { transform: scale(1); background-color: #fff; }
 }
 </style>
 {% endblock %}

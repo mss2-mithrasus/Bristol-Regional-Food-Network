@@ -10,6 +10,8 @@ from shopping_cart.models import Cart
 from user_accounts.models import ProducerAccount
 from product.models import Product
 from django.db import transaction
+from notifications.utils import notify_producers_new_order  
+from django.contrib import messages  
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -164,7 +166,6 @@ def payment_success(request):
                 for item_data in group['items']:
                     product = Product.objects.get(product_id=item_data['product_id'])
                     
-                    # ===== CRITICAL: REDUCE STOCK QUANTITY =====
                     quantity_purchased = item_data['quantity']
                     
                     # Check if enough stock exists (should be true, but double-check)
@@ -217,6 +218,14 @@ def payment_success(request):
                 producer_payout=total - commission,
                 status='pending'
             )
+        
+        # Notify producers about the new order
+        try:
+            notify_producers_new_order(order)
+            print(f"Sent new order notifications to producers for order #{order.order_id}")
+        except Exception as e:
+            print(f"Could not notify producers: {e}")
+            
         
         # Clear cart and session
         cart.items.all().delete()
