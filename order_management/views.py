@@ -74,7 +74,7 @@ def multi_checkout(request):
         # Calculate producer totals
         producer_subtotal = float(data['subtotal'])
         producer_commission = round(producer_subtotal * 0.05, 2)
-        producer_total = round(producer_subtotal * 1.05, 2)
+        producer_total = producer_subtotal + producer_commission
 
         # ===== GET PRODUCER ADDRESS =====
         producer_address = None

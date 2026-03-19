@@ -112,8 +112,8 @@ def payment_success(request):
         if not producer_groups:
             return redirect('multi_checkout')
         
-        total = float(checkout_data.get('total', 0))
-        commission = round(total * 0.05, 2)
+        total = sum(group['total'] for group in producer_groups)
+        commission = sum(group['commission'] for group in producer_groups)
         
         # Check if any producer needs delivery
         has_delivery = False
@@ -150,14 +150,21 @@ def payment_success(request):
             delivery_date = producer_data.get(date_key, None)
             
             producer = ProducerAccount.objects.get(id=producer_id)
-            subtotal = float(group['subtotal'])
+            producer_commission = float(group['commission']) 
+            #subtotal = float(group['subtotal'])
             producer_total = float(group['total'])
+
+            calculated_subtotal = producer_total - producer_commission
+    
+
+            #subtotal = producer_total - commission 
             
             suborder = SubOrder.objects.create(
                 order=order,
                 producer=producer,
                 delivery_date=delivery_date if delivery_date else None,
-                subtotal=subtotal,
+                subtotal=calculated_subtotal, 
+                #subtotal=subtotal,
                 payout_amount=producer_total,
                 status='Pending',
             )
