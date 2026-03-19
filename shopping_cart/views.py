@@ -412,16 +412,16 @@ def cart_icon_data(request):
         'subtotal': float(cart.subtotal)
     })
 
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def check_product_availability(request, product_id):
-    """
-    Check if a product is available for the current user to purchase
-    """
+    """Check how many units of a product are available for the current user"""
     try:
         product = Product.objects.get(product_id=product_id)
+        
         from .utils import get_available_stock
-        available = get_available_stock(product, request.user)
+        available = get_available_stock(product, exclude_user=request.user)
         
         return Response({
             'success': True,

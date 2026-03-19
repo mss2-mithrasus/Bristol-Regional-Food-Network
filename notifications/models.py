@@ -65,3 +65,38 @@ class Notification(models.Model):
     
     def __str__(self):
         return f"{self.recipient.email} - {self.title}"
+    
+class ProducerNotification(models.Model):
+    """
+    Notifications sent to producers
+    """
+    NOTIFICATION_TYPES = [
+        ('new_order', 'New Order'),
+        ('order_update', 'Order Update'),
+        ('general', 'General'),
+    ]
+    
+    notification_id = models.AutoField(primary_key=True)
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        related_name='producer_notifications'
+    )
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    
+    # Related objects (optional)
+    order = models.ForeignKey('order_management.Order', on_delete=models.SET_NULL, null=True, blank=True)
+    suborder = models.ForeignKey('order_management.SubOrder', on_delete=models.SET_NULL, null=True, blank=True)
+    
+    is_read = models.BooleanField(default=False)
+    is_seen = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = "producer_notifications"
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.recipient.email} - {self.title}"

@@ -9,6 +9,9 @@ from order_management.models import Order, SubOrder, OrderItem
 from shopping_cart.models import Cart
 from user_accounts.models import ProducerAccount
 from product.models import Product
+from django.db import transaction
+from notifications.utils import notify_producers_new_order  
+from django.contrib import messages  
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -52,8 +55,6 @@ def payment_page(request):
             'stripe_public_key': settings.STRIPE_PUBLIC_KEY
         })
     return redirect('multi_checkout')
-
-
 
 def payment_success(request):
     payment_intent_id = request.GET.get('payment_intent')
@@ -140,59 +141,91 @@ def payment_success(request):
         
         # Create SubOrders and collect items
         all_items = []
-        for group in producer_groups:
-            producer_id = group['producer']['id']
-            producer_data = checkout_data.get('producer_data', {})
-            date_key = f'producer_{producer_id}_delivery_date'
-            delivery_date = producer_data.get(date_key, None)
+        
+        # Use transaction to ensure all stock updates happen together
+        with transaction.atomic():
+            for group in producer_groups:
+                producer_id = group['producer']['id']
+                producer_data = checkout_data.get('producer_data', {})
+                date_key = f'producer_{producer_id}_delivery_date'
+                delivery_date = producer_data.get(date_key, None)
+                
+                producer = ProducerAccount.objects.get(id=producer_id)
+                subtotal = float(group['subtotal'])
+                producer_total = float(group['total'])
+                
+                suborder = SubOrder.objects.create(
+                    order=order,
+                    producer=producer,
+                    delivery_date=delivery_date if delivery_date else None,
+                    subtotal=subtotal,
+                    payout_amount=producer_total,
+                    status='Pending',
+                )
+                
+                for item_data in group['items']:
+                    product = Product.objects.get(product_id=item_data['product_id'])
+                    
+                    quantity_purchased = item_data['quantity']
+                    
+                    # Check if enough stock exists (should be true, but double-check)
+                    if product.stock_quantity >= quantity_purchased:
+                        # Reduce the stock
+                        product.stock_quantity -= quantity_purchased
+                        
+                        # Update availability status if stock becomes 0
+                        if product.stock_quantity == 0:
+                            product.availability_status = False
+                        
+                        product.save()
+                        print(f" Stock reduced for {product.name}: +{quantity_purchased} purchased, {product.stock_quantity} remaining")
+                    else:
+                        # This shouldn't happen if cart validation worked, but handle just in case
+                        print(f" ERROR: Not enough stock for {product.name}. Available: {product.stock_quantity}, Requested: {quantity_purchased}")
+                        raise Exception(f"Insufficient stock for {product.name}")
+                    
+                    # Create order item
+                    OrderItem.objects.create(
+                        suborder=suborder,
+                        product=product,
+                        quantity=quantity_purchased,
+                        price_at_purchase=item_data['price']
+                    )
+                    
+                    all_items.append({
+                        'name': item_data['product_name'],
+                        'quantity': quantity_purchased,
+                        'price': item_data['price'],
+                        'unit': item_data.get('unit', ''),
+                        'image': item_data.get('image', None),
+                        'producer': producer.business_name
+                    })
             
-            producer = ProducerAccount.objects.get(id=producer_id)
-            subtotal = float(group['subtotal'])
-            producer_total = float(group['total'])
-            
-            suborder = SubOrder.objects.create(
+            # Create PaymentTransaction
+            PaymentTransaction.objects.create(
                 order=order,
-                producer=producer,
-                delivery_date=delivery_date if delivery_date else None,
-                subtotal=subtotal,
-                payout_amount=producer_total,
-                status='Pending',
+                amount=total,
+                currency='gbp',
+                payment_method='card',
+                payment_status='succeeded',
+                stripe_payment_intent_id=payment_intent_id
             )
             
-            for item_data in group['items']:
-                product = Product.objects.get(product_id=item_data['product_id'])
-                OrderItem.objects.create(
-                    suborder=suborder,
-                    product=product,
-                    quantity=item_data['quantity'],
-                    price_at_purchase=item_data['price']
-                )
-                all_items.append({
-                    'name': item_data['product_name'],
-                    'quantity': item_data['quantity'],
-                    'price': item_data['price'],
-                    'unit': item_data.get('unit', ''),
-                    'image': item_data.get('image', None),
-                    'producer': producer.business_name
-                })
+            # Create Commission
+            Commission.objects.create(
+                order=order,
+                commission_amount=commission,
+                producer_payout=total - commission,
+                status='pending'
+            )
         
-        # Create PaymentTransaction
-        PaymentTransaction.objects.create(
-            order=order,
-            amount=total,
-            currency='gbp',
-            payment_method='card',
-            payment_status='succeeded',
-            stripe_payment_intent_id=payment_intent_id
-        )
-        
-        # Create Commission
-        Commission.objects.create(
-            order=order,
-            commission_amount=commission,
-            producer_payout=total - commission,
-            status='pending'
-        )
+        # Notify producers about the new order
+        try:
+            notify_producers_new_order(order)
+            print(f"Sent new order notifications to producers for order #{order.order_id}")
+        except Exception as e:
+            print(f"Could not notify producers: {e}")
+            
         
         # Clear cart and session
         cart.items.all().delete()

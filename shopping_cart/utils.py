@@ -11,15 +11,6 @@ def get_available_stock(product, exclude_user=None):
     # Current time
     now = timezone.now()
     
-    # ALL active reservations (including all users)
-    all_reservations = CartItem.objects.filter(
-        product=product,
-        reserved_until__gt=now
-    )
-
-    for r in all_reservations:
-        print(f"     - User: {r.cart.customer.email}, Quantity: {r.quantity}, Expires: {r.reserved_until}")
-    
     # Base queryset for active reservations
     reservations = CartItem.objects.filter(
         product=product,
@@ -29,12 +20,11 @@ def get_available_stock(product, exclude_user=None):
     # Exclude current user's own cart if provided
     if exclude_user and exclude_user.is_authenticated:
         reservations = reservations.exclude(cart__customer=exclude_user)
-        for r in reservations:
-            print(f"     - OTHER USER: {r.cart.customer.email}, Quantity: {r.quantity}")
     
     # Sum up quantities
     reserved_quantity = reservations.aggregate(total=Sum('quantity'))['total'] or 0
     
+    # Available = total stock - reserved by others
     available = product.stock_quantity - reserved_quantity
     
     return max(available, 0)

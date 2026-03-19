@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import notification_views
 from .views import ProducerCreateProductAPI, ProducerDashboardAPI, ProducerOrdersAPI, ProducerProductListAPI, ProducerDeleteProductAPI, ProducerUpdateOrderStatusAPI, ProducerUpdateProductAPI, ProducerWeeklyPaymentsAPI
 app_name = "producers"
 
@@ -21,4 +22,11 @@ urlpatterns = [
     path('api/weekly-payments/weeks/', views.ProducerWeeklyPaymentsWeeksAPI.as_view(), name='weekly_payments_weeks'),
     path('api/weekly-payments/history/', views.ProducerWeeklyPaymentsHistoryAPI.as_view(), name='weekly_payments_history'),
     path("api/weekly-payments/report/", views.ProducerWeeklyPaymentsCSV.as_view(), name="weekly_payments_csv"),
+    
+    # Producer Notifications
+    path('notifications/', notification_views.producer_notifications_page, name='producer_notifications'),
+    path('notifications/api/list/', notification_views.get_producer_notifications, name='api_producer_notifications'),
+    path('notifications/api/read/<int:notification_id>/', notification_views.mark_producer_notification_read, name='api_producer_notification_read'),
+    path('notifications/api/read-all/', notification_views.mark_all_producer_read, name='api_producer_notifications_read_all'),
+    path('notifications/api/unread-count/', notification_views.get_producer_unread_count, name='api_producer_unread_count'),
 ]
