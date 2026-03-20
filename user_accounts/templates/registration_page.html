@@ -183,8 +183,7 @@
             <div class="input_row password_wrapper">
                 <label>Confirm Password:</label>
                 <div class="password_field">
-                    <!-- ADDED (10-03-26) - Stops users from copy pasting password in the confirm password field -->
-                    <input type="password" id="confirm_password" name="confirm_password" onpaste="return false" autocomplete="new-password">
+                    <input type="password" id="confirm_password" name="confirm_password">
                     <!-- ICON -->
                     <i class="fa-solid fa-eye-slash toggle-password" data-target="confirm_password"></i>
                 </div>
@@ -210,20 +209,33 @@
 </main>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    // ADDED (10-03-26) - Prevents copy and pasting password in the confirm password field
-    const confirmField = document.getElementById("confirm_password");
-    // Block paste
-    confirmField.addEventListener("paste", (e) => e.preventDefault());
+    //adding postcode validation - lano
 
-    // Block right-click paste
-    confirmField.addEventListener("contextmenu", (e) => e.preventDefault());
+    // checking postcode against postcode.io api
+    async function checkPostcode(postcode){
+        try{
+        // removing spaces
+        const cleaned = postcode.replace(/\s+/g,"")
 
-    // Block keyboard shortcuts (Ctrl+V / Cmd+V)
-    confirmField.addEventListener("keydown", (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
-            e.preventDefault();
+        const response = await fetch(
+            `https://api.postcodes.io/postcodes/${cleaned}`
+        )
+        // covert api response to json
+        const data = await response.json();
+
+        if (data.status === 200){
+            return data.result;
+
+        } else {
+            return null;
         }
-    });
+
+    } catch (error){
+        return null;
+    }
+
+    }
+
 
     // Toggle button for passwords
     document.querySelectorAll(".toggle-password").forEach(icon => {
@@ -488,6 +500,15 @@ document.addEventListener("DOMContentLoaded", function () {
         const emailValue = getVisibleValue("email");
         const phoneValue = getVisibleValue("phone");
         const postcodeValue = getVisibleValue("postcode");
+
+        //validate postcode - lano
+        const postcodeData = await checkPostcode(postcodeValue);
+
+        if (!postcodeData) {
+            errorBox.innerHTML = "Please enter a valid UK postcode";
+            return;
+        }
+
         const email = (emailValue || "").toLowerCase();
 
         // Customer names
