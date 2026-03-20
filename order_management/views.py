@@ -71,10 +71,14 @@ def multi_checkout(request):
     total_quantity = 0  # Initialize total quantity counter
     
     for producer, data in items_by_producer_dict.items():
-        # Calculate producer totals
-        producer_subtotal = float(data['subtotal'])
-        producer_commission = round(producer_subtotal * 0.05, 2)
-        producer_total = producer_subtotal + producer_commission
+        # Product price already includes 5% commission
+        customer_price = float(data['subtotal'])
+        
+        # Calculate commission (5% of product price)
+        commission = round(customer_price * 0.05, 2)
+        
+        # Producer gets product price minus commission
+        producer_payout = customer_price - commission
 
         # ===== GET PRODUCER ADDRESS =====
         producer_address = None
@@ -147,19 +151,19 @@ def multi_checkout(request):
             "producer_address": producer_address,  # Just street and postcode
             "items": formatted_items,
             "min_delivery_date": min_delivery_date,
-            "subtotal": producer_subtotal,
-            "subtotal_formatted": f"{producer_subtotal:.2f}",
-            "commission": producer_commission,
-            "commission_formatted": f"{producer_commission:.2f}",
-            "total": producer_total,
-            "total_formatted": f"{producer_total:.2f}",
+            "subtotal": customer_price,           # Customer pays product price
+            "subtotal_formatted": f"{customer_price:.2f}",
+            "commission": commission,              # 5% platform fee
+            "commission_formatted": f"{commission:.2f}",
+            "total": customer_price,               # Customer total (same as subtotal)
+            "total_formatted": f"{customer_price:.2f}",
+            "producer_payout": producer_payout,    # What producer actually gets
         })
         
-        overall_subtotal += producer_subtotal
+        overall_subtotal += customer_price
     
-    overall_total = round(overall_subtotal * 1.05, 2)
+    overall_total = overall_subtotal 
     overall_total_formatted = f"{overall_total:.2f}"
-        
     overall_subtotal_formatted = f"{overall_subtotal:.2f}"
         
     
@@ -202,7 +206,7 @@ def multi_checkout(request):
                 "name": group["producer"]["name"],
             },
             "producer_address": group["producer_address"],
-            "min_delivery_date": str(group["min_delivery_date"]),  # Convert date to string
+            "min_delivery_date": str(group["min_delivery_date"]),
             "subtotal": group["subtotal"],
             "commission": group["commission"],
             "total": group["total"],
