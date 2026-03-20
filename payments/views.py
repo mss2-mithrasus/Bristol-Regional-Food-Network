@@ -110,8 +110,13 @@ def payment_success(request):
         if not producer_groups:
             return redirect('multi_checkout')
         
-        total = float(checkout_data.get('total', 0))
-        commission = round(total * 0.05, 2)
+        # total = float(checkout_data.get('total', 0))
+        # commission = round(total * 0.05, 2)
+
+        total = sum(group['total'] for group in producer_groups)
+        commission = sum(group['commission'] for group in producer_groups)
+
+
         
         # Check if any producer needs delivery
         has_delivery = False
@@ -150,19 +155,35 @@ def payment_success(request):
                 date_key = f'producer_{producer_id}_delivery_date'
                 delivery_date = producer_data.get(date_key, None)
                 
-                producer = ProducerAccount.objects.get(id=producer_id)
-                subtotal = float(group['subtotal'])
-                producer_total = float(group['total'])
+                # producer = ProducerAccount.objects.get(id=producer_id)
+                # subtotal = float(group['subtotal'])
+                # producer_total = float(group['total'])
                 
+                # suborder = SubOrder.objects.create(
+                #     order=order,
+                #     producer=producer,
+                #     delivery_date=delivery_date if delivery_date else None,
+                #     subtotal=subtotal,
+                #     payout_amount=producer_total,
+                #     status='Pending',
+                # )
+
+                producer = ProducerAccount.objects.get(id=producer_id)
+
+                subtotal = float(group['subtotal'])          
+                commission = float(group['commission'])      
+                producer_total = float(group['total'])       
+
                 suborder = SubOrder.objects.create(
                     order=order,
                     producer=producer,
                     delivery_date=delivery_date if delivery_date else None,
-                    subtotal=subtotal,
-                    payout_amount=producer_total,
+                    subtotal=subtotal,            
+                    payout_amount=subtotal,       
                     status='Pending',
                 )
-                
+
+               
                 for item_data in group['items']:
                     product = Product.objects.get(product_id=item_data['product_id'])
                     
