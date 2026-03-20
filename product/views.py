@@ -11,6 +11,7 @@ from django.db.models import Q
 from rest_framework.permissions import IsAuthenticated
 from user_accounts.permissions import IsCustomer
 from django.contrib.auth.decorators import login_required
+from product.utils import food_miles
 
 
 # api to return all product categories for the frontend page
@@ -138,8 +139,21 @@ class ProductDetailAPIView(APIView):
         allergens = product.productallergen_set.all()
         allergens_serializer = ProductAllergenSerializer(allergens, many=True)
         
+        #food miles
         
-        return Response({"product": serializer.data, "allergens": allergens_serializer.data}, status=status.HTTP_200_OK)
+        customer = request.user.customeraccount
+        
+        customer_postcode = customer.address.postcode
+        producer_postcode = product.producer.address.postcode
+        
+        print("customer postcode:", customer_postcode)
+        print("producer postcode:", producer_postcode)
+        
+        farm_miles = food_miles(customer_postcode, producer_postcode)
+        
+        
+        
+        return Response({"product": serializer.data, "farm_miles": farm_miles, "allergens": allergens_serializer.data}, status=status.HTTP_200_OK)
 
 
 class ProductCategoryCreateAPIView(APIView):
