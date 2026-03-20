@@ -6,6 +6,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth import login
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import login
 from .serializers import RegistrationSerializer, LoginSerializer, FailedLoginAttemptSerializer, DeletionAuditSerializer
 from .permissions import IsProducer, IsCustomer, IsAdmin
 from django.utils import timezone

@@ -1,0 +1,232 @@
+/* Payments page specific styles */
+.right-controls{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.toggle{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  font-weight:800;
+  color:#406083;
+  background:#f2f2f2;
+  padding:8px 12px;
+  border-radius:999px;
+}
+
+.meta-row{
+  display:flex;
+  gap:16px;
+  flex-wrap:wrap;
+  margin-top:10px;
+  margin-bottom: 10px;
+  font-weight:700;
+  color:#406083;
+}
+
+.download-row{
+  display:flex;
+  gap:10px;
+  margin-top:12px;
+  margin-bottom: 10px;
+  justify-content:flex-end;
+}
+
+.hint{
+  margin-top:10px;
+  background:#f2f2f2;
+  padding:10px 12px;
+  border-radius:10px;
+  color:#406083;
+  font-weight:700;
+}
+
+/* Settlement breakdown table (8 columns) */
+.panel .pay-table{
+  display:grid !important;
+  grid-template-columns: 1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr 0.8fr !important;
+  gap:10px;
+  align-items:center;
+  width: 100%;  
+  box-sizing: border-box;  
+}
+.pay-table.head,
+.pay-table.row {
+  display: grid !important;
+  grid-template-columns: 1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr 0.8fr !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+.pay-table.head{
+  display: grid !important;   
+  font-weight:800 !important;
+  background:rgba(0,0,0,0.18);
+  padding:10px 12px;
+  border-radius:10px;
+  margin-bottom:8px;
+
+}
+.pay-table.row{
+  display: grid !important; 
+  background:#ffffff;
+  border:1px solid #e6ebf1;
+  padding:12px 14px;
+  border-radius:8px;
+  margin-bottom:18px;
+}
+.pay-table.row:hover{
+  background:#f8fafc;
+}
+.pay-table.row > div{
+  font-weight:700;
+  text-align:center;
+}
+.pay-table.row > div:nth-child(2),
+.pay-table.row > div:nth-child(4){
+  text-align:left;
+}
+.items-cell{
+  line-height:1.2;
+  word-break:break-word;
+}
+
+/* History table (6 columns) */
+.history-table{
+  display:grid !important;
+  grid-template-columns: 2fr 1.5fr 1fr 1fr 1.2fr 0.8fr;
+  gap:10px;
+  align-items:center;
+}
+.history-table.head{
+  font-weight:800;
+  background:rgba(0,0,0,0.18);
+  padding:10px 12px;
+  border-radius:10px;
+  margin-bottom:8px;
+}
+.history-table.row{
+  background:#f2f2f2;
+  color:#406083;
+  padding:10px 12px;
+  border-radius:10px;
+  margin-bottom:8px;
+}
+.history-table.row > div{
+  font-weight:700;
+  text-align:center;
+}
+.history-table.row > div:nth-child(1),
+.history-table.row > div:nth-child(2){
+  text-align:left;
+}
+
+#historyRows{
+  display:block;
+}
+
+/* Audit modal box */
+.audit-box{
+  margin-top:10px;
+  background:#f2f2f2;
+  padding:12px;
+  border-radius:12px;
+  color:#406083;
+  font-weight:700;
+}
+.audit-box .hint{
+  margin-top:10px;
+}
+.stats-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:16px;
+  margin-top:16px;
+  margin-bottom:16px;
+}
+
+.stat-card{
+
+  border-radius:10px;
+  padding:18px;
+}
+.stat-card strong{
+  font-size:20px;
+  font-weight:700;
+}
+.stat-title{
+  font-size:14px;
+  color:#6b7a8c;
+  font-weight:600;
+}
+
+.stat-value{
+  font-size:22px;
+  font-weight:700;
+  color:#1f2d3d;
+  margin-top:6px;
+}
+.panel-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:20px;
+}
+
+.panel-controls{
+  display:flex;
+  gap:12px;
+  align-items:center;
+}
+
+.week-select{
+  padding:8px 14px;
+  border-radius:8px;
+  border:1px solid #d4d8dd;
+  font-weight:600;
+  background:#fff;
+}
+.week-select:hover{
+  border-color:#406083; }
+
+.section-title{
+  font-size:20px;
+  font-weight:700;
+  margin-top:35px;
+  margin-bottom:24px;
+  padding-bottom:8px;
+  border-bottom:2px solid #d8dee6;
+}
+.pay-table.head div,
+.history-table.head div{
+  font-size:14px;
+  font-weight:700;
+}
+.pay-table.row div,
+.history-table.row div{
+  font-size:14px;
+}
+.highlight {
+  background-color: #f6fff4;
+  transition: background-color 1.5s ease;
+}
+@media print {
+
+  body * {
+    visibility: hidden;
+  }
+
+  #weeklySummary, #weeklySummary * {
+    visibility: visible;
+  }
+
+  #weeklySummary {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+}

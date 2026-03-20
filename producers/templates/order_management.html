@@ -28,56 +28,23 @@
 
   <div class="table-wrap">
 
-    <div class="prod-table orders head" style="grid-template-columns: 1.1fr 1.6fr 1.1fr 1.1fr 2fr 0.9fr 1fr 0.9fr;">
+    <div class="prod-table orders head" style="grid-template-columns: 1fr 1.6fr 1fr 1fr 1fr 2fr 1fr 1fr 1fr;">
       <div>Order #</div>
       <div>Customer</div>
       <div>Order Date</div>
       <div>Delivery Date</div>
+      <div>Delivery Type</div>
       <div>Items</div>
       <div>Total</div>
       <div>Status</div>
       <div>Actions</div>
     </div>
 
-    
-    {% if orders %}
-      {% for o in orders %}
-        <div class="prod-table orders row order-row"
-             data-status="{{ o.status }}"
-             data-order-id="{{ o.order_id }}"
-             data-customer-name="{{ o.customer_name }}"
-             data-customer-contact="{{ o.customer_contact }}"
-             data-delivery-address="{{ o.delivery_address }}"
-             data-order-date="{{ o.created_at|date:'d/m/Y' }}"
-             data-delivery-date="{{ o.delivery_date|date:'d/m/Y' }}"
-             data-special-instruction="{{ o.special_instruction|default:'None' }}"
-             data-items='{{ o.items_json|escapejs }}'
-             data-total="{{ o.total_value }}">
-
-          <div><strong>#{{ o.order_id }}</strong></div>
-          <div>{{ o.customer_name }}</div>
-          <div>{{ o.created_at|date:"d/m/Y" }}</div>
-          <div><strong>{{ o.delivery_date|date:"d/m/Y" }}</strong></div>
-          <div class="order-items">{{ o.items_summary }}</div>
-          <div><strong>£{{ o.total_value }}</strong></div>
-          <div>
-            <span class="tag {% if o.status == 'Pending' %}red{% elif o.status == 'Ready' %}amber{% else %}green{% endif %}">
-              {{ o.status }}
-            </span>
-          </div>
-          <div class="actions">
-            <button class="mini-btn view-btn" type="button">View</button>
-          </div>
-        </div>
-      {% endfor %}
-    {% else %}
-      <div style="padding:10px; font-weight:700;">No incoming orders yet.</div>
-    {% endif %}
-
+    <div id="ordersRows"></div>
   </div>
 </section>
 
-<!-- Modal -->
+<!-- Order Details Modal -->
 <div id="orderModal" class="modal order-modal" style="display:none;">
   <div class="modal-content order-modal-content">
     <div class="panel-header-row">
@@ -143,268 +110,363 @@
     </div>
   </div>
 </div>
+<!-- Toast notification -->
+<div id="toastMsg" style="
+    display:none;
+    position:fixed;
+    top:24px;
+    right:24px;
+    z-index:99999;
+    padding:14px 22px;
+    border-radius:10px;
+    font-size:15px;
+    font-weight:600;
+    box-shadow:0 4px 16px rgba(0,0,0,0.12);
+    min-width:260px;
+    transition:opacity 0.3s;
+"></div>
+<!-- Status Update Note Modal -->
+<div id="statusNoteModal" class="modal" style="display:none;">
+  <div class="modal-content" style="max-width:460px;">
+    <h3 style="margin:0 0 12px; color:#406083;">Update Order Status</h3>
 
-<script>
-/* ---------- modal open/close ---------- */
-function openModal(){ document.getElementById("orderModal").style.display="flex"; }
-function closeModal(){ document.getElementById("orderModal").style.display="none"; }
+    <p id="statusNotePrompt" style="margin-bottom:14px; color:#555;"></p>
 
-document.getElementById("closeModalBtn").addEventListener("click", closeModal);
-document.getElementById("orderModal").addEventListener("click",(e)=>{ if(e.target.id==="orderModal") closeModal(); });
-document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") closeModal(); });
-
-/* ---------- status filter (frontend only) ---------- */
-document.getElementById("statusFilter").addEventListener("change", () => {
-  const selected = document.getElementById("statusFilter").value;
-  document.querySelectorAll(".order-row").forEach(row => {
-    const status = row.dataset.status || "";
-    row.style.display = (!selected || status === selected) ? "grid" : "none";
-  });
-});
-
-/* ---------- open details from row dataset ---------- */
-document.querySelectorAll(".view-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    const row = btn.closest(".order-row");
-
-    document.getElementById("modalMeta").innerHTML =
-      `Order <strong>#${row.dataset.orderId}</strong>`;
-
-    document.getElementById("dCustomerName").value = row.dataset.customerName || "";
-    document.getElementById("dCustomerContact").value = row.dataset.customerContact || "";
-    document.getElementById("dDeliveryAddress").value = row.dataset.deliveryAddress || "";
-    document.getElementById("dOrderDate").value = row.dataset.orderDate || "";
-    document.getElementById("dDeliveryDate").value = row.dataset.deliveryDate || "";
-    document.getElementById("dSpecialInstruction").value = row.dataset.specialInstruction || "None";
-    document.getElementById("dTotalAmount").textContent = "£" + (row.dataset.total || "0.00");
-
-    // items JSON (later you pass it from Django)
-    const itemsWrap = document.getElementById("itemsRows");
-    itemsWrap.innerHTML = "";
-    let items = [];
-    try { items = JSON.parse(row.dataset.items || "[]"); } catch(e){ items = []; }
-
-    items.forEach(it => {
-      const r = document.createElement("div");
-      r.className = "prod-table row";
-      r.style.gridTemplateColumns = "2fr 0.7fr 0.9fr 0.9fr";
-      r.innerHTML = `
-        <div style="text-align:left;">${it.product_name || ""}</div>
-        <div>${it.quantity || 0}</div>
-        <div>£${Number(it.price_at_purchase || 0).toFixed(2)}</div>
-        <div><strong>£${Number((it.quantity||0)*(it.price_at_purchase||0)).toFixed(2)}</strong></div>
-      `;
-      itemsWrap.appendChild(r);
-    });
-
-    openModal();
-  });
-});
-</script>
-
-{% endblock %}
-{% extends "producer_base.html" %}
-{% load static %}
-
-{% block head %}
-{{ block.super }}
-<link rel="stylesheet" href="{% static 'order_management.css' %}">
-{% endblock %}
-
-{% block content %}
-
-<div class="welcome">
-  <h1>Order Management</h1>
-  <p>View and manage your orders here.</p>
-</div>
-
-<section class="panel">
-  <div class="panel-header-row">
-    <h2>Incoming Orders</h2>
-
-    <select id="statusFilter" class="button-pill" style="border-radius:10px; padding:8px 12px;">
-      <option value="">All statuses</option>
-      <option value="Pending">Pending</option>
-      <option value="Confirmed">Confirmed</option>
-      <option value="Ready">Ready</option>
-      <option value="Delivered">Delivered</option>
-    </select>
-  </div>
-
-  <div class="table-wrap">
-
-    <div class="prod-table orders head" style="grid-template-columns: 1.1fr 1.6fr 1.1fr 1.1fr 2fr 0.9fr 1fr 0.9fr;">
-      <div>Order #</div>
-      <div>Customer</div>
-      <div>Order Date</div>
-      <div>Delivery Date</div>
-      <div>Items</div>
-      <div>Total</div>
-      <div>Status</div>
-      <div>Actions</div>
+    <div class="form-group">
+      <label>Note to customer <span style="color:#999; font-weight:400;">(optional)</span></label>
+      <textarea id="statusNoteInput" rows="3"
+        style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:14px; resize:vertical;"
+        placeholder="e.g. Your order is being prepared and will be ready soon."></textarea>
     </div>
 
-    
-    {% if orders %}
-      {% for o in orders %}
-        <div class="prod-table orders row order-row"
-             data-status="{{ o.status }}"
-             data-order-id="{{ o.order_id }}"
-             data-customer-name="{{ o.customer_name }}"
-             data-customer-contact="{{ o.customer_contact }}"
-             data-delivery-address="{{ o.delivery_address }}"
-             data-order-date="{{ o.created_at|date:'d/m/Y' }}"
-             data-delivery-date="{{ o.delivery_date|date:'d/m/Y' }}"
-             data-special-instruction="{{ o.special_instruction|default:'None' }}"
-             data-items='{{ o.items_json|escapejs }}'
-             data-total="{{ o.total_value }}">
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
+      <button id="statusNoteCancelBtn" class="button-pill secondary" type="button">Cancel</button>
+      <button id="statusNoteConfirmBtn" class="button-pill" type="button">Confirm Update</button>
+    </div>
+  </div>
+</div>
 
-          <div><strong>#{{ o.order_id }}</strong></div>
-          <div>{{ o.customer_name }}</div>
-          <div>{{ o.created_at|date:"d/m/Y" }}</div>
-          <div><strong>{{ o.delivery_date|date:"d/m/Y" }}</strong></div>
-          <div class="order-items">{{ o.items_summary }}</div>
-          <div><strong>£{{ o.total_value }}</strong></div>
-          <div>
-            <span class="tag {% if o.status == 'Pending' %}red{% elif o.status == 'Ready' %}amber{% else %}green{% endif %}">
-              {{ o.status }}
-            </span>
-          </div>
-          <div class="actions">
+<script>
+
+function getAccessToken(){
+    return localStorage.getItem("access") || sessionStorage.getItem("access");
+}
+
+if(!getAccessToken()){
+    window.location.href="/login/";
+}
+
+const token = getAccessToken();
+
+/* ---------------- MODAL CONTROLS ---------------- */
+
+function openModal(){
+    document.getElementById("orderModal").style.display="flex";
+}
+
+function closeModal(){
+    document.getElementById("orderModal").style.display="none";
+}
+
+document.getElementById("closeModalBtn").addEventListener("click", closeModal);
+
+document.getElementById("orderModal").addEventListener("click",(e)=>{
+    if(e.target.id==="orderModal") closeModal();
+});
+
+document.addEventListener("keydown",(e)=>{
+    if(e.key==="Escape"){
+        closeModal();
+        closeStatusNoteModal();
+    }
+});
+
+/* ---------------- LOAD ORDERS ---------------- */
+
+fetch("/producer/api/orders/",{
+    headers:{ "Authorization":"Bearer "+token }
+})
+.then(r=>{
+    if(r.status===401) throw new Error("Unauthorized");
+    return r.json();
+})
+.then(data=>renderOrders(data.orders || []))
+.catch(err=>{
+    console.error(err);
+});
+
+
+function canConfirmOrder(createdAt) {
+  const orderTime = new Date(createdAt);
+  const now = new Date();
+  const hoursPassed = (now - orderTime) / (1000 * 60 * 60);
+  return hoursPassed >= 48;
+}
+
+setInterval(() => {
+  document.querySelectorAll(".order-row").forEach(row => {
+      if (row.dataset.status !== "Pending") return;
+      const createdAt = row.dataset.orderDate;
+      if (!createdAt) return;
+      const label = row.querySelector(".prep-window-label");
+      if (label && canConfirmOrder(createdAt)) {
+          label.remove();
+      }
+  });
+}, 60000); // check every 60 seconds
+
+function renderOrders(orders){
+
+  const container=document.getElementById("ordersRows");
+  container.innerHTML="";
+
+  if(!orders.length){
+      container.innerHTML="<div style='padding:10px;font-weight:700;'>No incoming orders yet.</div>";
+      return;
+  }
+
+  const fragment = document.createDocumentFragment();
+
+  orders.forEach(o=>{
+
+        const itemsSummary = o.items.map(i =>
+            `${i.product_name} x${i.quantity}`
+        ).join(", ");
+
+        const deliveryType = o.delivery_date ? "Delivery" : "Collection";
+
+        const row=document.createElement("div");
+        row.className="prod-table orders row order-row";
+        row.style.gridTemplateColumns="1.1fr 1.6fr 1.1fr 1.1fr 1fr 2fr 0.9fr 1fr 0.9fr";
+
+        row.dataset.status=o.status;
+        row.dataset.orderId=o.order_id;
+        row.dataset.customerName=o.customer_name;
+        row.dataset.customerContact=o.customer_contact;
+        row.dataset.deliveryAddress=o.delivery_address;
+        row.dataset.orderDate=o.created_at;
+        row.dataset.deliveryDate=o.delivery_date;
+        row.dataset.items=JSON.stringify(o.items);
+        row.dataset.total=o.total_value;
+
+        const readyToConfirm = canConfirmOrder(o.created_at);
+        const pendingTooltip = !readyToConfirm && o.status === 'Pending'
+            ? `title="Cannot confirm yet — 48-hour preparation window has not passed"`
+            : '';
+
+        row.innerHTML=`
+        <div><strong>#${o.order_id}</strong></div>
+        <div>${o.customer_name}</div>
+        <div>${o.created_at}</div>
+        <div>${o.delivery_date || "-"}</div>
+        <div>${deliveryType}</div>
+        <div class="order-items">${itemsSummary}</div>
+        <div><strong>£${o.total_value}</strong></div>
+
+        <div>
+            <select class="status-select" data-id="${o.order_id}" ${pendingTooltip}>
+                <option ${o.status==="Pending"?"selected":""}>Pending</option>
+                <option ${o.status==="Confirmed"?"selected":""}>Confirmed</option>
+                <option ${o.status==="Ready"?"selected":""}>Ready</option>
+                <option ${o.status==="Delivered"?"selected":""}>Delivered</option>
+            </select>
+        </div>
+
+        <div class="actions">
             <button class="mini-btn view-btn" type="button">View</button>
-          </div>
         </div>
-      {% endfor %}
-    {% else %}
-      <div style="padding:10px; font-weight:700;">No incoming orders yet.</div>
-    {% endif %}
+        `;
+        container.appendChild(row);
+    });
 
-  </div>
-</section>
+    container.appendChild(fragment);
+}
 
-<!-- Modal -->
-<div id="orderModal" class="modal order-modal" style="display:none;">
-  <div class="modal-content order-modal-content">
-    <div class="panel-header-row">
-      <h2 style="margin:0;">Order Details</h2>
-      <button class="button-pill" type="button" id="closeModalBtn">Close</button>
-    </div>
+/* ---------------- VIEW ORDER DETAILS ---------------- */
 
-    <div id="modalMeta" style="margin-bottom:10px; font-weight:700; color:#406083;"></div>
+document.addEventListener("click",function(e){
 
-    <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+    if(!e.target.classList.contains("view-btn")) return;
 
-      <div class="form-group">
-        <label>Customer Name</label>
-        <input id="dCustomerName" disabled>
-      </div>
+    const row=e.target.closest(".order-row");
 
-      <div class="form-group">
-        <label>Customer Contact</label>
-        <input id="dCustomerContact" disabled>
-      </div>
+    document.getElementById("modalMeta").innerHTML=
+        `Order <strong>#${row.dataset.orderId}</strong>`;
 
-      <div class="form-group form-group-full">
-        <label>Delivery Address</label>
-        <input id="dDeliveryAddress" disabled>
-      </div>
+    document.getElementById("dCustomerName").value=row.dataset.customerName||"";
+    document.getElementById("dCustomerContact").value=row.dataset.customerContact||"";
+    document.getElementById("dDeliveryAddress").value=row.dataset.deliveryAddress||"";
+    document.getElementById("dOrderDate").value=row.dataset.orderDate||"";
+    document.getElementById("dDeliveryDate").value=row.dataset.deliveryDate||"";
 
-      <div class="form-group">
-        <label>Order Date</label>
-        <input id="dOrderDate" disabled>
-      </div>
+    document.getElementById("dTotalAmount").textContent="£"+(row.dataset.total||"0.00");
 
-      <div class="form-group">
-        <label>Delivery Date</label>
-        <input id="dDeliveryDate" disabled>
-      </div>
+    const itemsWrap=document.getElementById("itemsRows");
+    itemsWrap.innerHTML="";
 
-      <div class="form-group form-group-full">
-        <label>Special Instructions</label>
-        <textarea id="dSpecialInstruction" rows="3" disabled></textarea>
-      </div>
+    let items=[];
+    try{
+        items=JSON.parse(row.dataset.items||"[]");
+    }catch(e){ items=[]; }
 
-      <div class="form-group form-group-full">
-        <label>Itemised Products</label>
+    items.forEach(it=>{
+        const r=document.createElement("div");
+        r.className="prod-table row";
+        r.style.gridTemplateColumns="2fr 0.7fr 0.9fr 0.9fr";
 
-        <div class="table-wrap">
-          <div class="prod-table head" style="grid-template-columns: 2fr 0.7fr 0.9fr 0.9fr;">
-            <div>Product</div>
-            <div>Qty</div>
-            <div>Price</div>
-            <div>Total</div>
-          </div>
-          <div id="itemsRows"></div>
+        r.innerHTML=`
+        <div style="display:flex;align-items:center;gap:8px;">
+            ${it.image ? `<img src="${it.image}" style="width:40px;height:40px;border-radius:6px;">` : ""}
+            ${it.product_name||""}
         </div>
-
-        <div class="order-total-row" style="display:flex; justify-content:flex-end; margin-top:10px;">
-          <div class="pill mini">
-            <span>Total</span>
-            <strong id="dTotalAmount">£0.00</strong>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-<script>
-/* ---------- modal open/close ---------- */
-function openModal(){ document.getElementById("orderModal").style.display="flex"; }
-function closeModal(){ document.getElementById("orderModal").style.display="none"; }
-
-document.getElementById("closeModalBtn").addEventListener("click", closeModal);
-document.getElementById("orderModal").addEventListener("click",(e)=>{ if(e.target.id==="orderModal") closeModal(); });
-document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") closeModal(); });
-
-/* ---------- status filter (frontend only) ---------- */
-document.getElementById("statusFilter").addEventListener("change", () => {
-  const selected = document.getElementById("statusFilter").value;
-  document.querySelectorAll(".order-row").forEach(row => {
-    const status = row.dataset.status || "";
-    row.style.display = (!selected || status === selected) ? "grid" : "none";
-  });
-});
-
-/* ---------- open details from row dataset ---------- */
-document.querySelectorAll(".view-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    const row = btn.closest(".order-row");
-
-    document.getElementById("modalMeta").innerHTML =
-      `Order <strong>#${row.dataset.orderId}</strong>`;
-
-    document.getElementById("dCustomerName").value = row.dataset.customerName || "";
-    document.getElementById("dCustomerContact").value = row.dataset.customerContact || "";
-    document.getElementById("dDeliveryAddress").value = row.dataset.deliveryAddress || "";
-    document.getElementById("dOrderDate").value = row.dataset.orderDate || "";
-    document.getElementById("dDeliveryDate").value = row.dataset.deliveryDate || "";
-    document.getElementById("dSpecialInstruction").value = row.dataset.specialInstruction || "None";
-    document.getElementById("dTotalAmount").textContent = "£" + (row.dataset.total || "0.00");
-
-    // items JSON (later you pass it from Django)
-    const itemsWrap = document.getElementById("itemsRows");
-    itemsWrap.innerHTML = "";
-    let items = [];
-    try { items = JSON.parse(row.dataset.items || "[]"); } catch(e){ items = []; }
-
-    items.forEach(it => {
-      const r = document.createElement("div");
-      r.className = "prod-table row";
-      r.style.gridTemplateColumns = "2fr 0.7fr 0.9fr 0.9fr";
-      r.innerHTML = `
-        <div style="text-align:left;">${it.product_name || ""}</div>
-        <div>${it.quantity || 0}</div>
-        <div>£${Number(it.price_at_purchase || 0).toFixed(2)}</div>
+        <div>${it.quantity||0}</div>
+        <div>£${Number(it.price_at_purchase||0).toFixed(2)}</div>
         <div><strong>£${Number((it.quantity||0)*(it.price_at_purchase||0)).toFixed(2)}</strong></div>
-      `;
-      itemsWrap.appendChild(r);
+        `;
+
+        itemsWrap.appendChild(r);
     });
 
     openModal();
-  });
 });
-</script>
 
+/* ---------------- STATUS NOTE MODAL ---------------- */
+
+let pendingStatusUpdate = null; // stores { selectEl, orderId, newStatus, row }
+
+function openStatusNoteModal(selectEl, orderId, newStatus, row) {
+    const defaultNotes = {
+        'Confirmed': 'Products will be prepared by the delivery date.',
+        'Ready': 'Your order is ready for collection/delivery.',
+        'Delivered': 'Thank you for your order!'
+    };
+
+    document.getElementById("statusNotePrompt").textContent =
+        `You are updating Order #${orderId} to "${newStatus}". Add an optional note for the customer:`;
+
+    document.getElementById("statusNoteInput").value = defaultNotes[newStatus] || '';
+
+    pendingStatusUpdate = { selectEl, orderId, newStatus, row };
+
+    document.getElementById("statusNoteModal").style.display = "flex";
+}
+
+function closeStatusNoteModal() {
+  document.getElementById("statusNoteModal").style.display = "none";
+  pendingStatusUpdate = null;
+}
+
+function showToast(message, type) {
+  const toast = document.getElementById("toastMsg");
+  toast.textContent = message;
+  toast.style.background = type === 'error' ? '#fde8e8' : '#e8f5e9';
+  toast.style.border = type === 'error' ? '1px solid #f5c6c6' : '1px solid #c8e6c9';
+  toast.style.color = type === 'error' ? '#c0392b' : '#2e7d32';
+  toast.style.display = 'block';
+  toast.style.opacity = '1';
+  setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => { toast.style.display = 'none'; }, 300);
+  }, 6000);
+}
+
+document.getElementById("statusNoteCancelBtn").addEventListener("click", function() {
+    // Revert the dropdown to previous status
+    if (pendingStatusUpdate) {
+        pendingStatusUpdate.selectEl.value = pendingStatusUpdate.row.dataset.status;
+    }
+    closeStatusNoteModal();
+});
+
+document.getElementById("statusNoteModal").addEventListener("click", function(e) {
+    if (e.target.id === "statusNoteModal") {
+        if (pendingStatusUpdate) {
+            pendingStatusUpdate.selectEl.value = pendingStatusUpdate.row.dataset.status;
+        }
+        closeStatusNoteModal();
+    }
+});
+
+document.getElementById("statusNoteConfirmBtn").addEventListener("click", function() {
+    if (!pendingStatusUpdate) return;
+
+    const { selectEl, orderId, newStatus, row } = pendingStatusUpdate;
+    const note = document.getElementById("statusNoteInput").value.trim();
+
+    closeStatusNoteModal();
+
+    fetch(`/producer/api/orders/${orderId}/status/`, {
+        method: "PATCH",
+        headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ status: newStatus, note: note })
+    })
+    .then(async r => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || "Update failed");
+
+        row.dataset.status = newStatus;
+        console.log(`Order #${orderId} updated to ${newStatus}`);
+    })
+    .catch(err => {
+        console.error("Status update failed", err);
+        // Revert dropdown on failure
+        selectEl.value = row.dataset.status;
+        showToast(err.message, 'error');
+    });
+});
+
+/* ---------------- UPDATE ORDER STATUS ---------------- */
+
+document.addEventListener("change", function(e){
+
+    if(!e.target.classList.contains("status-select")) return;
+
+    const selectEl = e.target;
+    const orderId = selectEl.dataset.id;
+    const newStatus = selectEl.value;
+    const row = selectEl.closest(".order-row");
+
+    // Don't show note modal for Pending (no need to notify on revert)
+    if (newStatus === "Pending") {
+        fetch(`/producer/api/orders/${orderId}/status/`, {
+            method: "PATCH",
+            headers: {
+                "Authorization": "Bearer " + token,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ status: newStatus, note: "" })
+        })
+        .then(async r => {
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.error || "Update failed");
+            row.dataset.status = newStatus;
+        })
+        .catch(err => {
+            console.error("Status update failed", err);
+            selectEl.value = row.dataset.status;
+            showToast(err.message, 'error');
+        });
+        return;
+    }
+
+    // For Confirmed, Ready, Delivered — show the note modal
+    openStatusNoteModal(selectEl, orderId, newStatus, row);
+});
+
+/* ---------------- STATUS FILTER ---------------- */
+
+document.getElementById("statusFilter").addEventListener("change",()=>{
+
+    const selected=document.getElementById("statusFilter").value;
+
+    document.querySelectorAll(".order-row").forEach(row=>{
+        const status=row.dataset.status||"";
+        row.style.display=(!selected||status===selected)?"grid":"none";
+    });
+});
+
+</script>
 {% endblock %}

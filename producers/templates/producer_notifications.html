@@ -1,0 +1,496 @@
+{% extends "producer_base.html" %}
+{% load static %}
+
+{% block head %}
+    {{ block.super }}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .notifications-container {
+            max-width: 900px;
+            margin: 20px;
+            padding: 0;
+        }
+
+        .page-title {
+            font-size: 28px;
+            color: #406083;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .page-title i {
+            color: #406083;
+            font-size: 24px;
+        }
+
+        .notifications-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .mark-all-read {
+            padding: 8px 18px;
+            background: #f8f9fa;
+            border: 1px solid #406083;
+            color: #406083;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mark-all-read i {
+            font-size: 14px;
+        }
+
+        .mark-all-read:hover {
+            background: #406083;
+            color: white;
+        }
+
+        .notifications-tabs {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 8px;
+        }
+
+        .tab-btn {
+            padding: 6px 12px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            color: #666;
+            border-radius: 4px;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .tab-btn:hover {
+            color: #406083;
+            background: #f0f7ff;
+        }
+
+        .tab-btn.active {
+            color: #406083;
+            font-weight: 600;
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -9px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #406083;
+        }
+
+        .notifications-list {
+            min-height: 400px;
+        }
+
+        .notification-item {
+            display: flex;
+            gap: 15px;
+            padding: 16px 20px;
+            background: white;
+            border: 1px solid #eaeaea;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .notification-item:hover {
+            background: #f8f9fa;
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .notification-item.unread {
+            border-left: 4px solid #406083;
+            background: #f8fbff;
+        }
+
+        .notification-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .notification-icon.new_order {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .notification-icon.order_update {
+            background: #fff8e1;
+            color: #ff8f00;
+        }
+
+        .notification-icon.general {
+            background: #f5f5f5;
+            color: #616161;
+        }
+
+        .notification-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .notification-content h4 {
+            margin: 0 0 4px 0;
+            color: #333;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .notification-content p {
+            margin: 0 0 4px 0;
+            color: #666;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .notification-time {
+            font-size: 11px;
+            color: #999;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .notification-time i {
+            font-size: 10px;
+            color: #ccc;
+        }
+
+        .empty-notifications {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+            background: white;
+            border-radius: 10px;
+            border: 1px dashed #e0e0e0;
+        }
+
+        .empty-notifications i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            color: #406083;
+            opacity: 0.2;
+        }
+
+        .empty-notifications h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: #406083;
+            font-weight: 500;
+        }
+
+        .empty-notifications p {
+            font-size: 14px;
+            color: #999;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            background: white;
+            border-radius: 10px;
+        }
+
+        .loading i {
+            margin-right: 8px;
+            color: #406083;
+        }
+
+        .notification-link {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="notifications-container">
+    <div class="notifications-header">
+        <h1 class="page-title">
+            <i class="fa-solid fa-bell"></i> Notifications
+        </h1>
+        <button class="mark-all-read" onclick="markAllRead()">
+            <i class="fa-regular fa-circle-check"></i> Mark all as read
+        </button>
+    </div>
+    
+    <div class="notifications-tabs">
+        <button class="tab-btn active" onclick="switchTab('all')">All</button>
+        <button class="tab-btn" onclick="switchTab('unread')">Unread</button>
+    </div>
+    
+    <div id="notifications-list" class="notifications-list">
+        <div class="loading">
+            <i class="fa-solid fa-spinner fa-spin"></i> Loading notifications...
+        </div>
+    </div>
+</div>
+
+<script>
+    function getToken() {
+        return localStorage.getItem("access") || sessionStorage.getItem("access");
+    }
+
+    async function loadNotifications() {
+        const token = getToken();
+        if (!token) {
+            window.location.href = "/login/";
+            return;
+        }
+        
+        try {
+            const response = await fetch('/producer/notifications/api/list/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            displayNotifications(data.notifications);
+            updateNotificationBadge(data.unread_count);
+            
+            // Reapply the current tab filter after loading
+            const activeTab = document.querySelector('.tab-btn.active')?.textContent.toLowerCase() || 'all';
+            filterNotifications(activeTab);
+            
+        } catch (error) {
+            console.error('Error loading notifications:', error);
+        }
+    }
+
+    function displayNotifications(notifications) {
+        const list = document.getElementById('notifications-list');
+        
+        if (notifications.length === 0) {
+            list.innerHTML = `
+                <div class="empty-notifications">
+                    <i class="fa-regular fa-bell"></i>
+                    <h3>No notifications</h3>
+                    <p>You're all caught up!</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        notifications.forEach(notif => {
+            // Determine the link based on notification type
+            let linkUrl = '/producer/order_management/'; // Default to orders page
+            
+            if (notif.notification_type === 'new_order') {
+                linkUrl = '/producer/order_management/';
+            } else if (notif.notification_type === 'order_update') {
+                linkUrl = '/producer/order_management/';
+            }
+            
+            html += `
+                <a href="${linkUrl}" class="notification-link" 
+                   onclick="markAsReadOnClick(event, ${notif.notification_id}, '${linkUrl}')">
+                    <div class="notification-item ${notif.is_read ? 'read' : 'unread'}" 
+                         data-id="${notif.notification_id}">
+                        <div class="notification-icon ${notif.notification_type}">
+                            <i class="fa-solid ${getIconForType(notif.notification_type)}"></i>
+                        </div>
+                        <div class="notification-content">
+                            <h4>${notif.title}</h4>
+                            <p>${notif.message}</p>
+                            <span class="notification-time">
+                                <i class="fa-regular fa-clock"></i> ${notif.time_ago}
+                            </span>
+                        </div>
+                    </div>
+                </a>
+            `;
+        });
+        
+        list.innerHTML = html;
+    }
+
+    function getIconForType(type) {
+        const icons = {
+            'new_order': 'fa-cart-plus',
+            'order_update': 'fa-truck',
+            'general': 'fa-bell'
+        };
+        return icons[type] || 'fa-bell';
+    }
+
+    async function markAsRead(notificationId) {
+        const token = getToken();
+        if (!token) return;
+        
+        try {
+            await fetch(`/producer/notifications/api/read/${notificationId}/`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            const item = document.querySelector(`.notification-item[data-id="${notificationId}"]`);
+            if (item) {
+                item.classList.remove('unread');
+                item.classList.add('read');
+            }
+            
+            updateUnreadCount();
+        } catch (error) {
+            console.error('Error marking as read:', error);
+        }
+    }
+
+    async function markAllRead() {
+        const token = getToken();
+        if (!token) return;
+        
+        try {
+            await fetch('/producer/notifications/api/read-all/', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            document.querySelectorAll('.notification-item').forEach(item => {
+                item.classList.remove('unread');
+                item.classList.add('read');
+            });
+            
+            updateNotificationBadge(0);
+            
+        } catch (error) {
+            console.error('Error marking all as read:', error);
+        }
+    }
+
+    async function updateUnreadCount() {
+        const token = getToken();
+        if (!token) return;
+        
+        try {
+            const response = await fetch('/producer/notifications/api/unread-count/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            updateNotificationBadge(data.unread_count);
+        } catch (error) {
+            console.error('Error updating unread count:', error);
+        }
+    }
+
+    function updateNotificationBadge(count) {
+        const badge = document.getElementById('notification-badge');
+        if (badge) {
+            if (count > 0) {
+                badge.textContent = count;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    }
+
+    function markAsReadOnClick(event, notificationId, linkUrl) {
+        event.preventDefault();
+        
+        const token = getToken();
+        if (token) {
+            fetch(`/producer/notifications/api/read/${notificationId}/`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(() => {
+                window.location.href = linkUrl;
+            })
+            .catch(() => {
+                window.location.href = linkUrl;
+            });
+        } else {
+            window.location.href = linkUrl;
+        }
+    }
+
+    function switchTab(tab) {
+        // Update active tab styling
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+        
+        filterNotifications(tab);
+    }
+    
+    function filterNotifications(tab) {
+        const allNotifications = document.querySelectorAll('.notification-item');
+        const list = document.getElementById('notifications-list');
+        let visibleCount = 0;
+        
+        allNotifications.forEach(notif => {
+            let shouldShow = false;
+            const isRead = notif.classList.contains('read');
+            
+            if (tab === 'all') {
+                shouldShow = true;
+            } else if (tab === 'unread') {
+                shouldShow = !isRead;
+            }
+            
+            if (shouldShow) {
+                notif.style.display = 'flex';
+                visibleCount++;
+            } else {
+                notif.style.display = 'none';
+            }
+        });
+        
+        // Handle empty state
+        const emptyMessage = list.querySelector('.empty-notifications');
+        if (visibleCount === 0 && tab === 'unread') {
+            if (!emptyMessage) {
+                const empty = document.createElement('div');
+                empty.className = 'empty-notifications';
+                empty.innerHTML = `
+                    <i class="fa-regular fa-bell"></i>
+                    <h3>No unread notifications</h3>
+                    <p>You've read everything!</p>
+                `;
+                list.appendChild(empty);
+            }
+        } else if (emptyMessage) {
+            emptyMessage.remove();
+        }
+    }
+
+    // Load notifications on page load
+    document.addEventListener('DOMContentLoaded', loadNotifications);
+    
+    // Periodically check for new notifications (every 30 seconds)
+    setInterval(() => {
+        if (window.location.pathname.includes('/producer/notifications/')) {
+            loadNotifications();
+        } else {
+            updateUnreadCount();
+        }
+    }, 30000);
+</script>
+{% endblock %}

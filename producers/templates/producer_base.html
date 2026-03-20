@@ -6,6 +6,8 @@
   <title>Producer | Bristol Regional Food Network</title>
   <link rel="stylesheet" href="{% static 'producers.css' %}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  {% block head %}
+  {% endblock %}
 </head>
 <body>
 
@@ -18,7 +20,11 @@
 
     <div class="topbar-right">
       <div class="nav-icons">
-        <a href="#" title="Notifications"><i class="fa-regular fa-bell"></i></a>
+        <!-- UPDATED: Using filled bell icon like header.html -->
+        <a href="/producer/notifications/" class="notifications-icon" id="notifications-icon" style="position: relative;">
+          <i class="fa-solid fa-bell"></i>
+          <span class="notification-badge" id="notification-badge" style="display: none; position: absolute; top: -8px; right: -8px; background: #dc3545; color: white; font-size: 11px; font-weight: bold; min-width: 18px; height: 18px; border-radius: 9px; display: none; align-items: center; justify-content: center; padding: 0 4px;">0</span>
+        </a>
         <a href="{% url 'user_profile' %}"><i class="fa-solid fa-user"></i></a>
       </div>
     </div>
@@ -35,7 +41,8 @@
         href="/producer/product_management/">Products</a>
       <a class="sidebar-link {% if '/producer/order_management/' in request.path %}active{% endif %}"
         href="/producer/order_management/">Orders</a>
-      <a class="sidebar-link" href="#">Payments</a>
+      <a class="sidebar-link {% if '/producer/payments/' in request.path %}active{% endif %}"
+        href="/producer/payments/">Payments</a>
       <a class="sidebar-link" href="#">Content</a>
     </aside>
 
@@ -48,5 +55,67 @@
     Local Food Marketplace | Supporting Local Farmers
   </footer>
 
+  <style>
+    .notifications-icon {
+        position: relative;
+        display: inline-block;
+    }
+    
+    .notification-badge {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #dc3545;
+        color: white;
+        font-size: 11px;
+        font-weight: bold;
+        min-width: 18px;
+        height: 18px;
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 4px;
+    }
+  </style>
+
+  <script>
+    function getToken() {
+        return localStorage.getItem("access") || sessionStorage.getItem("access");
+    }
+
+    // Function to update notification badge
+    async function updateNotificationBadge() {
+        const token = getToken();
+        if (!token) return;
+        
+        try {
+            const response = await fetch('/producer/notifications/api/unread-count/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                const badge = document.getElementById('notification-badge');
+                if (badge) {
+                    if (data.unread_count > 0) {
+                        badge.textContent = data.unread_count;
+                        badge.style.display = 'flex';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error updating notification badge:', error);
+        }
+    }
+
+    // Check for new notifications every 3 seconds
+    setInterval(updateNotificationBadge, 3000);
+    
+    // Check immediately on page load
+    document.addEventListener('DOMContentLoaded', updateNotificationBadge);
+  </script>
 </body>
 </html>

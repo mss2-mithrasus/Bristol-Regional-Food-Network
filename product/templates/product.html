@@ -447,7 +447,7 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
             const card = document.createElement("div");
             card.className = "product-card" + (outOfSeason ? " out-of-season" : "");
             card.dataset.productId = product.product_id;
-            card.dataset.maxStock = product.stock_quantity || 99;
+            card.dataset.maxStock = product.stock_quantity || 0;
 
             card.innerHTML = ` <img src="${product.image? product.image : '/static/images/default-product.png'}">
 
@@ -697,20 +697,31 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
     }
 
     async function updateNotifyButton(card, productId) {
-        const result = await checkProductAvailability(productId);
-        const notifyBtn = card.querySelector('.notify-btn');
-        const quantityDisplay = card.querySelector('.quantity-display');
-        const desiredQty = quantityDisplay ? parseInt(quantityDisplay.textContent) : 1;
+        const token = getToken();
+        if (!token) return;
         
-        if (notifyBtn) {
-            // Show notify button if user wants more than what's available
-            if (desiredQty > result.available) {
-                notifyBtn.style.display = 'block';
-                notifyBtn.setAttribute('data-desired-qty', desiredQty);
-                console.log(` Showing notify button: want ${desiredQty}, only ${result.available} available`);
-            } else {
-                notifyBtn.style.display = 'none';
+        try {
+            const quantityDisplay = card.querySelector('.quantity-display');
+            const desiredQty = quantityDisplay ? parseInt(quantityDisplay.textContent) : 1;
+            
+            // Call the real-time availability API
+            const response = await fetch(`/cart/api/check-availability/${productId}/`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            const available = data.available ?? 0;
+            
+            const notifyBtn = card.querySelector('.notify-btn');
+            if (notifyBtn) {
+                if (desiredQty > available) {
+                    notifyBtn.style.display = 'block';
+                    notifyBtn.setAttribute('data-desired-qty', desiredQty);
+                } else {
+                    notifyBtn.style.display = 'none';
+                }
             }
+        } catch (error) {
+            console.error('Error updating notify button:', error);
         }
     }
 
