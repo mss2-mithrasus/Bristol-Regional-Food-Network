@@ -13,29 +13,55 @@
 
 
 {% block content%}
+ <!--<img src="/static/images/organic.png" class="organic-badge" style="display:;">-->
+
 
 <div class="product-detail-container">
-    <div class="product-detail-box">
-        <!--<img src="/static/images/organic.png" class="organic-badge" style="display:;">-->
-
-    
-    <div class="product-details">
+    <div class="product-image-container">
         <img  class="product-detail-img" src="" alt="product image">
-        <h3 class="product-name"></h3>
+    </div>
+       
+    
+    <div class="product-info-container">
+        <div class="product-box product-details-box">
         
-    
-        <h4 class="product-producer"></h4>
-        <h4 class="product-description"></h4>
+            <h3 class="product-name"></h3>
+            <h4 class="product-price"></h4>
+            <h4 class="product-producer"></h4>
+            <h4 class="product-description"></h4>
+
+            <div class="button-group">
+                        <div class="quantity">
+                            <button class="minus">-</button>
+                            <span class="quantity-display">1</span>
+                            <button class="plus">+</button>
+                        </div>
+                        <button class="add-cart">Add to Cart</button>
+                    </div> 
 
 
-    <h3>Allergens</h3>
-    
-    <ul class="allergens-list"></ul>
+                    <button class="notify-btn"
+                            data-product-id="${product.product_id }"
+                            onclick="showStockAlert(event, ${product.product_id}, '${product.name}')"
+                            style="display: none;">
+                        <i class="fa-regular fa-bell"></i> Notify when available
+                    </button>
 
-    <h4 class="farm-miles"></h4>
 
-</div>
-</div>
+        </div>
+
+        <div class="product-box farm-miles-box">
+            <h4 class="farm-miles"></h4>
+        </div>
+
+
+        <div class="product-box allergens-box">
+            <h3>Allergens</h3>
+            <ul class="allergens-list"></ul>
+
+        </div>
+
+    </div>
 
 </div>
 {%endblock%}
@@ -89,6 +115,8 @@
 
             document.querySelector(".product-description").textContent = "Product description: " + product.description;
 
+            document.querySelector(".product-price").textContent = "Price: Â£" + product.price;
+
             document.querySelector(".product-producer").textContent = "Producer: " + product.producer_name;
 
             const image = document.querySelector(".product-detail-img");
@@ -96,6 +124,35 @@
             // if theres an image display it too
             if (product.image){
                 image.src = product.image;
+            }
+
+            if(data.farm_miles !== null){  
+                const farmMiles = document.querySelector(".farm-miles");
+
+                if (data.farm_miles <= 20) {
+                    farmMiles.innerHTML = `
+                    
+                    <i class="fa-solid fa-car"></i>
+                    Farm miles: ${data.farm_miles} miles
+                    <br>
+
+                    
+                    <i class="fa-regular fa-face-smile"></i>
+                    Great news! This product is within our 20 mile producer to customer commitment.
+                   
+                    `;
+
+                }else{
+                        farmMiles.innerHTML = `
+                        Farm miles: ${data.farm_miles} miles
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        This product is over 20 miles away. Consider browsing more local producers.
+                        
+                        `;
+                    }
+
+                
+                 
             }
 
             
@@ -127,9 +184,9 @@
 
             }
 
-            if(product.farm_miles){
-                document.querySelector(".farm-miles").textContent = "Farm miles: " + product.farm_miles;
-            }
+            
+
+            console.log(product)
 
             
         } catch (error){
