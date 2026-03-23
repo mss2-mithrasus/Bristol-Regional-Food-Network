@@ -12,6 +12,8 @@ from django.core.paginator import Paginator
 from .models import Order, SubOrder, OrderItem
 from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.db import transaction
+from django.db.models import Sum
 import json
 import traceback
 
@@ -481,7 +483,6 @@ def reorder(request, order_id):
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     
     try:
-        # Get the original order
         order = Order.objects.get(
             order_id=order_id,
             customer=request.user.customeraccount
@@ -490,40 +491,33 @@ def reorder(request, order_id):
     except Order.DoesNotExist:
         return JsonResponse({'error': 'Order not found'}, status=404)
     
-    # Get or create cart for user
-    from django.db import transaction
-    
     with transaction.atomic():
         cart, created = Cart.objects.get_or_create(customer=request.user)
         print(f" Cart {'created' if created else 'found'}")
         
-        # Clean up expired items first
         now = timezone.now()
         expired = cart.items.filter(reserved_until__lt=now)
         if expired.exists():
             print(f" Cleaning {expired.count()} expired items")
             expired.delete()
         
-        # Track items
         unavailable_items = []
         added_items = []
         total_amount = 0
         total_items = 0
         
-        # Process each suborder
         for suborder in order.suborders.all():
             for order_item in suborder.items.all():
                 product = order_item.product
                 quantity = order_item.quantity
-                # Use the historical price from when order was placed
                 price = float(order_item.price_at_purchase)
                 item_total = price * quantity
                 
-                print(f"  - Processing: {product.name}, Qty: {quantity}, Price from order: £{price}")
+                print(f"  - Processing: {product.name}, Qty: {quantity}")
                 
                 try:
-                    # Check if product exists and is active
-                    if not product or not hasattr(product, 'is_active') or not product.is_active:
+                    # Check if product is available
+                    if not product or not hasattr(product, 'availability_status') or not product.availability_status:
                         unavailable_items.append({
                             'name': order_item.product.name,
                             'quantity': quantity,
@@ -534,8 +528,7 @@ def reorder(request, order_id):
                         })
                         continue
                     
-                    # Check stock availability (more lenient)
-                    # Get ALL active reservations from OTHER users
+                    # Check stock
                     other_users_reservations = CartItem.objects.filter(
                         product=product,
                         reserved_until__gt=timezone.now()
@@ -543,7 +536,6 @@ def reorder(request, order_id):
                         cart__customer=request.user
                     ).aggregate(total=Sum('quantity'))['total'] or 0
                     
-                    # Get what this user already has in cart
                     user_cart_item = CartItem.objects.filter(
                         cart=cart,
                         product=product
@@ -551,21 +543,12 @@ def reorder(request, order_id):
                     
                     user_current_quantity = user_cart_item.quantity if user_cart_item else 0
                     
-                    # Calculate available for this user to add
-                    # If stock_quantity doesn't exist, assume unlimited
                     if hasattr(product, 'stock_quantity'):
                         available_to_add = product.stock_quantity - other_users_reservations - user_current_quantity
-                        print(f"    Stock: {product.stock_quantity}, Others reserved: {other_users_reservations}")
                     else:
-                        # If no stock tracking, assume unlimited
                         available_to_add = 999999
-                        print(f"    No stock tracking - assuming unlimited")
                     
-                    print(f"    User currently has: {user_current_quantity}, Can add: {available_to_add}")
-                    
-                    # If stock tracking exists and we don't have enough
                     if hasattr(product, 'stock_quantity') and quantity > available_to_add:
-                        max_possible = user_current_quantity + available_to_add
                         unavailable_items.append({
                             'name': product.name,
                             'quantity': quantity,
@@ -573,28 +556,23 @@ def reorder(request, order_id):
                             'total': item_total,
                             'producer': suborder.producer.business_name,
                             'available': available_to_add,
-                            'reason': f'Only {available_to_add} available (requested {quantity})'
+                            'reason': f'Only {available_to_add} available'
                         })
                         continue
                     
-                    # Set reservation expiry (30 minutes from now)
                     reservation_expiry = timezone.now() + timedelta(minutes=30)
                     
                     if user_cart_item:
-                        # Update existing cart item
                         user_cart_item.quantity += quantity
                         user_cart_item.reserved_until = reservation_expiry
                         user_cart_item.save()
-                        print(f"     Updated existing cart item: now {user_cart_item.quantity}")
                     else:
-                        # Create new cart item
                         CartItem.objects.create(
                             cart=cart,
                             product=product,
                             quantity=quantity,
                             reserved_until=reservation_expiry
                         )
-                        print(f"     Created new cart item")
                     
                     added_items.append({
                         'name': product.name,
@@ -609,7 +587,6 @@ def reorder(request, order_id):
                     
                 except Exception as e:
                     print(f"     Error: {e}")
-                    import traceback
                     traceback.print_exc()
                     unavailable_items.append({
                         'name': order_item.product.name,
@@ -629,19 +606,16 @@ def reorder(request, order_id):
             'total_amount': total_amount,
             'total_amount_formatted': f"£{total_amount:.2f}",
             'total_items': total_items,
-            'cart_url': '/cart/',
-            'checkout_url': '/orders/checkout/multi/'
         }
         
         if unavailable_items:
             unavailable_total = sum(item['total'] for item in unavailable_items)
             response_data['unavailable_total'] = unavailable_total
             response_data['unavailable_total_formatted'] = f"£{unavailable_total:.2f}"
-            response_data['warning'] = f"{len(unavailable_items)} items were unavailable"
         
-        print(f" Reorder complete: {len(added_items)} added (£{total_amount}), {len(unavailable_items)} unavailable")
         return JsonResponse(response_data)
-    
+
+
 @login_required
 def download_receipt(request, order_id):
     """View receipt (printable version)"""
