@@ -1,9 +1,10 @@
 from django.contrib import messages
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from datetime import timedelta
 from user_accounts.models import CustomerAccount, Person, Address, ProducerAccount
-from shopping_cart.models import Cart, CartItem
+from shopping_cart.models import Cart, CartItem, CartItem
 import logging
 import random
 from django.contrib.auth.decorators import login_required
@@ -13,7 +14,8 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 import json
 import traceback
-from django.db.models import Sum
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -201,7 +203,7 @@ def multi_checkout(request):
                 "name": group["producer"]["name"],
             },
             "producer_address": group["producer_address"],
-            "min_delivery_date": str(group["min_delivery_date"]),  # Convert date to string
+            "min_delivery_date": str(group["min_delivery_date"]),
             "subtotal": group["subtotal"],
             "commission": group["commission"],
             "total": group["total"],
@@ -240,9 +242,9 @@ def multi_checkout(request):
     
     return render(request, "multi_checkout.html", context)
 
-
 @login_required
 def order_detail(request, order_id):
+    """Display full details for a specific order"""
     try:
         order = Order.objects.get(
             order_id=order_id,
@@ -351,7 +353,6 @@ def order_detail(request, order_id):
     
     return render(request, 'order_detail.html', context)
 
-
 @login_required
 def order_history(request):
     """Display all orders for the logged-in customer"""
@@ -423,6 +424,7 @@ def order_history(request):
 
             producer_info = {
                 'name': suborder.producer.business_name,
+                'delivery_date': suborder.delivery_date,
                 'status': suborder.status,
                 'display_status': display_status,
                 'is_delivery': is_delivery,
@@ -586,6 +588,7 @@ def reorder(request, order_id):
                     user_current_quantity = user_cart_item.quantity if user_cart_item else 0
                     
                     # Calculate available for this user to add
+                    # If stock_quantity doesn't exist, assume unlimited
                     if hasattr(product, 'stock_quantity'):
                         available_to_add = product.stock_quantity - other_users_reservations - user_current_quantity
                         print(f"    Stock: {product.stock_quantity}, Others reserved: {other_users_reservations}")
@@ -674,10 +677,10 @@ def reorder(request, order_id):
         
         print(f" Reorder complete: {len(added_items)} added (£{total_amount}), {len(unavailable_items)} unavailable")
         return JsonResponse(response_data)
-
-
+    
 @login_required
 def download_receipt(request, order_id):
+    """View receipt (printable version)"""
     try:
         order = Order.objects.get(
             order_id=order_id,
@@ -712,7 +715,6 @@ def download_receipt(request, order_id):
     }
     
     return render(request, 'payment_success.html', context)
-
 
 def update_checkout_address(request):
     """Save edited address to session"""
