@@ -1,97 +1,238 @@
+{% extends "base.html" %}
 {% load static %}
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Admin Dashboard | Bristol Regional Food Network</title>
+{% block head %}
+<link rel="stylesheet" href="{% static 'admin_dashboard.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
 
-    <link rel="stylesheet" href="{% static 'base.css' %}">
-    <link rel="stylesheet" href="{% static 'admin_home_page.css' %}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-</head>
+{% block content %}
 
-<body>
-    {% include "base.html" %}
+<div class="admin_layout">
 
-<div class="admin_container">
+    <!-- Side Menu -->
+    <aside class="admin_sidebar">
 
-    <h1>Pending Account Approvals</h1>
+        <button onclick="showPanel('dashboardPanel')">
+            <i class="fa fa-chart-line"></i> Dashboard
+        </button>
 
-    <section class="admin_section">
-        <h2>Community Groups</h2>
-        <div id="communityContainer"></div>
-    </section>
+        <button onclick="showPanel('pendingPanel')">
+            <i class="fa fa-user-clock"></i> Pending Approvals
+        </button>
 
-    <section class="admin_section">
-        <h2>Restaurants</h2>
-        <div id="restaurantContainer"></div>
-    </section>
+        <button onclick="showPanel('failedPanel')">
+            <i class="fa fa-triangle-exclamation"></i> Failed Logins
+        </button>
 
-    <section class="admin_section">
-        <h2>Producers</h2>
-        <div id="producerContainer"></div>
-    </section>
+        <button onclick="showPanel('deletedPanel')">
+            <i class="fa fa-user-slash"></i> Deleted Accounts
+        </button>
 
-    <h1>Failed Login Attempts Record</h1>
-    <section class="admin_section">
-        <h2>Failed Login Attempts</h2>
-        <div id="failedLoginContainer"></div>
-    </section>
+        <button onclick="showPanel('financialPanel')">
+            <i class="fa fa-file-invoice-dollar"></i> Financial Reports
+        </button>
 
-    <h1>Deleted Accounts Record</h1>
-    <section class="admin_section">
-        <h2>Deleted Accounts</h2>
-        <div id="deletedAccountsContainer"></div>
-    </section>
+        <button onclick="showPanel('analyticsPanel')">
+            <i class="fa fa-chart-pie"></i> Analytics
+        </button>
+    </aside>
 
+    <!-- Main admin dashboard -->
+    <main class="admin_main">
+
+        <!-- Dashboard home page -->
+        <section id="dashboardPanel" class="admin_panel">
+            <h1>Admin Dashboard</h1>
+            <p>Overview of system activity</p>
+
+            <div class="pill-row">
+                <div class="pill"><span>Pending Community</span><strong id="pending-community">0</strong></div>
+                <div class="pill"><span>Pending Restaurants</span><strong id="pending-restaurants">0</strong></div>
+                <div class="pill"><span>Pending Producers</span><strong id="pending-producers">0</strong></div>
+            </div>
+
+            <div class="pill-row">
+                <div class="pill"><span>Failed Logins (24h)</span><strong id="failed-24h">0</strong></div>
+                <div class="pill"><span>Failed Logins (Week)</span><strong id="failed-week">0</strong></div>
+            </div>
+
+            <div class="pill-row">
+                <div class="pill"><span>Deleted Accounts (Week)</span><strong id="deleted-week">0</strong></div>
+                <div class="pill"><span>New Accounts (Week)</span><strong id="new-week">0</strong></div>
+            </div>
+        </section>
+
+        <!-- Pendin approvals -->
+        <section id="pendingPanel" class="admin_panel" style="display:none;">
+            <h1>Pending Approvals</h1>
+
+            <h2>Community Groups</h2>
+            <div id="communityContainer"></div>
+
+            <h2>Restaurants</h2>
+            <div id="restaurantContainer"></div>
+
+            <h2>Producers</h2>
+            <div id="producerContainer"></div>
+        </section>
+
+        <!-- Failed login attempts -->
+        <section id="failedPanel" class="admin_panel" style="display:none;">
+            <h1>Failed Login Attempts</h1>
+            <div id="failedLoginContainer"></div>
+        </section>
+
+        <!-- Deleted accounts page -->
+        <section id="deletedPanel" class="admin_panel" style="display:none;">
+            <h1>Deleted Accounts</h1>
+            <div id="deletedAccountsContainer"></div>
+        </section>
+
+        <!-- Financial reports page -->
+        <section id="financialPanel" class="admin_panel" style="display:none;">
+
+            <h1>Financial Reports</h1>
+
+            <!-- Date filter -->
+            <div class="report-controls">
+                <label>Start Date:</label>
+                <input type="date" id="startDate">
+
+                <label>End Date:</label>
+                <input type="date" id="endDate">
+
+                <button class="button-pill" onclick="loadFinancialReport()">Generate Report</button>
+                <button class="button-pill secondary" onclick="downloadCSV()">Download CSV</button>
+            </div>
+
+            <!-- Summary Pills -->
+            <div id="financialSummary" class="pill-row"></div>
+
+            <h2>Order Breakdown</h2>
+            <div id="financialError" class="error-text"></div>
+
+            <!-- Table -->
+            <div class="table-container">
+                <table class="financial-table">
+                    <thead>
+                        <tr>
+                            <th>Order #</th>
+                            <th>Customer</th>
+                            <th>Created</th>
+                            <th>Order Value</th>
+                            <th>Commission (5%)</th>
+                            <th>Payout (95%)</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="financialTableBody"></tbody>
+                </table>
+            </div>
+
+            <!-- Audit Modal -->
+            <div id="adminOrderAuditModal" class="modal order-modal" style="display:none;">
+                <div class="modal-content order-modal-content">
+                    <div class="panel-header-row">
+                        <h2>Order Audit</h2>
+                        <button class="button-pill" id="adminCloseAuditBtn">Close</button>
+                    </div>
+
+                    <div class="audit-box">
+                        <div><strong>Order ID:</strong> <span id="adOrderId">—</span></div>
+                        <div><strong>Customer:</strong> <span id="adCustomer">—</span></div>
+                        <div><strong>Status:</strong> <span id="adStatus">—</span></div>
+                        <div><strong>Created:</strong> <span id="adCreated">—</span></div>
+                        <div><strong>Total:</strong> <span id="adTotal">—</span></div>
+                        <div><strong>Commission:</strong> <span id="adCommission">—</span></div>
+                        <div><strong>Payout:</strong> <span id="adPayout">—</span></div>
+                    </div>
+
+                    <h3>Producers</h3>
+                    <div id="adProducers"></div>
+                </div>
+            </div>
+
+        </section>
+
+        <section id="analyticsPanel" class="admin_panel" style="display:none;">
+            <h1>Marketplace Analytics</h1>
+
+            <!-- Filter -->
+            <div class="report-controls">
+                <label>Start Date:</label>
+                <input type="date" id="analyticsStart">
+
+                <label>End Date:</label>
+                <input type="date" id="analyticsEnd">
+
+                <label>Producer:</label>
+                <select id="analyticsProducer">
+                    <option value="">All Producers</option>
+                </select>
+
+                <button class="button-pill" onclick="loadAnalytics()">Apply Filters</button>
+            </div>
+
+            <!-- Charts -->
+            <!-- Pie charts -->
+            <div class="pie-row">
+                <div class="chart-container pie-wrapper">
+                    <h2>Payout per Producer</h2>
+                    <canvas id="payoutChart"></canvas>
+                </div>
+
+                <div class="chart-container pie-wrapper">
+                    <h2>Commission per Producer</h2>
+                    <canvas id="commissionChart"></canvas>
+                </div>
+
+                <div class="chart-container pie-wrapper">
+                    <h2>Orders per Producer</h2>
+                    <canvas id="ordersChart"></canvas>
+                </div>
+            </div>
+            <!-- Line chart -->
+            <div class="chart-container">
+                <h2>Total Revenue Over Time</h2>
+                <div class="line-wrapper">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h2>Total Commission Over Time</h2>
+                <div class="line-wrapper">
+                    <canvas id="commissionTimeChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+    </main>
 </div>
 
-<footer class="footer">
-    <p>Local Food Marketplace | Supporting Local Farmers</p>
-</footer>
+{% endblock %}
 
+{% block scripts %}
 <script>
 
-window.getToken = function () {
+function showPanel(panelId) {
+    document.querySelectorAll(".admin_panel").forEach(p => p.style.display = "none");
+    document.getElementById(panelId).style.display = "block";
+}
+
+// Authentication and logout
+function getToken() {
     return localStorage.getItem("access") || sessionStorage.getItem("access");
-};
+}
 
-window.approveAccount = async function(userId, roleType) {
-    await fetch("/admin-dashboard/approve/", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + getToken()
-        },
-        body: JSON.stringify({ user_id: userId, role: roleType })
-    });
-    loadPendingAccounts();
-};
+function logoutUser() {
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.href = "/login/";
+}
 
-window.rejectAccount = async function(userId) {
-    await fetch("/admin-dashboard/reject/", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + getToken()
-        },
-        body: JSON.stringify({ user_id: userId })
-    });
-    loadPendingAccounts();
-};
-
-window.onload = function () {
-
-    if (!getToken()) {
-        window.location.href = "{% url 'login' %}";
-    }
-
-    loadPendingAccounts();
-    loadFailedLogins();
-    loadDeletedAccounts();
-};
-// Load pending accounts
+// Loads pending accounts
 async function loadPendingAccounts() {
     const communityContainer = document.getElementById("communityContainer");
     const restaurantContainer = document.getElementById("restaurantContainer");
@@ -106,20 +247,10 @@ async function loadPendingAccounts() {
             headers: { "Authorization": "Bearer " + getToken() }
         });
 
-        if (!response.ok) {
-            const text = await response.text();
-            const msg = `Error loading pending accounts (${response.status}).`;
-            communityContainer.innerHTML = `<p class="empty-message">${msg}</p>`;
-            restaurantContainer.innerHTML = `<p class="empty-message">${msg}</p>`;
-            producerContainer.innerHTML = `<p class="empty-message">${msg}</p>`;
-            console.error("Pending API error:", response.status, text);
-            return;
-        }
-
         const payload = await response.json();
 
-        const customers = Array.isArray(payload.customers) ? payload.customers : [];
-        const producers = Array.isArray(payload.producers) ? payload.producers : [];
+        const customers = payload.customers || [];
+        const producers = payload.producers || [];
 
         const communityAccounts = customers.filter(acc => acc.account_type === "community");
         const restaurantAccounts = customers.filter(acc => acc.account_type === "restaurant");
@@ -128,47 +259,31 @@ async function loadPendingAccounts() {
         renderAccountList(communityAccounts, communityContainer, "customer", "No pending community group approvals.");
         renderAccountList(restaurantAccounts, restaurantContainer, "customer", "No pending restaurant approvals.");
         renderAccountList(producerAccounts, producerContainer, "producer", "No pending producer approvals.");
+
+        // Update dashboard summary
+        document.getElementById("pending-community").textContent = communityAccounts.length;
+        document.getElementById("pending-restaurants").textContent = restaurantAccounts.length;
+        document.getElementById("pending-producers").textContent = producerAccounts.length;
+
     } catch (err) {
-        console.error("Pending accounts JS error:", err);
-        const msg = "Error loading pending accounts (JS error). Check console.";
-        communityContainer.innerHTML = `<p class="empty-message">${msg}</p>`;
-        restaurantContainer.innerHTML = `<p class="empty-message">${msg}</p>`;
-        producerContainer.innerHTML = `<p class="empty-message">${msg}</p>`;
+        console.error("Pending accounts error:", err);
     }
 }
-
+// Gets account list
 function renderAccountList(list, container, roleType, emptyMessage) {
-    if (!Array.isArray(list) || list.length === 0) {
-        container.innerHTML = `<p class="empty-message">${emptyMessage}</p>`;
+    if (!list.length) {
+        container.innerHTML = `
+            <div class="admin_card">
+                <p class="empty-message">${emptyMessage}</p>
+            </div>
+        `;
         return;
     }
 
     list.forEach(entry => {
-
-        let nameLine = "";
-        let contactLine = "";
-
-        if (entry.account_type === "community") {
-            nameLine = `<p><strong>Name:</strong> ${entry.organisation_name}</p>`;
-        }
-
-        else if (entry.account_type === "restaurant") {
-            nameLine = `<p><strong>Name:</strong> ${entry.organisation_name}</p>`;
-        }
-
-        else if (roleType === "producer") {
-            nameLine = `<p><strong>Business:</strong> ${entry.business_name}</p>`;
-            contactLine = `<p><strong>Contact:</strong> ${entry.name}</p>`;
-        }
-
-        else {
-            nameLine = `<p><strong>Name:</strong> ${entry.name}</p>`;
-        }
-
         container.innerHTML += `
             <div class="admin_card">
-                ${nameLine}
-                ${contactLine}
+                <p><strong>Name:</strong> ${entry.organisation_name || entry.name}</p>
                 <p><strong>Email:</strong> ${entry.email}</p>
                 <p><strong>Phone:</strong> ${entry.phone || "N/A"}</p>
 
@@ -177,6 +292,30 @@ function renderAccountList(list, container, roleType, emptyMessage) {
             </div>
         `;
     });
+}
+
+async function approveAccount(userId, roleType) {
+    await fetch("/admin-dashboard/approve/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + getToken()
+        },
+        body: JSON.stringify({ user_id: userId, role: roleType })
+    });
+    loadPendingAccounts();
+}
+
+async function rejectAccount(userId) {
+    await fetch("/admin-dashboard/reject/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + getToken()
+        },
+        body: JSON.stringify({ user_id: userId })
+    });
+    loadPendingAccounts();
 }
 
 // Failed login attempts
@@ -189,20 +328,18 @@ async function loadFailedLogins() {
             headers: { "Authorization": "Bearer " + getToken() }
         });
 
-        if (!response.ok) {
-            container.innerHTML = "<p class='empty-message'>No failed login attempts found.</p>";
-            return;
-        }
-
         const list = await response.json();
-        const safeList = Array.isArray(list) ? list : [];
 
-        if (safeList.length === 0) {
-            container.innerHTML = "<p class='empty-message'>No failed login attempts found.</p>";
+        if (!list.length) {
+            container.innerHTML = `
+                <div class="admin_card">
+                    <p class="empty-message">No failed login attempts found.</p>
+                </div>
+            `;
             return;
         }
 
-        safeList.forEach(item => {
+        list.forEach(item => {
             container.innerHTML += `
                 <div class="admin_card">
                     <p><strong>Email:</strong> ${item.email}</p>
@@ -214,13 +351,11 @@ async function loadFailedLogins() {
         });
 
     } catch (err) {
-        console.error("Failed logins JS error:", err);
-        container.innerHTML = "<p class='empty-message'>No failed login attempts found.</p>";
+        console.error("Failed logins error:", err);
     }
 }
 
-// Deleted accounts
-
+// Loads deleted accounts
 async function loadDeletedAccounts() {
     const container = document.getElementById("deletedAccountsContainer");
     container.innerHTML = "";
@@ -230,20 +365,18 @@ async function loadDeletedAccounts() {
             headers: { "Authorization": "Bearer " + getToken() }
         });
 
-        if (!response.ok) {
-            container.innerHTML = "<p class='empty-message'>No deleted account records found.</p>";
-            return;
-        }
-
         const list = await response.json();
-        const safeList = Array.isArray(list) ? list : [];
 
-        if (safeList.length === 0) {
-            container.innerHTML = "<p class='empty-message'>No deleted account records found.</p>";
+        if (!list.length) {
+            container.innerHTML = `
+                <div class="admin_card">
+                    <p class="empty-message">No deleted account records found.</p>
+                </div>
+            `;
             return;
         }
 
-        safeList.forEach(item => {
+        list.forEach(item => {
             container.innerHTML += `
                 <div class="admin_card">
                     <p><strong>Hashed ID:</strong> ${item.hashed_user_identifier}</p>
@@ -255,11 +388,254 @@ async function loadDeletedAccounts() {
         });
 
     } catch (err) {
-        console.error("Deleted accounts JS error:", err);
-        container.innerHTML = "<p class='empty-message'>No deleted account records found.</p>";
+        console.error("Deleted accounts error:", err);
     }
 }
-</script>
 
-</body>
-</html>
+// Financial reports 
+function money(n) {
+    return "£" + Number(n || 0).toFixed(2);
+}
+
+async function loadFinancialReport() {
+    const start = document.getElementById("startDate").value;
+    const end = document.getElementById("endDate").value;
+
+    const response = await fetch(`/admin-dashboard/financial-reports/?start=${start}&end=${end}`, {
+        headers: { "Authorization": "Bearer " + getToken() }
+    });
+
+    const data = await response.json();
+
+    // Summary pills
+    document.getElementById("financialSummary").innerHTML = `
+        <div class="pill"><span>Total Order Value</span><strong>${money(data.total_order_value)}</strong></div>
+        <div class="pill"><span>Network Commission</span><strong>${money(data.total_commission)}</strong></div>
+        <div class="pill"><span>Producer Payments</span><strong>${money(data.total_producer_payments)}</strong></div>
+        <div class="pill"><span>Orders Processed</span><strong>${data.order_count}</strong></div>
+    `;
+
+    const tbody = document.getElementById("financialTableBody");
+    tbody.innerHTML = "";
+
+    if (!data.orders.length) {
+        tbody.innerHTML = `
+            <tr><td colspan="7" class="empty-message">No orders found for this period.</td></tr>
+        `;
+        return;
+    }
+
+    data.orders.forEach(o => {
+        const tr = document.createElement("tr");
+        tr.dataset.order = JSON.stringify(o);
+
+        tr.innerHTML = `
+            <td>#${o.id}</td>
+            <td>${o.customer}</td>
+            <td>${new Date(o.created_at).toLocaleString()}</td>
+            <td>${money(o.total)}</td>
+            <td>${money(o.commission)}</td>
+            <td>${money(o.producer_payment)}</td>
+            <td><button class="mini-btn admin-audit-btn">View</button></td>
+        `;
+
+        tbody.appendChild(tr);
+    });
+
+    attachAdminAuditButtons();
+}
+
+function attachAdminAuditButtons() {
+    document.querySelectorAll(".admin-audit-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const row = btn.closest("tr");
+            const o = JSON.parse(row.dataset.order);
+
+            document.getElementById("adOrderId").textContent = "#" + o.id;
+            document.getElementById("adCustomer").textContent = o.customer;
+            document.getElementById("adStatus").textContent = o.status;
+            document.getElementById("adCreated").textContent = new Date(o.created_at).toLocaleString();
+            document.getElementById("adTotal").textContent = money(o.total);
+            document.getElementById("adCommission").textContent = money(o.commission);
+            document.getElementById("adPayout").textContent = money(o.producer_payment);
+
+            const prodBox = document.getElementById("adProducers");
+            prodBox.innerHTML = "";
+
+            o.producers.forEach(p => {
+                prodBox.innerHTML += `
+                    <div class="audit-row">
+                        <strong>${p.producer}</strong> — Payout: ${money(p.payout)}
+                    </div>
+                `;
+            });
+
+            document.getElementById("adminOrderAuditModal").style.display = "flex";
+        });
+    });
+}
+
+function closeAdminAudit() {
+    document.getElementById("adminOrderAuditModal").style.display = "none";
+}
+
+document.getElementById("adminCloseAuditBtn").addEventListener("click", closeAdminAudit);
+
+function downloadCSV() {
+    const start = document.getElementById("startDate").value;
+    const end = document.getElementById("endDate").value;
+    window.location.href = `/admin-dashboard/financial-reports/export-csv/?start=${start}&end=${end}`;
+}
+let payoutChart, commissionChart, ordersChart, revenueChart, commissionTimeChart;
+// Assign colours per producer
+const producerColors = {
+    "Willowbrook Veg Co.": "rgba(75, 192, 192, 0.7)",
+    "Greenfield Orchard Supplies": "rgba(255, 159, 64, 0.7)",
+    "Avon Valley Herb Farm": "rgba(153, 102, 255, 0.7)",
+    "Chew Valley Farms": "rgba(255, 99, 132, 0.7)"
+};
+
+// Fallback colour if a new producer appears
+function getProducerColor(name) {
+    return producerColors[name] || "rgba(100, 100, 100, 0.7)";
+}
+function loadAnalytics() {
+    const start = document.getElementById("analyticsStart").value;
+    const end = document.getElementById("analyticsEnd").value;
+    const producer = document.getElementById("analyticsProducer").value;
+
+    fetch(`/admin-dashboard/analytics/data/?start=${start}&end=${end}&producer=${producer}`)
+        .then(res => res.json())
+        .then(data => {
+            populateProducerDropdown(data.producers);
+            renderCharts(data);
+        });
+}
+
+function populateProducerDropdown(producers) {
+    const select = document.getElementById("analyticsProducer");
+    if (select.options.length > 1) return;
+
+    producers.forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = p.business_name;
+        select.appendChild(opt);
+    });
+}
+
+function renderCharts(data) {
+    const makeChart = (ctx, labels, values, label, color) => {
+        return new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels,
+                datasets: [{
+                    label,
+                    data: values,
+                    backgroundColor: color
+                }]
+            }
+        });
+    };
+
+    [payoutChart, commissionChart, ordersChart, revenueChart, commissionTimeChart].forEach(c => c?.destroy());
+
+    // Producer payout pie chart
+    payoutChart = new Chart(document.getElementById("payoutChart"), {
+        type: "pie",
+        data: {
+            labels: data.payout.map(x => x.producer__business_name),
+            datasets: [{
+                data: data.payout.map(x => x.total),
+                backgroundColor: data.payout.map(x => getProducerColor(x.producer__business_name))
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+
+    });
+    // Commissions chart
+    commissionChart = new Chart(document.getElementById("commissionChart"), {
+        type: "pie",
+        data: {
+            labels: data.commission.map(x => x.producer__business_name),
+            datasets: [{
+                data: data.commission.map(x => x.total),
+                backgroundColor: data.commission.map(x => getProducerColor(x.producer__business_name))
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+
+    // Orders pie chart
+    ordersChart = new Chart(document.getElementById("ordersChart"), {
+        type: "pie",
+        data: {
+            labels: data.orders.map(x => x.producer__business_name),
+            datasets: [{
+                data: data.orders.map(x => x.count),
+                backgroundColor: data.orders.map(x => getProducerColor(x.producer__business_name))
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+
+    // Revenue line chart
+    revenueChart = new Chart(document.getElementById("revenueChart"), {
+        type: "line",
+        data: {
+            labels: data.revenue.map(x => x.created_at__date),
+            datasets: [{
+                label: "Revenue (£)",
+                data: data.revenue.map(x => x.total),
+                borderColor: "rgba(54, 162, 235, 1)",
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+
+    // Commision line chart
+    commissionTimeChart = new Chart(document.getElementById("commissionTimeChart"), {
+        type: "line",
+        data: {
+            labels: data.commission_time.map(x => x.created_at__date),
+            datasets: [{
+                label: "Commission (£)",
+                data: data.commission_time.map(x => x.total),
+                borderColor: "rgba(255, 99, 132, 1)",
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+// Page load
+window.onload = function () {
+    if (!getToken()) {
+        window.location.href = "/login/";
+    }
+
+    loadPendingAccounts();
+    loadFailedLogins();
+    loadDeletedAccounts();
+
+    showPanel("dashboardPanel");
+};
+</script>
+{% endblock %}

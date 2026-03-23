@@ -109,7 +109,7 @@ def cart_view(request):
     subtotal = sum(item.quantity * item.product.price for item in cart_items_list)
     subtotal_float = float(subtotal)
     network_fee = round(subtotal_float * 0.05, 2)  # Calculate 5% commission
-    total = round(subtotal_float + network_fee, 2)  # Calculate total including fee
+    total = subtotal_float  # Total to pay is same as subtotal (commission already included)
     # Group by producer
     producers = []
     producer_dict = {}
@@ -412,16 +412,16 @@ def cart_icon_data(request):
         'subtotal': float(cart.subtotal)
     })
 
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def check_product_availability(request, product_id):
-    """
-    Check if a product is available for the current user to purchase
-    """
+    """Check how many units of a product are available for the current user"""
     try:
         product = Product.objects.get(product_id=product_id)
+        
         from .utils import get_available_stock
-        available = get_available_stock(product, request.user)
+        available = get_available_stock(product, exclude_user=request.user)
         
         return Response({
             'success': True,

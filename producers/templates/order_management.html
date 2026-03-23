@@ -44,7 +44,7 @@
   </div>
 </section>
 
-<!-- Modal -->
+<!-- Order Details Modal -->
 <div id="orderModal" class="modal order-modal" style="display:none;">
   <div class="modal-content order-modal-content">
     <div class="panel-header-row">
@@ -110,6 +110,41 @@
     </div>
   </div>
 </div>
+<!-- Toast notification -->
+<div id="toastMsg" style="
+    display:none;
+    position:fixed;
+    top:24px;
+    right:24px;
+    z-index:99999;
+    padding:14px 22px;
+    border-radius:10px;
+    font-size:15px;
+    font-weight:600;
+    box-shadow:0 4px 16px rgba(0,0,0,0.12);
+    min-width:260px;
+    transition:opacity 0.3s;
+"></div>
+<!-- Status Update Note Modal -->
+<div id="statusNoteModal" class="modal" style="display:none;">
+  <div class="modal-content" style="max-width:460px;">
+    <h3 style="margin:0 0 12px; color:#406083;">Update Order Status</h3>
+
+    <p id="statusNotePrompt" style="margin-bottom:14px; color:#555;"></p>
+
+    <div class="form-group">
+      <label>Note to customer <span style="color:#999; font-weight:400;">(optional)</span></label>
+      <textarea id="statusNoteInput" rows="3"
+        style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:14px; resize:vertical;"
+        placeholder="e.g. Your order is being prepared and will be ready soon."></textarea>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
+      <button id="statusNoteCancelBtn" class="button-pill secondary" type="button">Cancel</button>
+      <button id="statusNoteConfirmBtn" class="button-pill" type="button">Confirm Update</button>
+    </div>
+  </div>
+</div>
 
 <script>
 
@@ -133,17 +168,20 @@ function closeModal(){
     document.getElementById("orderModal").style.display="none";
 }
 
-document.getElementById("closeModalBtn").addEventListener("click",closeModal);
+document.getElementById("closeModalBtn").addEventListener("click", closeModal);
 
 document.getElementById("orderModal").addEventListener("click",(e)=>{
     if(e.target.id==="orderModal") closeModal();
 });
 
 document.addEventListener("keydown",(e)=>{
-    if(e.key==="Escape") closeModal();
+    if(e.key==="Escape"){
+        closeModal();
+        closeStatusNoteModal();
+    }
 });
 
-
+/* ---------------- LOAD ORDERS ---------------- */
 
 fetch("/producer/api/orders/",{
     headers:{ "Authorization":"Bearer "+token }
@@ -158,17 +196,38 @@ fetch("/producer/api/orders/",{
 });
 
 
+function canConfirmOrder(createdAt) {
+  const orderTime = new Date(createdAt);
+  const now = new Date();
+  const hoursPassed = (now - orderTime) / (1000 * 60 * 60);
+  return hoursPassed >= 48;
+}
+
+setInterval(() => {
+  document.querySelectorAll(".order-row").forEach(row => {
+      if (row.dataset.status !== "Pending") return;
+      const createdAt = row.dataset.orderDate;
+      if (!createdAt) return;
+      const label = row.querySelector(".prep-window-label");
+      if (label && canConfirmOrder(createdAt)) {
+          label.remove();
+      }
+  });
+}, 60000); // check every 60 seconds
+
 function renderOrders(orders){
 
-    const container=document.getElementById("ordersRows");
-    container.innerHTML="";
+  const container=document.getElementById("ordersRows");
+  container.innerHTML="";
 
-    if(!orders.length){
-        container.innerHTML="<div style='padding:10px;font-weight:700;'>No incoming orders yet.</div>";
-        return;
-    }
-    const fragment = document.createDocumentFragment();
-    orders.forEach(o=>{
+  if(!orders.length){
+      container.innerHTML="<div style='padding:10px;font-weight:700;'>No incoming orders yet.</div>";
+      return;
+  }
+
+  const fragment = document.createDocumentFragment();
+
+  orders.forEach(o=>{
 
         const itemsSummary = o.items.map(i =>
             `${i.product_name} x${i.quantity}`
@@ -178,9 +237,7 @@ function renderOrders(orders){
 
         const row=document.createElement("div");
         row.className="prod-table orders row order-row";
-
-        row.style.gridTemplateColumns=
-        "1.1fr 1.6fr 1.1fr 1.1fr 1fr 2fr 0.9fr 1fr 0.9fr";
+        row.style.gridTemplateColumns="1.1fr 1.6fr 1.1fr 1.1fr 1fr 2fr 0.9fr 1fr 0.9fr";
 
         row.dataset.status=o.status;
         row.dataset.orderId=o.order_id;
@@ -192,10 +249,10 @@ function renderOrders(orders){
         row.dataset.items=JSON.stringify(o.items);
         row.dataset.total=o.total_value;
 
-        const statusColor =
-            o.status==="Pending" ? "red" :
-            o.status==="Ready" ? "amber" :
-            "green";
+        const readyToConfirm = canConfirmOrder(o.created_at);
+        const pendingTooltip = !readyToConfirm && o.status === 'Pending'
+            ? `title="Cannot confirm yet — 48-hour preparation window has not passed"`
+            : '';
 
         row.innerHTML=`
         <div><strong>#${o.order_id}</strong></div>
@@ -207,7 +264,7 @@ function renderOrders(orders){
         <div><strong>£${o.total_value}</strong></div>
 
         <div>
-            <select class="status-select" data-id="${o.order_id}">
+            <select class="status-select" data-id="${o.order_id}" ${pendingTooltip}>
                 <option ${o.status==="Pending"?"selected":""}>Pending</option>
                 <option ${o.status==="Confirmed"?"selected":""}>Confirmed</option>
                 <option ${o.status==="Ready"?"selected":""}>Ready</option>
@@ -219,120 +276,196 @@ function renderOrders(orders){
             <button class="mini-btn view-btn" type="button">View</button>
         </div>
         `;
-
         container.appendChild(row);
-
     });
+
     container.appendChild(fragment);
-
 }
-
 
 /* ---------------- VIEW ORDER DETAILS ---------------- */
 
 document.addEventListener("click",function(e){
 
-if(!e.target.classList.contains("view-btn")) return;
+    if(!e.target.classList.contains("view-btn")) return;
 
-const row=e.target.closest(".order-row");
+    const row=e.target.closest(".order-row");
 
-document.getElementById("modalMeta").innerHTML=
-`Order <strong>#${row.dataset.orderId}</strong>`;
+    document.getElementById("modalMeta").innerHTML=
+        `Order <strong>#${row.dataset.orderId}</strong>`;
 
-document.getElementById("dCustomerName").value=row.dataset.customerName||"";
-document.getElementById("dCustomerContact").value=row.dataset.customerContact||"";
-document.getElementById("dDeliveryAddress").value=row.dataset.deliveryAddress||"";
-document.getElementById("dOrderDate").value=row.dataset.orderDate||"";
-document.getElementById("dDeliveryDate").value=row.dataset.deliveryDate||"";
+    document.getElementById("dCustomerName").value=row.dataset.customerName||"";
+    document.getElementById("dCustomerContact").value=row.dataset.customerContact||"";
+    document.getElementById("dDeliveryAddress").value=row.dataset.deliveryAddress||"";
+    document.getElementById("dOrderDate").value=row.dataset.orderDate||"";
+    document.getElementById("dDeliveryDate").value=row.dataset.deliveryDate||"";
 
-document.getElementById("dTotalAmount").textContent="£"+(row.dataset.total||"0.00");
+    document.getElementById("dTotalAmount").textContent="£"+(row.dataset.total||"0.00");
 
-const itemsWrap=document.getElementById("itemsRows");
-itemsWrap.innerHTML="";
+    const itemsWrap=document.getElementById("itemsRows");
+    itemsWrap.innerHTML="";
 
-let items=[];
+    let items=[];
+    try{
+        items=JSON.parse(row.dataset.items||"[]");
+    }catch(e){ items=[]; }
 
-try{
-items=JSON.parse(row.dataset.items||"[]");
-}catch(e){items=[];}
+    items.forEach(it=>{
+        const r=document.createElement("div");
+        r.className="prod-table row";
+        r.style.gridTemplateColumns="2fr 0.7fr 0.9fr 0.9fr";
 
-items.forEach(it=>{
+        r.innerHTML=`
+        <div style="display:flex;align-items:center;gap:8px;">
+            ${it.image ? `<img src="${it.image}" style="width:40px;height:40px;border-radius:6px;">` : ""}
+            ${it.product_name||""}
+        </div>
+        <div>${it.quantity||0}</div>
+        <div>£${Number(it.price_at_purchase||0).toFixed(2)}</div>
+        <div><strong>£${Number((it.quantity||0)*(it.price_at_purchase||0)).toFixed(2)}</strong></div>
+        `;
 
-const r=document.createElement("div");
-r.className="prod-table row";
-r.style.gridTemplateColumns="2fr 0.7fr 0.9fr 0.9fr";
+        itemsWrap.appendChild(r);
+    });
 
-r.innerHTML=`
-<div style="display:flex;align-items:center;gap:8px;">
-${it.image ? `<img src="${it.image}" style="width:40px;height:40px;border-radius:6px;">` : ""}
-${it.product_name||""}
-</div>
-
-<div>${it.quantity||0}</div>
-
-<div>£${Number(it.price_at_purchase||0).toFixed(2)}</div>
-
-<div><strong>£${Number((it.quantity||0)*(it.price_at_purchase||0)).toFixed(2)}</strong></div>
-`;
-
-itemsWrap.appendChild(r);
-
+    openModal();
 });
 
-openModal();
+/* ---------------- STATUS NOTE MODAL ---------------- */
 
+let pendingStatusUpdate = null; // stores { selectEl, orderId, newStatus, row }
+
+function openStatusNoteModal(selectEl, orderId, newStatus, row) {
+    const defaultNotes = {
+        'Confirmed': 'Products will be prepared by the delivery date.',
+        'Ready': 'Your order is ready for collection/delivery.',
+        'Delivered': 'Thank you for your order!'
+    };
+
+    document.getElementById("statusNotePrompt").textContent =
+        `You are updating Order #${orderId} to "${newStatus}". Add an optional note for the customer:`;
+
+    document.getElementById("statusNoteInput").value = defaultNotes[newStatus] || '';
+
+    pendingStatusUpdate = { selectEl, orderId, newStatus, row };
+
+    document.getElementById("statusNoteModal").style.display = "flex";
+}
+
+function closeStatusNoteModal() {
+  document.getElementById("statusNoteModal").style.display = "none";
+  pendingStatusUpdate = null;
+}
+
+function showToast(message, type) {
+  const toast = document.getElementById("toastMsg");
+  toast.textContent = message;
+  toast.style.background = type === 'error' ? '#fde8e8' : '#e8f5e9';
+  toast.style.border = type === 'error' ? '1px solid #f5c6c6' : '1px solid #c8e6c9';
+  toast.style.color = type === 'error' ? '#c0392b' : '#2e7d32';
+  toast.style.display = 'block';
+  toast.style.opacity = '1';
+  setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => { toast.style.display = 'none'; }, 300);
+  }, 6000);
+}
+
+document.getElementById("statusNoteCancelBtn").addEventListener("click", function() {
+    // Revert the dropdown to previous status
+    if (pendingStatusUpdate) {
+        pendingStatusUpdate.selectEl.value = pendingStatusUpdate.row.dataset.status;
+    }
+    closeStatusNoteModal();
 });
 
+document.getElementById("statusNoteModal").addEventListener("click", function(e) {
+    if (e.target.id === "statusNoteModal") {
+        if (pendingStatusUpdate) {
+            pendingStatusUpdate.selectEl.value = pendingStatusUpdate.row.dataset.status;
+        }
+        closeStatusNoteModal();
+    }
+});
+
+document.getElementById("statusNoteConfirmBtn").addEventListener("click", function() {
+    if (!pendingStatusUpdate) return;
+
+    const { selectEl, orderId, newStatus, row } = pendingStatusUpdate;
+    const note = document.getElementById("statusNoteInput").value.trim();
+
+    closeStatusNoteModal();
+
+    fetch(`/producer/api/orders/${orderId}/status/`, {
+        method: "PATCH",
+        headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ status: newStatus, note: note })
+    })
+    .then(async r => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || "Update failed");
+
+        row.dataset.status = newStatus;
+        console.log(`Order #${orderId} updated to ${newStatus}`);
+    })
+    .catch(err => {
+        console.error("Status update failed", err);
+        // Revert dropdown on failure
+        selectEl.value = row.dataset.status;
+        showToast(err.message, 'error');
+    });
+});
 
 /* ---------------- UPDATE ORDER STATUS ---------------- */
 
-document.addEventListener("change",function(e){
+document.addEventListener("change", function(e){
 
-if(!e.target.classList.contains("status-select")) return;
+    if(!e.target.classList.contains("status-select")) return;
 
-const orderId=e.target.dataset.id;
-const newStatus=e.target.value;
+    const selectEl = e.target;
+    const orderId = selectEl.dataset.id;
+    const newStatus = selectEl.value;
+    const row = selectEl.closest(".order-row");
 
-fetch(`/producer/api/orders/${orderId}/status/`,{
-    method:"PATCH",
-    headers:{
-        "Authorization":"Bearer "+token,
-        "Content-Type":"application/json"
-    },
-    body:JSON.stringify({status:newStatus})
-})
-.then(async r=>{
-    const data = await r.json();
-    console.log("RESPONSE:", data);
-    console.log("STATUS CODE:", r.status);
-    if(!r.ok){
-        throw new Error(data.error || "Update failed");
+    // Don't show note modal for Pending (no need to notify on revert)
+    if (newStatus === "Pending") {
+        fetch(`/producer/api/orders/${orderId}/status/`, {
+            method: "PATCH",
+            headers: {
+                "Authorization": "Bearer " + token,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ status: newStatus, note: "" })
+        })
+        .then(async r => {
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.error || "Update failed");
+            row.dataset.status = newStatus;
+        })
+        .catch(err => {
+            console.error("Status update failed", err);
+            selectEl.value = row.dataset.status;
+            showToast(err.message, 'error');
+        });
+        return;
     }
 
-    const row = e.target.closest(".order-row");
-    row.dataset.status = newStatus;
-})
-.catch(err=>{
-    console.error("Status update failed",err);
+    // For Confirmed, Ready, Delivered — show the note modal
+    openStatusNoteModal(selectEl, orderId, newStatus, row);
 });
-
-});
-
 
 /* ---------------- STATUS FILTER ---------------- */
 
 document.getElementById("statusFilter").addEventListener("change",()=>{
 
-const selected=document.getElementById("statusFilter").value;
+    const selected=document.getElementById("statusFilter").value;
 
-document.querySelectorAll(".order-row").forEach(row=>{
-
-const status=row.dataset.status||"";
-
-row.style.display=(!selected||status===selected)?"grid":"none";
-
-});
-
+    document.querySelectorAll(".order-row").forEach(row=>{
+        const status=row.dataset.status||"";
+        row.style.display=(!selected||status===selected)?"grid":"none";
+    });
 });
 
 </script>

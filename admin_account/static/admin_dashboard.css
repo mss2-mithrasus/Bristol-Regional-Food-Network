@@ -1,0 +1,342 @@
+/* Main page layout */
+main {
+    padding-bottom: 60px; 
+}
+html, body {
+    height: auto;
+    min-height: 100%;
+    margin: 0;
+    overflow-y: auto;
+}
+.admin_layout {
+    display: flex;
+    min-height: 80vh;
+    margin-top: 20px;
+}
+
+/* Sidebar */
+
+.admin_sidebar {
+    margin-top: 0;
+    padding-top: 0;
+    width: 200px;
+    background: #406083;
+    padding: 0 10px 20px 10px;
+    border-radius: 0 10px 10px 0;
+}
+
+.admin_sidebar button {
+    background: #406083;
+    border: none;
+    padding: 12px 15px;
+    border-radius: 8px;
+    color: white;
+    font-size: 15px;
+    cursor: pointer;
+    text-align: left;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    justify-content: flex-start;
+
+}
+
+.admin_sidebar button:hover {
+    background: #2d4a63;
+}
+
+
+
+/* Main dashbaord  */
+.admin_main {
+    flex: 1;
+    padding: 30px;
+    box-sizing: border-box;
+}
+
+
+/* Panels */
+.admin_panel {
+    display: none;
+}
+
+.admin_panel h1 {
+    color: #406083;
+    margin-bottom: 20px;
+}
+
+.pill-row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 25px;
+}
+
+.pill {
+    background: white;
+    border-radius: 12px;
+    padding: 15px 20px;
+    box-shadow: 0 0 10px rgba(64, 96, 131, 0.2);
+    min-width: 180px;
+}
+
+.pill span {
+    display: block;
+    color: #406083;
+    font-size: 14px;
+}
+
+.pill strong {
+    font-size: 22px;
+    color: #2d4a63;
+}
+
+/* Admin card layout */
+
+.admin_card {
+    background: #ffffff;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 10px;
+    border: 1px solid #d7e0ea;
+    box-shadow: 0 0 10px rgba(64, 96, 131, 0.2);
+}
+
+.admin_card p {
+    margin: 8px 0;
+    font-size: 16px;
+}
+
+/* Buttons */
+
+.approve_btn {
+    background: #406083;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    width: 100%;
+    margin-top: 10px;
+    transition: 0.2s;
+}
+
+.approve_btn:hover {
+    background: #2d4a63;
+}
+
+.reject_btn {
+    background: #b02a37;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    width: 100%;
+    margin-top: 10px;
+    transition: 0.2s;
+}
+
+.reject_btn:hover {
+    background: #7a1d26;
+}
+
+/* Financial reports  */
+.report-controls {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(64, 96, 131, 0.2);
+    margin-bottom: 20px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.report-controls input {
+    padding: 8px 10px;
+    border: 1px solid #d7e0ea;
+    border-radius: 6px;
+}
+
+.report-controls button {
+    background: #406083;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.export_btn {
+    background: #2d4a63;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    margin-top: 20px;
+}
+
+/* Display message  */
+.admin_card .empty-message {
+    margin: 0;
+    padding: 4px 0;
+    font-size: 15px;
+    font-style: italic;
+    color: #555;
+}
+
+/* Responsive  */
+@media (max-width: 900px) {
+    .admin_layout {
+        flex-direction: column;
+    }
+
+    .admin_sidebar {
+        width: 100%;
+        flex-direction: row;
+        overflow-x: auto;
+        border-radius: 0;
+    }
+
+    .admin_sidebar button {
+        flex: 1;
+        text-align: center;
+        justify-content: center;
+    }
+}
+/* Table Container */
+.table-container {
+    margin-top: 15px;
+    overflow-x: auto;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(64, 96, 131, 0.15);
+}
+
+/* Real Table */
+.financial-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 900px;
+}
+
+.financial-table th {
+    background: #f4f7fb;
+    font-weight: 800;
+    padding: 12px;
+    border-bottom: 2px solid #d7dee5;
+    text-align: left;
+}
+
+.financial-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+}
+
+.financial-table tr:hover {
+    background: #f9fafb;
+}
+
+.empty-message {
+    text-align: center;
+    padding: 20px;
+    font-weight: 700;
+}
+
+/* Modal */
+.modal.order-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999 !important;
+}
+
+.order-modal-content {
+    background: #fff;
+    padding: 20px;
+    border-radius: 12px;
+    max-width: 600px;
+    width: 100%;
+}
+
+.audit-box {
+    background: #f4f7fb;
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+/* Producers Section */
+#adProducers {
+    margin-top: 12px;
+    padding: 10px;
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #d7e0ea;
+    box-shadow: 0 0 6px rgba(64, 96, 131, 0.15);
+}
+
+.audit-row {
+    padding: 10px 12px;
+    background: #f9fafc;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-size: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.audit-row strong {
+    color: #406083;
+    font-weight: 700;
+}
+
+.audit-row:last-child {
+    margin-bottom: 0;
+}
+
+.pie-row {
+    display: flex;
+    justify-content: center;
+    gap: 60px;          
+    flex-wrap: wrap;    
+    margin-bottom: 40px;
+}
+
+.pie-wrapper {
+    width: 220px;       
+    height: 220px;
+    text-align: center;
+    margin-top: 20px;
+    margin-bottom: 100px;
+
+}
+
+.pie-wrapper canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.line-wrapper {
+    width: 80%;        
+    height: 200px;       
+    margin: 15px auto 0 auto;     
+    position: relative;
+}
+
+.line-wrapper canvas {
+    width: 100% !important;
+    height: 100% !important;
+}

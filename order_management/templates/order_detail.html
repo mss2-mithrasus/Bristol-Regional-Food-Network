@@ -3,6 +3,124 @@
 
 {% block head %}
 <link rel="stylesheet" href="{% static 'order_detail.css' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+/* Add these styles for the new status history */
+.status-history-section {
+    margin-top: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 12px;
+}
+
+.status-history-section h4 {
+    color: #406083;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.producer-timeline {
+    background: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid #e0e0e0;
+}
+
+.timeline-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f0f0f0;
+    font-weight: 600;
+    color: #406083;
+}
+
+.collection-badge {
+    background: #d1c4e9;
+    color: #512da8;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.delivery-badge {
+    background: #cce5ff;
+    color: #004085;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.timeline-entries {
+    position: relative;
+    padding-left: 20px;
+}
+
+.timeline-entries::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 5px;
+    bottom: 5px;
+    width: 2px;
+    background: #e0e0e0;
+}
+
+.timeline-entry {
+    position: relative;
+    padding: 10px 0 10px 20px;
+    margin-bottom: 5px;
+}
+
+.timeline-entry::before {
+    content: '';
+    position: absolute;
+    left: -5px;
+    top: 18px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid #406083;
+    z-index: 1;
+}
+
+.timeline-date {
+    font-size: 11px;
+    color: #999;
+    margin-bottom: 2px;
+}
+
+.timeline-message {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    margin-bottom: 2px;
+}
+
+.status-message {
+    color: #333;
+    line-height: 1.4;
+}
+
+.timeline-by {
+    font-size: 11px;
+    color: #999;
+    margin-left: 28px;
+}
+
+.timeline-by::before {
+    content: '— ';
+}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -16,6 +134,26 @@
             <div class="order-meta">
                 <span>Placed on {{ order_date|date:"F j, Y" }}</span>
             </div>
+        </div>
+        <span class="status-badge status-{{ status|lower }}">{{ status }}</span>
+    </div>
+    
+    <!-- Add this after the order header -->
+    <div class="status-timeline">
+        <h3>Order Status Timeline</h3>
+        <div class="timeline">
+            <div class="timeline-item completed">
+                <span class="timeline-date">{{ order.created_at|date:"M j, Y" }}</span>
+                <span class="timeline-status">Order Placed</span>
+            </div>
+            {% for producer in producers %}
+                {% if producer.status == "Confirmed" or producer.status == "Ready" or producer.status == "Delivered" %}
+                <div class="timeline-item completed">
+                    <span class="timeline-date">{{ order.created_at|date:"M j, Y" }}</span>
+                    <span class="timeline-status">{{ producer.name }} - {{ producer.status }}</span>
+                </div>
+                {% endif %}
+            {% endfor %}
         </div>
         <span class="status-badge status-{{ status|lower }}">{{ status }}</span>
     </div>
@@ -74,7 +212,7 @@
             </div>
         </div>
         
-        <!-- Itemised List (TC-021 step 5) -->
+        <!-- Itemised List -->
         <div class="items-table">
             <div class="items-header">
                 <div>Product</div>
@@ -106,23 +244,71 @@
             </div>
         </div>
         
-        <!-- Status History (if available) -->
+        <!-- Status History with meaningful messages (REPLACED SECTION) -->
         {% if producer.status_history %}
-        <div class="status-history">
-            <h4>Order Status History</h4>
-            <div class="timeline">
-                {% for history in producer.status_history %}
-                <div class="timeline-item">
-                    <div class="timeline-badge"></div>
-                    <div class="timeline-content">
-                        <span class="timeline-date">{{ history.changed_at|date:"M j, Y H:i" }}</span>
-                        <span class="timeline-status">
-                            {{ history.old_status }}  <strong>{{ history.new_status }}</strong>
-                        </span>
-                        <span class="timeline-actor">by {{ history.changed_by }}</span>
-                    </div>
+        <div class="status-history-section">
+            <h4><i class="fa-solid fa-clock-rotate-left"></i> Order Timeline - {{ producer.name }}</h4>
+            
+            <div class="producer-timeline">
+                <div class="timeline-header">
+                    <i class="fa-solid fa-store"></i> {{ producer.name }}
+                    {% if producer.is_collection %}
+                        <span class="collection-badge"><i class="fa-solid fa-hand-holding-box"></i> Collection</span>
+                    {% else %}
+                        <span class="delivery-badge"><i class="fa-solid fa-truck"></i> Delivery</span>
+                    {% endif %}
                 </div>
-                {% endfor %}
+                
+                <div class="timeline-entries">
+                    {% for entry in producer.status_history %}
+                    <div class="timeline-entry">
+                        <div class="timeline-date">{{ entry.changed_at|date:"M d, Y H:i" }}</div>
+                        <div class="timeline-message">
+                            {% if entry.old_status == "Pending" and entry.new_status == "Confirmed" %}
+                                <i class="fa-solid fa-check-circle" style="color: #28a745;"></i>
+                                <span class="status-message">Order confirmed by {{ producer.name }}. Your items are being prepared.</span>
+                            
+                            {% elif entry.old_status == "Confirmed" and entry.new_status == "Ready" %}
+                                <i class="fa-solid fa-box-open" style="color: #17a2b8;"></i>
+                                <span class="status-message">
+                                    {% if producer.is_collection %}
+                                        Your order is ready for collection from {{ producer.name }}.
+                                    {% else %}
+                                        Your order is ready for delivery from {{ producer.name }}.
+                                    {% endif %}
+                                </span>
+                            
+                            {% elif entry.old_status == "Ready" and entry.new_status == "Delivered" %}
+                                <i class="fa-solid fa-circle-check" style="color: #28a745;"></i>
+                                <span class="status-message">
+                                    {% if producer.is_collection %}
+                                        Your order has been collected from {{ producer.name }}. Thank you!
+                                    {% else %}
+                                        Your order has been delivered by {{ producer.name }}. Enjoy!
+                                    {% endif %}
+                                </span>
+                            
+                            {% elif entry.old_status == "Pending" and entry.new_status == "Ready" %}
+                                <i class="fa-solid fa-forward" style="color: #ffc107;"></i>
+                                <span class="status-message">Order status skipped to Ready (unusual progression)</span>
+                            
+                            {% elif entry.old_status == "Pending" and entry.new_status == "Delivered" %}
+                                <i class="fa-solid fa-forward" style="color: #ffc107;"></i>
+                                <span class="status-message">Order status skipped to Delivered (unusual progression)</span>
+                            
+                            {% elif entry.old_status == "Confirmed" and entry.new_status == "Delivered" %}
+                                <i class="fa-solid fa-forward" style="color: #ffc107;"></i>
+                                <span class="status-message">Order status skipped to Delivered (unusual progression)</span>
+                            
+                            {% else %}
+                                <i class="fa-solid fa-arrow-right" style="color: #6c757d;"></i>
+                                <span class="status-message">Status changed from {{ entry.old_status }} to {{ entry.new_status }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="timeline-by">{{ entry.changed_by }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
         {% endif %}
@@ -166,7 +352,7 @@
             <ul id="unavailableList"></ul>
         </div>
         <div class="modal-actions">
-            <a href="/cart/" id="viewCartBtn" class="modal-btn primary" style="display: none;">View Cart</a>
+            <a href="javascript:void(0);" onclick="goToCartWithForce()" id="viewCartBtn" class="modal-btn primary" style="display: none;">View Cart</a>
             <a href="/orders/checkout/multi/" id="checkoutBtn" class="modal-btn primary" style="display: none;">Checkout</a>
             <button onclick="closeModal()" class="modal-btn secondary">Continue Shopping</button>
         </div>
@@ -174,6 +360,65 @@
 </div>
 
 <script>
+// Function to update cart badge after reorder
+function updateCartBadgeAfterReorder(totalItems) {
+    // Update the cart badge in the navigation
+    const cartBadge = document.getElementById('cart-badge');
+    if (cartBadge) {
+        if (totalItems > 0) {
+            cartBadge.textContent = totalItems;
+            cartBadge.style.display = 'flex';
+        } else {
+            cartBadge.style.display = 'none';
+        }
+    }
+    
+    // Also update any other cart indicators on the page
+    const cartIcon = document.querySelector('.cart-icon');
+    if (cartIcon) {
+        const iconBadge = cartIcon.querySelector('.cart-badge');
+        if (iconBadge) {
+            if (totalItems > 0) {
+                iconBadge.textContent = totalItems;
+                iconBadge.style.display = 'flex';
+            } else {
+                iconBadge.style.display = 'none';
+            }
+        }
+    }
+}
+
+// Function to go to cart with cache busting and delay
+function goToCartWithForce() {
+    const viewCartBtn = document.getElementById('viewCartBtn');
+    viewCartBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading Cart...';
+    viewCartBtn.style.pointerEvents = 'none';
+    viewCartBtn.style.opacity = '0.7';
+
+    setTimeout(function() {
+        const token = localStorage.getItem("access") || sessionStorage.getItem("access");
+        if (!token) { window.location.href = "/login/"; return; }
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/cart/';
+
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = 'token';
+        tokenInput.value = token;
+
+        form.appendChild(csrfInput);
+        form.appendChild(tokenInput);
+        document.body.appendChild(form);
+        form.submit();
+    }, 1500);
+}
 function reorder(orderId) {
     fetch(`/orders/reorder/${orderId}/`, {
         method: 'POST',
@@ -192,7 +437,8 @@ function reorder(orderId) {
         const checkoutBtn = document.getElementById('checkoutBtn');
         
         if (data.success) {
-            statusDiv.innerHTML = `<p class="success-message"> Successfully added ${data.added_count} items to your cart.</p>`;
+            statusDiv.innerHTML = `<p class="success-message"><i class="fa-solid fa-circle-check"></i> Successfully added ${data.added_count} items to your cart!</p>
+            <p style="font-size: 12px; color: #666; margin-top: 5px;">Click "View Cart" to see your items (please wait a moment)...</p>`;
             
             if (data.unavailable_count > 0) {
                 unavailableDiv.style.display = 'block';
@@ -202,10 +448,18 @@ function reorder(orderId) {
                 });
             }
             
+            // Update cart badge immediately
+            updateCartBadgeAfterReorder(data.total_items);
+            
             viewCartBtn.style.display = 'inline-block';
             checkoutBtn.style.display = 'inline-block';
+            
+            // Make sure the view cart button has the correct onclick handler
+            viewCartBtn.setAttribute('onclick', 'goToCartWithForce()');
         } else {
             statusDiv.innerHTML = `<p class="error-message"> Error: ${data.error}</p>`;
+            viewCartBtn.style.display = 'none';
+            checkoutBtn.style.display = 'none';
         }
         
         modal.style.display = 'block';
@@ -214,12 +468,17 @@ function reorder(orderId) {
 
 function closeModal() {
     document.getElementById('reorderModal').style.display = 'none';
+    document.getElementById('reorderStatus').innerHTML = '';
+    document.getElementById('unavailableItems').style.display = 'none';
+    document.getElementById('unavailableList').innerHTML = '';
+    document.getElementById('viewCartBtn').style.display = 'none';
+    document.getElementById('checkoutBtn').style.display = 'none';
 }
 
 window.onclick = function(event) {
     const modal = document.getElementById('reorderModal');
     if (event.target == modal) {
-        modal.style.display = 'none';
+        closeModal();
     }
 }
 </script>

@@ -3,7 +3,7 @@
 
 {% block head %}
 <link rel="stylesheet" href="{% static 'checkout.css' %}">
-<!-- Removed Font Awesome CDN -->
+
 {% endblock %}
 
 {% block content %}
@@ -68,7 +68,7 @@
                         </div>
 
                         <div class="summary-row">
-                            <span class="summary-label">Included 5% platform fee:</span>
+                            <span class="summary-label">Commission (5%):</span>
                             <span class="summary-value">£{{ group.commission_formatted }}</span>
                         </div>
 
@@ -359,7 +359,7 @@ function validateProducerDate(producerId) {
 function allDeliveryDatesSelected() {
     console.log("=== CHECKING PRODUCER STATES FOR GLOBAL WARNING ===");
     
-    // First, check if ANY producer is in Delivery mode
+    // First, check if any producer is in Delivery mode
     let hasDeliveryMode = false;
     
     for (const [producerId, state] of Object.entries(producerStates)) {

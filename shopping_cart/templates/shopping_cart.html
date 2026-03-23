@@ -107,22 +107,22 @@
     <div class="cart-footer">
         <div class="cart-totals">
             <div class="total-row">
-                <span>Subtotal ({{ total_items }} items):</span>
+                <span>Total:</span>
                 <span class="total-amount" id="cart-subtotal">£{{ subtotal|floatformat:2 }}</span>
             </div>
             
             <div class="total-row">
-                <span>Network Fee (5%):</span>
-                <span class="fee-amount" id="cart-fee">£{{ network_fee|floatformat:2 }}</span> 
+                <span>Network Fee (included):</span>
+                <span class="fee-amount" id="cart-fee">£{{ network_fee|floatformat:2 }}</span>
             </div>
             
             <div class="total-row grand-total">
-                <span>Total:</span>
+                <span>Total to pay:</span>
                 <span class="grand-total-amount" id="cart-total">£{{ total|floatformat:2 }}</span>
             </div>
             
             <div class="cart-actions">
-                <a href="/customer/home/category/Vegetables/" class="continue-shopping">
+                <a href="/customer/home/" class="continue-shopping">
                     <i class="fa-solid fa-arrow-left"></i> Continue Shopping
                 </a>
                 <a href="/orders/checkout/multi/" class="checkout-btn">
@@ -347,12 +347,18 @@
                 document.getElementById(`total-${itemId}`).textContent = `£${data.item_subtotal.toFixed(2)}`;
                 document.getElementById('cart-subtotal').textContent = `£${data.cart_subtotal.toFixed(2)}`;
                 
+                // Calculate commission (5% of subtotal)
+                const commission = data.cart_subtotal * 0.05;
+                
+                // Update the fee (just showing what's included)
+                document.getElementById('cart-fee').textContent = `£${commission.toFixed(2)}`;
+                // Total to pay is same as subtotal
+                document.getElementById('cart-total').textContent = `£${data.cart_subtotal.toFixed(2)}`;
+                
                 // Update producer subtotal
                 updateProducerSubtotal(itemId, data.item_subtotal);
                 
                 updateCartIcon(data.cart_total_items);
-                document.getElementById('cart-fee').textContent = `£${(data.cart_subtotal * 0.05).toFixed(2)}`;
-                document.getElementById('cart-total').textContent = `£${(data.cart_subtotal * 1.05).toFixed(2)}`;
                 
                 const cartBadge = document.querySelector('.cart-badge');
                 if (cartBadge) {
@@ -430,12 +436,18 @@
                 document.getElementById(`total-${itemId}`).textContent = `£${data.item_subtotal.toFixed(2)}`;
                 document.getElementById('cart-subtotal').textContent = `£${data.cart_subtotal.toFixed(2)}`;
                 
+                // Calculate commission (5% of subtotal)
+                const commission = data.cart_subtotal * 0.05;
+                
+                // Update the fee (just showing what's included)
+                document.getElementById('cart-fee').textContent = `£${commission.toFixed(2)}`;
+                // Total to pay is same as subtotal
+                document.getElementById('cart-total').textContent = `£${data.cart_subtotal.toFixed(2)}`;
+                
                 // Update producer subtotal
                 updateProducerSubtotal(itemId, data.item_subtotal);
                 
                 updateCartIcon(data.cart_total_items);
-                document.getElementById('cart-fee').textContent = `£${(data.cart_subtotal * 0.05).toFixed(2)}`;
-                document.getElementById('cart-total').textContent = `£${(data.cart_subtotal * 1.05).toFixed(2)}`;
                 
                 // Update the max for this item after successful update
                 updateCartItemMax(itemId);
@@ -511,10 +523,17 @@
                     producerSubtotalEl.textContent = `£${producerTotal.toFixed(2)}`;
                 }
                 
-                // Update totals
+                // Update subtotal
                 document.getElementById('cart-subtotal').textContent = `£${data.cart_subtotal.toFixed(2)}`;
-                document.getElementById('cart-fee').textContent = `£${(data.cart_subtotal * 0.05).toFixed(2)}`;
-                document.getElementById('cart-total').textContent = `£${(data.cart_subtotal * 1.05).toFixed(2)}`;
+                
+                // Calculate commission (5% of subtotal)
+                const commission = data.cart_subtotal * 0.05;
+                
+                // Update the fee (just showing what's included)
+                document.getElementById('cart-fee').textContent = `£${commission.toFixed(2)}`;
+                // Total to pay is same as subtotal
+                document.getElementById('cart-total').textContent = `£${data.cart_subtotal.toFixed(2)}`;
+                
                 updateCartIcon(data.cart_total_items);
                 
                 // Check if producer group is empty
