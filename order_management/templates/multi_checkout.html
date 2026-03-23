@@ -96,6 +96,9 @@
                                     <span class="address-label">Postcode</span>
                                     <span class="address-value" id="customer-postcode-{{ group.producer.id }}">{{ user_address.postcode|default:"" }}</span>
                                 </div>
+                                <button type="button" class="edit-address-btn" onclick="editAddress('{{ group.producer.id }}')">
+                                    <i class="fa-solid fa-pencil"></i> Edit
+                                </button>
                             </div>
 
                             <label for="date-{{ group.producer.id }}" style="margin-top: 10px; display: block;">
