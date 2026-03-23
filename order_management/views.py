@@ -1,9 +1,10 @@
 from django.contrib import messages
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from datetime import timedelta
 from user_accounts.models import CustomerAccount, Person, Address, ProducerAccount
-from shopping_cart.models import Cart, CartItem
+from shopping_cart.models import Cart, CartItem, CartItem
 import logging
 import random
 from django.contrib.auth.decorators import login_required
@@ -13,7 +14,8 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 import json
 import traceback
-from django.db.models import Sum
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -69,10 +71,14 @@ def multi_checkout(request):
     total_quantity = 0  # Initialize total quantity counter
     
     for producer, data in items_by_producer_dict.items():
-        # Calculate producer totals
-        producer_subtotal = float(data['subtotal'])
-        producer_commission = round(producer_subtotal * 0.05, 2)
-        producer_total = round(producer_subtotal * 1.05, 2)
+        # Customer pays this price (includes 5% commission)
+        customer_price = float(data['subtotal'])
+        
+        # Calculate commission (5% of customer price)
+        commission = round(customer_price * 0.05, 2)
+        
+        # Producer gets customer price minus commission
+        producer_payout = customer_price - commission
 
         # ===== GET PRODUCER ADDRESS =====
         producer_address = None
@@ -131,7 +137,7 @@ def multi_checkout(request):
                 'name': product.name,
                 'quantity': item.quantity,
                 'price': float(product.price),
-                'price_formatted': f"{float(product.price):.2f}",  
+                'price_formatted': f"{float(product.price):.2f}",
                 'unit': unit,
                 'image': image_url,
                 'organic_certified': organic,
@@ -142,22 +148,24 @@ def multi_checkout(request):
                 "id": data['producer_id'],
                 "name": data['producer_name']
             },
-            "producer_address": producer_address,  # Just street and postcode
+            "producer_address": producer_address,
             "items": formatted_items,
             "min_delivery_date": min_delivery_date,
-            "subtotal": producer_subtotal,
-            "subtotal_formatted": f"{producer_subtotal:.2f}",  
-            "commission": producer_commission,
-            "commission_formatted": f"{producer_commission:.2f}",  
-            "total": producer_total,
-            "total_formatted": f"{producer_total:.2f}",  
+            "subtotal": customer_price,                     # £7.31 (customer pays)
+            "subtotal_formatted": f"{customer_price:.2f}",
+            "commission": commission,                        # £0.37 (5% of customer price)
+            "commission_formatted": f"{commission:.2f}",
+            "total": customer_price,                         # £7.31 (customer pays)
+            "total_formatted": f"{customer_price:.2f}",
+            "producer_payout": producer_payout,              # £6.94 (producer gets after commission)
         })
         
-        overall_subtotal += producer_subtotal
+        overall_subtotal += customer_price
     
-    overall_total = round(overall_subtotal * 1.05, 2)
-    overall_total_formatted = f"{overall_total:.2f}"  
-    overall_subtotal_formatted = f"{overall_subtotal:.2f}" 
+    overall_total = sum(group['total'] for group in producer_groups)
+    overall_total_formatted = f"{overall_total:.2f}"
+    overall_subtotal_formatted = f"{overall_subtotal:.2f}"
+        
     
     # Get user address - SIMPLIFIED - JUST ADDRESS (NO PERSONAL INFO)
     user_address = None
@@ -198,7 +206,7 @@ def multi_checkout(request):
                 "name": group["producer"]["name"],
             },
             "producer_address": group["producer_address"],
-            "min_delivery_date": str(group["min_delivery_date"]),  # Convert date to string
+            "min_delivery_date": str(group["min_delivery_date"]),
             "subtotal": group["subtotal"],
             "commission": group["commission"],
             "total": group["total"],
@@ -228,7 +236,7 @@ def multi_checkout(request):
     context = {
         "producer_groups": producer_groups,
         "total": overall_total,
-        "total_formatted": f"{overall_total:.2f}",  
+        "total_formatted": f"{overall_total:.2f}",
         "user_address": user_address,
         "total_quantity": total_quantity,
         "summary_items": [],
@@ -238,9 +246,9 @@ def multi_checkout(request):
     
     return render(request, "multi_checkout.html", context)
 
-
 @login_required
 def order_detail(request, order_id):
+    """Display full details for a specific order"""
     try:
         order = Order.objects.get(
             order_id=order_id,
@@ -253,6 +261,7 @@ def order_detail(request, order_id):
     # Group by producer
     producers = []
     has_collection = False
+    all_items = []  # Add this for preview
     
     for suborder in order.suborders.all():
         items = []
@@ -261,14 +270,29 @@ def order_detail(request, order_id):
         is_collection = not suborder.delivery_date
         
         for item in suborder.items.all():
+            # Get product image URL
+            image_url = None
+            if hasattr(item.product, 'image') and item.product.image:
+                try:
+                    image_url = item.product.image.url
+                except:
+                    image_url = None
+            
             items.append({
                 'name': item.product.name,
                 'quantity': item.quantity,
-                'price': item.price_at_purchase,
-                'total': item.quantity * item.price_at_purchase,
-                'image': item.product.image.url if item.product.image else None,
+                'price': float(item.price_at_purchase),
+                'total': item.quantity * float(item.price_at_purchase),
+                'image': image_url,
                 'producer': suborder.producer.business_name,
                 'product_id': item.product.product_id
+            })
+            
+            # Add to all_items for preview (if needed)
+            all_items.append({
+                'name': item.product.name,
+                'quantity': item.quantity,
+                'price': float(item.price_at_purchase)
             })
         
         # Get producer address for collection
@@ -280,7 +304,7 @@ def order_detail(request, order_id):
             }
             has_collection = True
         
-    
+        # Get status history
         status_history = []
         for history in suborder.status_history.all().order_by('-order_status_changed_at'):
             status_history.append({
@@ -294,41 +318,42 @@ def order_detail(request, order_id):
             'name': suborder.producer.business_name,
             'delivery_date': suborder.delivery_date,
             'status': suborder.status,
-            'items': items,
-            'subtotal': suborder.subtotal,
-            'payout': suborder.payout_amount,
-            'status_history': status_history,  
-            'is_collection': is_collection,    
-            'producer_address': producer_address  
+            'items': items,  # This is the important one
+            'subtotal': float(suborder.subtotal),
+            'payout': float(suborder.payout_amount),
+            'status_history': status_history,
+            'is_collection': is_collection,
+            'producer_address': producer_address,
+            'special_instruction': suborder.special_instruction if hasattr(suborder, 'special_instruction') else None
         })
     
-    # Masked payment info 
+    # Masked payment info
     masked_payment = {
         'card_last4': '4242',
         'card_type': 'VISA',
         'billing_address': order.delivery_address
     }
     
-    # Calculate commission (5% of total)
-    commission = round(float(order.total_amount) * 0.05, 2)
+    # Calculate total items count
+    total_items = len(all_items)
     
     context = {
         'order': order,
-        'order_number': f"ORD-{order.order_id:06d}", 
+        'order_number': f"ORD-{order.order_id:06d}",
         'producers': producers,
-        'total': order.total_amount,
-        'commission': commission, 
+        'total': float(order.total_amount),
+        'commission': float(order.commission_amount),
         'delivery_address': order.delivery_address,
         'delivery_postcode': order.delivery_postcode,
         'order_date': order.created_at,
         'status': order.order_status,
-        'payment': masked_payment,  
-        'can_download': True,  
-        'has_collection': has_collection,  
+        'payment': masked_payment,
+        'can_download': True,
+        'has_collection': has_collection,
+        'total_items': total_items,  
     }
     
     return render(request, 'order_detail.html', context)
-
 
 @login_required
 def order_history(request):
@@ -344,7 +369,7 @@ def order_history(request):
         customer=customer
     ).order_by('-created_at')
     
-    
+    # Filter by date range if provided
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
     producer_filter = request.GET.get('producer')
@@ -370,75 +395,33 @@ def order_history(request):
     page_number = request.GET.get('page')
     orders = paginator.get_page(page_number)
     
-    # Prepare order data with items and producer status
+    # Prepare order data
     order_data = []
     for order in orders:
-        items = []
-        preview_items = []  
-        producers_data = []
-        
-        confirmed_count = 0
-        ready_count = 0
-        delivered_count = 0
-        collected_count = 0
-        total_producers = order.suborders.count()  # Get total number of producers for this order
+        # Get all items for preview
+        preview_items = []
+        producers_list = []
+        special_instructions = []  # Add this to collect special instructions
         
         for suborder in order.suborders.all():
-            # Determine if it's delivery or collection
-            is_delivery = suborder.delivery_date is not None
-            display_status = suborder.status
-            
-            # For Delivered status, show different display text
-            if suborder.status == "Delivered":
-                if is_delivery:
-                    display_status = "Delivered"
-                    delivered_count += 1  # Count as delivered
-                else:
-                    display_status = "Collected"
-                    collected_count += 1  # Count as collected
-            # For counting confirmed and ready (based on producer status, NOT item quantity)
-            
-            # Count confirmed producers (those at Confirmed, Ready, or Delivered stage)
-            if suborder.status in ["Confirmed", "Ready", "Delivered"]:
-                confirmed_count += 1
-            
-            # Count ready producers (those at Ready or Delivered stage)
-            if suborder.status in ["Ready", "Delivered"]:
-                ready_count += 1
-            
-            # Track producer status
-            producer_info = {
+            # Add producer info
+            producers_list.append({
                 'name': suborder.producer.business_name,
+                'delivery_date': suborder.delivery_date,
                 'status': suborder.status,
-                'display_status': display_status,
-                'is_delivery': is_delivery,
-                'delivery_date': suborder.delivery_date,  
                 'item_count': suborder.items.count(),
-                'subtotal': suborder.subtotal,  
-                'hours_remaining': None
-            }
-            
-            # Calculate hours remaining for pending orders
-            if suborder.status == "Pending":
-                hours_passed = (timezone.now() - order.created_at).total_seconds() / 3600
-                if hours_passed < 48:
-                    producer_info['hours_remaining'] = round(48 - hours_passed)
-            
-            producers_data.append(producer_info)
-            
-            # Get items for preview
-            for item in suborder.items.all():
-                items.append({
-                    'name': item.product.name,
-                    'quantity': item.quantity,
-                    'price': item.price_at_purchase,
+                'subtotal': suborder.subtotal
+            })
+
+
+             # Collect special instructions for this producer
+            if suborder.special_instruction:
+                special_instructions.append({
                     'producer': suborder.producer.business_name,
-                    'delivery_date': suborder.delivery_date,
-                    'status': suborder.status,
-                    'is_delivery': is_delivery
+                    'instruction': suborder.special_instruction
                 })
             
-            
+            # Add items for preview (first 2 from each producer)
             for item in suborder.items.all()[:2]:
                 preview_items.append({
                     'name': item.product.name,
@@ -447,53 +430,43 @@ def order_history(request):
                     'producer': suborder.producer.business_name
                 })
         
-        # Determine overall status 
+        # Calculate total items
+        total_items = sum(p['item_count'] for p in producers_list)
         
-        all_statuses = [p['status'] for p in producers_data]
-
-        # Check for Pending first (if any producer is still pending)
-        if any(s == 'Pending' for s in all_statuses):
+        # Determine overall status
+        all_statuses = [p['status'] for p in producers_list]
+        if all(s == 'Delivered' for s in all_statuses):
+            overall_status = 'Delivered'
+        elif any(s == 'Pending' for s in all_statuses):
             overall_status = 'Pending'
-        # If no Pending, check if all are at least Confirmed (some might be Ready/Delivered)
-        elif all(s in ['Confirmed', 'Ready', 'Delivered'] for s in all_statuses):
-            # Now check if all are at least Ready
-            if all(s in ['Ready', 'Delivered'] for s in all_statuses):
-                # Check if all are Delivered
-                if all(s == 'Delivered' for s in all_statuses):
-                    overall_status = 'Delivered'
-                else:
-                    overall_status = 'Ready'
-            else:
-                overall_status = 'Confirmed'
+        elif any(s == 'Confirmed' for s in all_statuses):
+            overall_status = 'In Progress'
         else:
             overall_status = order.order_status
+        
         order_data.append({
             'order_id': order.order_id,
-            'order_number': f"ORD-{order.order_id:06d}",  
+            'order_number': f"ORD-{order.order_id:06d}",
             'date': order.created_at,
+            'status': overall_status,
             'total': order.total_amount,
-            'status': overall_status,  
-            'item_count': len(items),  
-            'items': items[:3],  
-            'more_items': len(items) > 3,  
-            'preview_items': preview_items[:4],  
-            'friend_more_items': len(preview_items) > 4,  
-            'producers': producers_data,
-            'total_producers': total_producers,  
-            'confirmed_count': confirmed_count,
-            'ready_count': ready_count,
-            'delivered_count': delivered_count,
-            'collected_count': collected_count
+            'item_count': total_items,
+            'items': preview_items,
+            'preview_items': preview_items[:4],  # Show up to 4 items total
+            'more_items': len(preview_items) > 4,
+            'producers': producers_list,
+            'special_instructions': special_instructions,  # Add this to context
+            
         })
     
     context = {
         'orders': order_data,
         'page_obj': orders,
         'is_paginated': orders.has_other_pages(),
-        'producer_filters': sorted(list(all_producers)), 
-        'date_from': date_from,  
-        'date_to': date_to,  
-        'selected_producer': producer_filter if producer_filter else 'all', 
+        'producer_filters': sorted(list(all_producers)),
+        'date_from': date_from,
+        'date_to': date_to,
+        'selected_producer': producer_filter if producer_filter else 'all',
     }
     
     return render(request, 'order_history.html', context)
@@ -549,39 +522,15 @@ def reorder(request, order_id):
                 print(f"  - Processing: {product.name}, Qty: {quantity}, Price from order: £{price}")
                 
                 try:
-                    # FIXED: Check if product exists
-                    if not product:
+                    # Check if product exists and is active
+                    if not product or not hasattr(product, 'is_active') or not product.is_active:
                         unavailable_items.append({
                             'name': order_item.product.name,
                             'quantity': quantity,
                             'price': price,
                             'total': item_total,
                             'producer': suborder.producer.business_name,
-                            'reason': 'Product no longer exists'
-                        })
-                        continue
-                    
-                    # FIXED: Check availability status
-                    if hasattr(product, 'availability_status') and not product.availability_status:
-                        unavailable_items.append({
-                            'name': product.name,
-                            'quantity': quantity,
-                            'price': price,
-                            'total': item_total,
-                            'producer': suborder.producer.business_name,
-                            'reason': 'Product is currently unavailable'
-                        })
-                        continue
-                    
-                    # Check stock
-                    if hasattr(product, 'stock_quantity') and product.stock_quantity == 0:
-                        unavailable_items.append({
-                            'name': product.name,
-                            'quantity': quantity,
-                            'price': price,
-                            'total': item_total,
-                            'producer': suborder.producer.business_name,
-                            'reason': 'Product is out of stock'
+                            'reason': 'Product no longer available'
                         })
                         continue
                     
@@ -603,6 +552,7 @@ def reorder(request, order_id):
                     user_current_quantity = user_cart_item.quantity if user_cart_item else 0
                     
                     # Calculate available for this user to add
+                    # If stock_quantity doesn't exist, assume unlimited
                     if hasattr(product, 'stock_quantity'):
                         available_to_add = product.stock_quantity - other_users_reservations - user_current_quantity
                         print(f"    Stock: {product.stock_quantity}, Others reserved: {other_users_reservations}")
@@ -615,6 +565,7 @@ def reorder(request, order_id):
                     
                     # If stock tracking exists and we don't have enough
                     if hasattr(product, 'stock_quantity') and quantity > available_to_add:
+                        max_possible = user_current_quantity + available_to_add
                         unavailable_items.append({
                             'name': product.name,
                             'quantity': quantity,
@@ -690,10 +641,10 @@ def reorder(request, order_id):
         
         print(f" Reorder complete: {len(added_items)} added (£{total_amount}), {len(unavailable_items)} unavailable")
         return JsonResponse(response_data)
-
-
+    
 @login_required
 def download_receipt(request, order_id):
+    """View receipt (printable version)"""
     try:
         order = Order.objects.get(
             order_id=order_id,
@@ -728,7 +679,6 @@ def download_receipt(request, order_id):
     }
     
     return render(request, 'payment_success.html', context)
-
 
 def update_checkout_address(request):
     """Save edited address to session"""

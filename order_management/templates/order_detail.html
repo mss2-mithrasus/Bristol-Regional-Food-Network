@@ -242,6 +242,12 @@
                 <span>£{{ producer.subtotal|floatformat:2 }}</span>
             </div>
         </div>
+        {% if producer.special_instruction %}
+        <div class="special-instruction-display">
+            <h4><i class="fa-regular fa-note-sticky"></i> Special Instructions:</h4>
+            <p>{{ producer.special_instruction }}</p>
+        </div>
+        {% endif %}
         
         <!-- Status History with meaningful messages (REPLACED SECTION) -->
         {% if producer.status_history %}
