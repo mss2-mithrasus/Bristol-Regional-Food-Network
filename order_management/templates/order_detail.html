@@ -150,7 +150,18 @@
                 {% if producer.status == "Confirmed" or producer.status == "Ready" or producer.status == "Delivered" %}
                 <div class="timeline-item completed">
                     <span class="timeline-date">{{ order.created_at|date:"M j, Y" }}</span>
-                    <span class="timeline-status">{{ producer.name }} - {{ producer.status }}</span>
+                    <span class="timeline-status">
+                        {{ producer.name }} - 
+                        {% if producer.status == "Delivered" %}
+                            {% if producer.is_collection %}
+                                Collected
+                            {% else %}
+                                Delivered
+                            {% endif %}
+                        {% else %}
+                            {{ producer.status }}
+                        {% endif %}
+                    </span>
                 </div>
                 {% endif %}
             {% endfor %}
@@ -242,7 +253,14 @@
                 <span>£{{ producer.subtotal|floatformat:2 }}</span>
             </div>
         </div>
-        
+         <!-- ADD THIS BLOCK -->
+         {% if producer.special_instruction %}
+         <div class="special-instruction-display">
+             <h4><i class="fa-regular fa-note-sticky"></i> Special Instructions:</h4>
+             <p>{{ producer.special_instruction }}</p>
+         </div>
+         {% endif %}
+
         <!-- Status History with meaningful messages (REPLACED SECTION) -->
         {% if producer.status_history %}
         <div class="status-history-section">
@@ -318,7 +336,7 @@
     <div class="order-totals">
         <div class="total-row">
             <span>Subtotal:</span>
-            <span>£{{ order.total_amount|add:commission|floatformat:2 }}</span>
+            <span>£{{ total|floatformat:2 }}</span>
         </div>
         <div class="total-row">
             <span>Commission (5%):</span>
