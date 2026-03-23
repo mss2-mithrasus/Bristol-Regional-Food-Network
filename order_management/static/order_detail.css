@@ -239,6 +239,34 @@
     color: #666;
 }
 
+
+/* Special Instruction Display */
+.special-instruction-display {
+    margin: 15px 20px;
+    padding: 12px 15px;
+    background-color: #fff9e6;
+    border-left: 3px solid #ffc107;
+    border-radius: 6px;
+}
+
+.special-instruction-display h4 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: #856404;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.special-instruction-display p {
+    margin: 0;
+    font-size: 14px;
+    color: #333;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    line-height: 1.4;
+}
+
 /* Status History Timeline */
 .status-history {
     padding: 20px;
