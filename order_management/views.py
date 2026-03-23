@@ -769,4 +769,4 @@ def update_checkout_address(request):
     
     print("Method not allowed")
     print("=" * 50)
-    return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+    return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405) #need to use this 
