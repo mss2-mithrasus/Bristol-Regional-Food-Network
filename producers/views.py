@@ -1,24 +1,28 @@
 import csv
+from decimal import ROUND_HALF_UP, Decimal
+from itertools import product
 from django.http import HttpResponse
 from django.db.models import Count, Sum
+from django.db import transaction
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import request, status
 from rest_framework.permissions import IsAuthenticated
+from producers.models import ProducerSettlementOrder, SettlementReport
 from product.models import Product, ProductCategory, Allergen,ProductAllergen
 from product.serializers import ProductSerializer
 from user_accounts.permissions import IsProducer
 from user_accounts.models import ProducerAccount
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 
-from .serializers import DashboardOrderSerializer, ProductCreateSerializer, ProducerOrderSerializer
+from .serializers import DashboardOrderSerializer, ProductCreateSerializer, ProducerOrderSerializer, SettlementReportSerializer
 from order_management.models import OrderStatusHistory, OrderStatusHistory, SubOrder
 from payments.models import Commission
 from django.db.models.functions import TruncWeek
 from django.utils import timezone
 from datetime import date, timedelta, datetime
-
+from product.models import SeasonalAvailability
 
 class ProducerDashboardAPI(APIView):
     permission_classes = [IsAuthenticated, IsProducer]
@@ -32,16 +36,19 @@ class ProducerDashboardAPI(APIView):
         producer_name = producer.business_name
         products = Product.objects.filter(producer=producer)
         total_products = products.count()
-        low_stock = products.filter(stock_quantity__lt=5).count()
+        low_stock = products.filter(stock_quantity__lt=10).count()
         available_products = products.filter(availability_status=True).count()
         out_of_stock_products = products.filter(stock_quantity=0).count()
-        low_stock_products = products.filter(stock_quantity__lt=5, stock_quantity__gt=0).count()
+        low_stock_products = products.filter(stock_quantity__lt=10, stock_quantity__gt=0).count()
     
         active_orders = SubOrder.objects.filter(producer=producer).exclude(status="Delivered").count()
 
         delivered_orders = SubOrder.objects.filter(producer=producer, status="Delivered")
 
-        revenue = sum(float(o.payout_amount or 0) * 0.95 for o in delivered_orders)
+        revenue = sum((o.payout_amount or Decimal('0')) * Decimal('0.95') 
+              for o in delivered_orders)
+
+        revenue = revenue.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         
         recent_suborders = (SubOrder.objects.filter(producer=producer).select_related("order", "order__customer").prefetch_related("items__product").order_by("-order__created_at")[:5])
         serializer = DashboardOrderSerializer(recent_suborders, many=True)
@@ -57,7 +64,7 @@ class ProducerDashboardAPI(APIView):
                 "email": request.user.email,
                 "total_products": total_products,
                 "active_orders": active_orders,
-                "revenue": round(revenue, 2),
+                "revenue": (revenue),
                 "low_stock": low_stock,
                 "recent_orders": serializer.data,
 
@@ -141,6 +148,7 @@ class ProducerProductListAPI(APIView):
 
         data = []
         for p in products:
+            season = p.seasonal_availability.first()
             data.append({
                 "product_id": p.product_id,
                 "name": p.name,
@@ -152,6 +160,9 @@ class ProducerProductListAPI(APIView):
                 "availability_status": p.availability_status,
                 "harvest_date": p.harvest_date.isoformat() if p.harvest_date else None,
                 "image": p.image.url if p.image else None,
+                "season_start_date": season.season_start_date.isoformat() if season and season.season_start_date else None,
+                "season_end_date": season.season_end_date.isoformat() if season and season.season_end_date else None,
+                "is_year_round": season.is_year_round if season else False,
             })
 
         return Response(data, status=status.HTTP_200_OK)
@@ -215,7 +226,22 @@ class ProducerUpdateProductAPI(APIView):
         availability = request.data.get("availability_status")
         if availability is not None:
             product.availability_status = str(availability).lower() in ["true", "1", "yes"]
+        image = request.FILES.get("image")
+        if image:
+            product.image = image
+        start = request.data.get("season_start_date")
+        end = request.data.get("season_end_date")
+        is_year_round = request.data.get("is_year_round") == "true"
+        season, created = SeasonalAvailability.objects.get_or_create(product=product)
 
+        season.is_year_round = is_year_round
+        if is_year_round:
+            season.season_start_date = None
+            season.season_end_date = None
+        else:
+            season.season_start_date = start or None
+            season.season_end_date = end or None
+        season.save()
         product.save()
 
         # If stock increased, notify customers waiting for this product
@@ -235,7 +261,7 @@ class ProducerUpdateProductAPI(APIView):
 
             transaction.on_commit(send_notifications)
 
-        return Response({"message": "Product updated successfully"}, status=status.HTTP_200_OK)
+        return Response({"message": "Product updated successfully","image": product.image.url if product.image else None}, status=status.HTTP_200_OK)
     
 class ProductUpdateView(APIView):
     parser_classes = (MultiPartParser, FormParser, JSONParser)
@@ -445,7 +471,102 @@ class ProducerUpdateOrderStatusAPI(APIView):
             "producer": producer.business_name,
             "notification_sent": True
         })
-    
+
+def get_tax_year():
+    today = timezone.now().date()
+
+    if today.month < 4:
+        start = date(today.year - 1, 4, 1)
+        end = date(today.year, 3, 31)
+        display = f"{today.year-1}/{today.year}"
+    else:
+        start = date(today.year, 4, 1)
+        end = date(today.year + 1, 3, 31)
+        display = f"{today.year}/{today.year+1}"
+
+    return start, end, display
+
+
+def get_ytd_totals(producer, start, end):
+    suborders = SubOrder.objects.filter(
+        producer=producer,
+        status="Delivered",
+        order__created_at__date__range=[start, end]
+    )
+
+    total_paid = sum((s.payout_amount or Decimal("0.00")) * Decimal("0.95") for s in suborders)
+    total_commission = sum((s.payout_amount or Decimal("0.00")) * Decimal("0.05") for s in suborders)
+
+    return total_paid, total_commission
+
+
+def build_orders_from_suborders(suborders):
+    orders = []
+
+    for sub in suborders:
+        order_value = Decimal(sub.payout_amount or 0)
+
+        commission = (order_value * Decimal("0.05")).quantize(Decimal("0.01"))
+        payout = (order_value * Decimal("0.95")).quantize(Decimal("0.01"))
+
+        items = ", ".join([
+            f"{i.product.name} x{i.quantity}"
+            for i in sub.items.all()
+        ])
+
+        orders.append({
+            "order_id": sub.order.order_id,
+            "customer_name": f"{sub.order.customer.person.first_name} {sub.order.customer.person.last_name}",
+            "delivered_date": sub.order.created_at.strftime("%d %b %Y"),
+            "items": items,
+            "order_value": order_value,
+            "commission": commission,
+            "payout": payout,
+        })
+
+    return orders
+
+
+def build_orders_from_settlement(settlement, producer):
+    orders = []
+
+    for o in settlement.settlement_orders.all():
+
+        sub = SubOrder.objects.filter(
+            order__order_id=o.order_id,
+            producer=producer
+        ).select_related(
+            "order", "order__customer"
+        ).prefetch_related(
+            "items__product"
+        ).first()
+
+        if sub:
+            customer_name = f"{sub.order.customer.person.first_name} {sub.order.customer.person.last_name}"
+
+            items = ", ".join([
+                f"{i.product.name} x{i.quantity}"
+                for i in sub.items.all()
+            ])
+
+            delivered_date = sub.order.created_at.strftime("%d %b %Y")
+        else:
+            customer_name = "Unknown"
+            items = ""
+            delivered_date = ""
+
+        orders.append({
+            "order_id": o.order_id,
+            "customer_name": customer_name,
+            "delivered_date": delivered_date,
+            "items": items,
+            "order_value": o.order_value,
+            "commission": o.commission_amount,
+            "payout": o.producer_payout,
+        })
+
+    return orders
+
 class ProducerWeeklyPaymentsAPI(APIView):
     permission_classes = [IsAuthenticated, IsProducer]
 
@@ -457,83 +578,71 @@ class ProducerWeeklyPaymentsAPI(APIView):
             return Response({"error": "Producer account not found"}, status=404)
         
         week_param = request.GET.get('week')
-        # Get all delivered suborders
-        suborders_query = SubOrder.objects.filter(
-            producer=producer, 
+        # Tax year + YTD
+        tax_year_start, tax_year_end, tax_year_display = get_tax_year()
+        total_paid_ytd, total_commission_ytd = get_ytd_totals(
+            producer, tax_year_start, tax_year_end
+        )
+
+        if week_param:
+            try:
+                week_end = datetime.strptime(week_param, '%Y-%m-%d').date()
+                week_start = week_end - timedelta(days=6)
+
+                settlement = SettlementReport.objects.filter(
+                    producer=producer,
+                    week_start=week_start,
+                    week_end=week_end
+                ).prefetch_related("settlement_orders").first()
+
+                if settlement:
+                    orders = build_orders_from_settlement(settlement, producer)
+
+                    return Response({
+                        "total_value": settlement.total_order_value,
+                        "commission": settlement.commission_amount,
+                        "payout": settlement.payout_amount,
+                        "status": settlement.payment_status,
+                        "settlement_ref": f"SETT-{week_param.replace('-', '')}-{producer.id}",
+                        "week_end": week_end.strftime('%d %b %Y'),
+                        "tax_year": tax_year_display,
+                        "total_paid_ytd": total_paid_ytd,
+                        "total_commission_ytd": total_commission_ytd,
+                        "orders": orders
+                    })
+
+            except Exception as e:
+                print("DB LOAD ERROR:", e)
+
+        suborders = SubOrder.objects.filter(
+            producer=producer,
             status="Delivered"
         ).select_related(
             "order", "order__customer"
         ).prefetch_related(
             "items__product"
         )
-        # If week parameter provided, filter by that week
+
         if week_param:
             try:
-                # Parse the week ending date
                 week_end = datetime.strptime(week_param, '%Y-%m-%d').date()
                 week_start = week_end - timedelta(days=6)
-                
-                suborders_query = suborders_query.filter(
+
+                suborders = suborders.filter(
                     order__created_at__date__range=[week_start, week_end]
                 )
-            except (ValueError, TypeError):
+            except:
                 return Response({"error": "Invalid week format"}, status=400)
 
-        orders = []
-        total_value = 0
-        total_commission = 0
-        total_payout = 0
+        orders = build_orders_from_suborders(suborders)
 
-        for sub in suborders_query:
-            order_value = float(sub.payout_amount) if sub.payout_amount else 0
-            commission = round(order_value * 0.05, 2)
-            payout = round(order_value * 0.95, 2)
+        total_value = sum(o["order_value"] for o in orders)
+        total_commission = sum(o["commission"] for o in orders)
+        total_payout = sum(o["payout"] for o in orders)
 
-            items = ", ".join([
-                f"{i.product.name} x{i.quantity}"
-                for i in sub.items.all()
-            ])
-
-            orders.append({
-                "order_id": sub.order.order_id,
-                "customer_name": f"{sub.order.customer.person.first_name} {sub.order.customer.person.last_name}", 
-                "delivered_date": sub.order.created_at.strftime("%d %b %Y"),
-                "items": items,
-                "order_value": order_value,
-                "commission": commission,
-                "payout": payout,
-            })
-
-            total_value += order_value
-            total_commission += commission
-            total_payout += payout
-
-        # Calculate tax year totals (April to March)
-        today = timezone.now().date()
-        if today.month < 4:
-            tax_year_start = date(today.year - 1, 4, 1)
-            tax_year_end = date(today.year, 3, 31)
-            tax_year_display = f"{today.year-1}/{today.year}"
-        else:
-            tax_year_start = date(today.year, 4, 1)
-            tax_year_end = date(today.year + 1, 3, 31)
-            tax_year_display = f"{today.year}/{today.year+1}"
-
-        # Get YTD totals
-        ytd_suborders = SubOrder.objects.filter(
-            producer=producer,
-            status="Delivered",
-            order__created_at__date__range=[tax_year_start, tax_year_end]
-        )
-        
-        total_paid_ytd = sum(float(s.payout_amount or 0) * 0.95 for s in ytd_suborders)
-        total_commission_ytd = sum(float(s.payout_amount or 0) * 0.05 for s in ytd_suborders)
-
-        # Get week end date (if no week specified, use current week)
         if week_param:
             week_end_display = datetime.strptime(week_param, '%Y-%m-%d').strftime('%d %b %Y')
         else:
-            # Default to current week (last Sunday)
             today = timezone.now().date()
             days_until_sunday = (6 - today.weekday()) % 7
             week_end = today + timedelta(days=days_until_sunday)
@@ -541,19 +650,17 @@ class ProducerWeeklyPaymentsAPI(APIView):
             week_param = week_end.isoformat()
 
         return Response({
-            "total_value": round(total_value, 2),
-            "commission": round(total_commission, 2),
-            "payout": round(total_payout, 2),
-            "status": "Processed" if suborders_query.exists() else "Pending",
+            "total_value": total_value,
+            "commission": total_commission,
+            "payout": total_payout,
+            "status": "Processed" if suborders.exists() else "Pending",
             "settlement_ref": f"SETT-{week_param.replace('-', '')}-{producer.id}",
             "week_end": week_end_display,
-            "processed_at": timezone.now().strftime('%d %b %Y %H:%M'),
             "tax_year": tax_year_display,
-            "total_paid_ytd": round(total_paid_ytd, 2),
-            "total_commission_ytd": round(total_commission_ytd, 2),
+            "total_paid_ytd": total_paid_ytd,
+            "total_commission_ytd": total_commission_ytd,
             "orders": orders
-        })
-    
+        }) 
 class ProducerWeeklyPaymentsWeeksAPI(APIView):
     """Return list of available settlement weeks"""
     permission_classes = [IsAuthenticated, IsProducer]
@@ -602,31 +709,24 @@ class ProducerWeeklyPaymentsHistoryAPI(APIView):
         if not producer:
             return Response({"error": "Producer account not found"}, status=404)
 
-        # Get all weeks with delivered orders, grouped by week
-        weekly_data = SubOrder.objects.filter(
-            producer=producer,status="Delivered").annotate(week_ending=TruncWeek('order__created_at')
-        ).values('week_ending').annotate(
-            total_value=Sum('payout_amount'),
-            order_count=Count('suborder_id')
-        ).order_by('-week_ending').distinct() [:12]  # Last 12 weeks
+        settlements = SettlementReport.objects.filter(
+            producer=producer
+        ).order_by("-week_end")[:12]  # last 12 weeks
 
         history = []
-        for week_data in weekly_data:
-            week_end = week_data['week_ending']
-            if week_end:
-                total_value = float(week_data['total_value'] or 0)
-                history.append({
-                    'week_ending': week_end.isoformat(),
-                    'week_ending_formatted': week_end.strftime('%d %b %Y'),
-                    'settlement_ref': f"SETT-{week_end.strftime('%Y%m%d')}-{producer.id}",
-                    'total_value': total_value,
-                    'commission': round(total_value * 0.05, 2),
-                    'payout': round(total_value * 0.95, 2),
-                    'status': 'Processed',
-                    'order_count': week_data['order_count']
-                })
 
-        return Response({'history': history})
+        for s in settlements:
+            history.append({
+                "week_ending": s.week_end.isoformat(),
+                "week_ending_formatted": s.week_end.strftime('%d %b %Y'),
+                "settlement_ref": f"SETT-{s.week_end.strftime('%Y%m%d')}-{producer.id}",
+                "total_value": s.total_order_value,
+                "commission": s.commission_amount,
+                "payout": s.payout_amount,
+                "status": s.payment_status,
+            })
+
+        return Response({"history": history})
     
 class ProducerWeeklyPaymentsCSV(APIView):
     permission_classes = [IsAuthenticated, IsProducer]
@@ -642,48 +742,136 @@ class ProducerWeeklyPaymentsCSV(APIView):
         week_end = datetime.strptime(week_param, "%Y-%m-%d").date()
         week_start = week_end - timedelta(days=6)
 
-        suborders = SubOrder.objects.filter(
+        settlement = SettlementReport.objects.filter(
             producer=producer,
-            status="Delivered",
-            order__created_at__date__range=[week_start, week_end]
-        ).prefetch_related("items__product").select_related("order", "order__customer")
+            week_start=week_start,
+            week_end=week_end
+        ).prefetch_related("settlement_orders").first()
+
+        if not settlement:
+            return Response({"error": "Settlement not found"}, status=404)
 
         response = HttpResponse(content_type="text/csv")
         response["Content-Disposition"] = f'attachment; filename="settlement_{week_param}.csv"'
 
         writer = csv.writer(response)
-        settlement_ref = f"SETT-{week_end.strftime('%Y%m%d')}-{producer.id}"
-        writer.writerow(["Settlement Reference", settlement_ref])
+
+        writer.writerow(["Settlement Reference", f"SETT-{week_end.strftime('%Y%m%d')}-{producer.id}"])
         writer.writerow(["Week Ending", week_end.strftime("%d %b %Y")])
-        writer.writerow(["Generated At", datetime.now().strftime("%Y-%m-%d %H:%M")])
+        writer.writerow(["Status", settlement.payment_status])
         writer.writerow([])
         writer.writerow([
             "Order ID",
-            "Customer",
-            "Items",
             "Order Value",
-            "Commission (5%)",
-            "Producer Payout (95%)"
+            "Commission",
+            "Producer Payout"
         ])
 
-        for sub in suborders:
-
-            order_value = float(sub.payout_amount)
-            commission = round(order_value * 0.05, 2)
-            payout = round(order_value * 0.95, 2)
-
-            items = ", ".join([
-                f"{i.product.name} x{i.quantity}"
-                for i in sub.items.all()
-            ])
-
+        for o in settlement.settlement_orders.all():
             writer.writerow([
-                sub.order.order_id,
-                sub.order.customer.user.email,
-                items,
-                order_value,
-                commission,
-                payout
+                o.order_id,
+                float(o.order_value),
+                float(o.commission_amount),
+                float(o.producer_payout)
             ])
 
         return response
+    
+class ProcessSettlementAPI(APIView):
+    permission_classes = [IsAuthenticated, IsProducer]
+
+    def post(self, request):
+
+        producer = ProducerAccount.objects.filter(user=request.user).first()
+
+        if not producer:
+            return Response({"error": "Producer not found"}, status=404)
+
+        week_param = request.data.get("week")
+
+        if not week_param:
+            return Response({"error": "Week is required"}, status=400)
+
+        try:
+            week_end = datetime.strptime(week_param, "%Y-%m-%d").date()
+            week_start = week_end - timedelta(days=6)
+        except:
+            return Response({"error": "Invalid date"}, status=400)
+
+        #  Prevent duplicates
+        existing = SettlementReport.objects.filter(
+            producer=producer,
+            week_start=week_start,
+            week_end=week_end
+        ).first()
+
+        if existing:
+            serializer = SettlementReportSerializer(existing)
+            return Response({
+                "created": False,
+                "data": serializer.data
+            }, status=200)
+
+        #  Fetch suborders
+        suborders = SubOrder.objects.filter(
+            producer=producer,
+            status="Delivered",
+            order__created_at__date__range=[week_start, week_end]
+        ).select_related("order")
+
+        total_value = Decimal("0.00")
+        total_commission = Decimal("0.00")
+        total_payout = Decimal("0.00")
+
+        order_list = []
+
+        for sub in suborders:
+            order_value = Decimal(sub.payout_amount or 0)
+
+            commission = (order_value * Decimal("0.05")).quantize(Decimal("0.01"))
+            payout = (order_value * Decimal("0.95")).quantize(Decimal("0.01"))
+
+            total_value += order_value
+            total_commission += commission
+            total_payout += payout
+
+            order_list.append({
+                "order_id": sub.order.order_id,
+                "order_value": order_value,
+                "commission": commission,
+                "payout": payout,
+            })
+
+        # Save everything safely
+        with transaction.atomic():
+
+            settlement = SettlementReport.objects.create(
+                producer=producer,
+                transaction_id=None,
+                week_start=week_start,
+                week_end=week_end,
+                total_order_value=total_value,
+                commission_amount=total_commission,
+                payout_amount=total_payout,
+                payment_status="Processed",
+            )
+
+            bulk_orders = [
+                ProducerSettlementOrder(
+                    settlement_report=settlement,
+                    order_id=o["order_id"],
+                    order_value=o["order_value"],
+                    commission_amount=o["commission"],
+                    producer_payout=o["payout"],
+                )
+                for o in order_list
+            ]
+
+            ProducerSettlementOrder.objects.bulk_create(bulk_orders)
+
+        serializer = SettlementReportSerializer(settlement)
+
+        return Response({
+            "created": True,
+            "data": serializer.data
+        }, status=201)
