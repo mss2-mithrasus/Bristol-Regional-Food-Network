@@ -4,7 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from datetime import timedelta
 from user_accounts.models import CustomerAccount, Person, Address, ProducerAccount
-from shopping_cart.models import Cart, CartItem, CartItem
+from shopping_cart.models import Cart, CartItem
 import logging
 import random
 from django.contrib.auth.decorators import login_required
@@ -14,7 +14,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 import json
 import traceback
-
+from django.db.models import Sum
 
 
 logger = logging.getLogger(__name__)
