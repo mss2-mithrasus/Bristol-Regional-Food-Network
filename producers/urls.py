@@ -22,7 +22,8 @@ urlpatterns = [
     path('api/weekly-payments/weeks/', views.ProducerWeeklyPaymentsWeeksAPI.as_view(), name='weekly_payments_weeks'),
     path('api/weekly-payments/history/', views.ProducerWeeklyPaymentsHistoryAPI.as_view(), name='weekly_payments_history'),
     path("api/weekly-payments/report/", views.ProducerWeeklyPaymentsCSV.as_view(), name="weekly_payments_csv"),
-    
+    path("api/weekly-payments/process/", views.ProcessSettlementAPI.as_view(), name="process_settlement"),
+
     # Producer Notifications
     path('notifications/', notification_views.producer_notifications_page, name='producer_notifications'),
     path('notifications/api/list/', notification_views.get_producer_notifications, name='api_producer_notifications'),

@@ -17,7 +17,9 @@
 <section id="weeklySummary" class="panel payments-panel">
   <div class="panel-header">
     <h2>Weekly Settlement Summary</h2>
-
+    <button class="button-pill" id="processSettlementBtn">
+        Generate Settlement
+    </button>
     <div class="panel-controls">
       <select id="weekSelect" class="week-select">
         <!-- later: fill from backend -->
@@ -53,7 +55,7 @@
   <div class="meta-row">
     <div><strong>Settlement Reference:</strong> <span id="settlementRef">—</span></div>
     <div><strong>Settlement Week End:</strong> <span id="weekEnd">—</span></div>
-    <div><strong>Processed At:</strong> <span id="processedAt">—</span></div>
+    
   </div>
 
   <div class="download-row">
@@ -93,7 +95,7 @@
   <div id="paymentError" style="color:#b00020; font-weight:800; margin: 8px 0;"></div>
 
   <div class="table-wrap">
-    <div class="pay-table head" style="display: grid !important; grid-template-columns: 1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr 0.8fr !important; font-weight: 800 !important;">
+    <div class="pay-table head" style="display: grid !important; grid-template-columns: 1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr  !important; font-weight: 800 !important;">
       <div>Order #</div>
       <div>Customer</div>
       <div>Delivered</div>
@@ -101,7 +103,7 @@
       <div>Order Value</div>
       <div>Commission (5%)</div>
       <div>Payout (95%)</div>
-      <div>Audit</div>
+      
     </div>
 
     <div id="paymentRows"></div>
@@ -109,41 +111,25 @@
 
 
 <!-- History -->
+  <div id="historySection">
 
     <h2 class="section-title">Historical Settlements</h2>
   
 
-  <div class="table-wrap">
-    <div class="history-table head" style="display: grid !important; grid-template-columns: 1fr 1.6fr 1.1fr 1.1fr 2fr 0.9fr  !important; font-weight: 800 !important;">
-      <div>Week</div>
-      <div>Reference</div>
-      <div>Total Value</div>
-      <div>Payout</div>
-      <div>Status</div>
-      <div>Report</div>
-    </div>
+    <div class="table-wrap">
+        <div class="history-table head" style="display: grid !important; grid-template-columns: 1fr 1.6fr 1.1fr 1.1fr 2fr 0.9fr  !important; font-weight: 800 !important;">
+        <div>Week</div>
+        <div>Reference</div>
+        <div>Total Value</div>
+        <div>Payout</div>
+        <div>Status</div>
+        <div>Report</div>
+        </div>
 
-    <div id="historyRows"></div>
-  </div>
+        <div id="historyRows"></div>
+    </div>
+    </div>
 </section>
-
-<!-- Optional details modal -->
-<div id="orderAuditModal" class="modal order-modal" style="display:none;">
-  <div class="modal-content order-modal-content" role="dialog" aria-modal="true">
-    <div class="panel-header-row">
-      <h2 style="margin:0;">Audit Trail</h2>
-      <button class="button-pill" type="button" id="closeAuditBtn">Close</button>
-    </div>
-
-    <div class="audit-box">
-      <div><strong>Settlement Ref:</strong> <span id="aRef">—</span></div>
-      <div><strong>Order #:</strong> <span id="aOrder">—</span></div>
-      <div><strong>Status:</strong> <span id="aStatus">—</span></div>
-      <div><strong>Processed At:</strong> <span id="aProcessed">—</span></div>
-       
-    </div>
-  </div>
-</div>
 
 <script>
 
@@ -161,6 +147,14 @@ function money(n){
     return "£" + Number(n || 0).toFixed(2);
 }
 
+function showSettlementPopup(message) {  
+    document.getElementById("settlementMessage").textContent = message;  
+    document.getElementById("settlementPopup").style.display = "flex";  
+}  
+
+function closeSettlementPopup() {  
+    document.getElementById("settlementPopup").style.display = "none";  
+}
 function statusTag(status){
     if(status === "Processed") return `<span class="tag green">Processed</span>`;
     if(status === "Pending") return `<span class="tag amber">Pending</span>`;
@@ -257,8 +251,7 @@ function loadPayments(selectedWeek) {
     document.getElementById("settlementStatus").innerHTML = statusTag(data.status);
     document.getElementById("settlementRef").textContent = data.settlement_ref || "AUTO-GENERATED";
     document.getElementById("weekEnd").textContent = data.week_end || week;
-    document.getElementById("processedAt").textContent = data.processed_at || "Not processed yet";
-    document.getElementById("taxYear").textContent = data.tax_year || "2025/26";
+    document.getElementById("taxYear").textContent = data.tax_year || "-";
     document.getElementById("taxYearPaid").textContent = money(data.total_paid_ytd || 0);
     document.getElementById("taxYearCommission").textContent = money(data.total_commission_ytd || 0);
 
@@ -277,7 +270,7 @@ function loadPayments(selectedWeek) {
         const row = document.createElement("div");
         row.className = "pay-table row";
 
-        row.style.gridTemplateColumns = "1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr 0.8fr";
+        row.style.gridTemplateColumns = "1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr ";
 
         row.dataset.orderId = o.order_id;
         row.dataset.status = data.status;
@@ -291,7 +284,7 @@ function loadPayments(selectedWeek) {
         <div>${money(o.commission)}</div>
         <div><strong>${money(o.payout)}</strong></div>
         <div class="actions">
-            <button class="mini-btn audit-btn" type="button">Audit</button>
+            
         </div>
         `;
 
@@ -299,7 +292,7 @@ function loadPayments(selectedWeek) {
 
     });
 
-    attachAuditButtons(data.status);
+    
 
 })
 .catch(error => {
@@ -367,38 +360,23 @@ function loadPaymentHistory() {
     });
 }
 
-function attachAuditButtons(status){
 
-document.querySelectorAll(".audit-btn").forEach(btn => {
-
-btn.addEventListener("click", () => {
-
-const row = btn.closest(".row");
-
-document.getElementById("aOrder").textContent = "#" + row.dataset.orderId;
-document.getElementById("aStatus").innerHTML = statusTag(status);
-document.getElementById("aRef").textContent = "SETT-" + row.dataset.orderId;
-document.getElementById("aProcessed").textContent = new Date().toLocaleString();
-
-document.getElementById("orderAuditModal").style.display = "flex";
-
-});
-
-});
-
-}
-
-
-function closeAudit(){
-    document.getElementById("orderAuditModal").style.display = "none";
-}
 document.getElementById("downloadPdfBtn").addEventListener("click", () => {
     const week = document.getElementById("weekSelect").value;
+
     if (!week) {
-        alert("Please select a week first");
+        showSettlementPopup("Please select a week first");
         return;
     }
-    window.print(); // Placeholder - later connect to backend PDF generation
+
+    // Add print mode
+    document.body.classList.add("print-mode");
+
+    // Trigger browser print (user can save as PDF)
+    window.print();
+
+    // Remove print mode after printing
+    document.body.classList.remove("print-mode");
 });
 document.getElementById("downloadCsvBtn").addEventListener("click", () => {
 
@@ -422,21 +400,54 @@ document.getElementById("downloadCsvBtn").addEventListener("click", () => {
     });
 });
 
-document.getElementById("closeAuditBtn").addEventListener("click", closeAudit);
-
-document.getElementById("orderAuditModal").addEventListener("click",(e)=>{
-    if(e.target.id==="orderAuditModal") closeAudit();
-});
-
-document.addEventListener("keydown",(e)=>{
-    if(e.key==="Escape") closeAudit();
-});
-
 
 document.getElementById("anonymiseToggle").addEventListener("change", () => loadPayments());
 document.getElementById("weekSelect").addEventListener("change", () => loadPayments());
 
+document.getElementById("processSettlementBtn").addEventListener("click", () => {
+
+    const week = document.getElementById("weekSelect").value;
+
+    if (!week) {
+        showSettlementPopup("Select a week first");
+        return;
+    }
+
+    fetch("/producer/api/weekly-payments/process/", {
+        method: "POST",
+        headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ week: week })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.created) {
+            showSettlementPopup("Settlement generated successfully!");
+        } else {
+            showSettlementPopup("Settlement already exists for this week.");
+        }
+
+        loadPayments();
+        loadPaymentHistory();
+    })
+    .catch(err => {
+        console.error(err);
+        showSettlementPopup("Error generating settlement");
+    });
+});
+
 loadAvailableWeeks();
 loadPaymentHistory();
 </script>
+<!-- Settlement Popup -->
+<div id="settlementPopup" class="remove-item" style="display:none;">
+  <div class="remove-box">
+    <p id="settlementMessage">Settlement generated!</p>
+    <div class="removal-actions">
+      <button onclick="closeSettlementPopup()">OK</button>
+    </div>
+  </div>
+</div>
 {% endblock %}

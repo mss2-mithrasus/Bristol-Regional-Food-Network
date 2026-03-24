@@ -58,19 +58,35 @@
         <label>Stock</label>
         <input type="number" id="editStock" min="0" required>
       </div>
-      
+      <div class="form-group">
+        <label>Season Start</label>
+        <input type="date" id="editSeasonStart">
+      </div>
+
+      <div class="form-group">
+        <label>Season End</label>
+        <input type="date" id="editSeasonEnd">
+      </div>
+      <div class="form-group form-group-full">
+        <div class="checkbox-row">
+          <label class="checkbox-item">
+            <input type="checkbox" id="editIsYearRound">
+            <span>Available all year</span>
+          </label>
+
+          <label class="checkbox-item">
+            <input type="checkbox" id="editAvailable">
+            <span>Available</span>
+          </label>
+        </div>
+      </div>
       <div class="form-group form-group-full">
         <label>Product Image</label>
         <input type="file" id="editImage" accept="image/*">
         <img id="editImagePreview" style="max-width:120px; margin-top:6px; display:none;">
       </div>
 
-      <div class="form-group form-group-full" style="margin-top:6px;">
-        <label style="display:flex; gap:10px; align-items:center;">
-          <input type="checkbox" id="editAvailable">
-          Available
-        </label>
-      </div>
+      
     </div>
 
     <div id="editErrors" style="color:red; margin-top:10px;"></div>
@@ -115,7 +131,35 @@ document.addEventListener("DOMContentLoaded", async () => {
   const editErrors = document.getElementById("editErrors");
   const cancelEditBtn = document.getElementById("cancelEditBtn");
   const saveEditBtn = document.getElementById("saveEditBtn");
+  const yearRoundCheckbox = document.getElementById("editIsYearRound");
+  const seasonStartInput = document.getElementById("editSeasonStart");
+  const seasonEndInput = document.getElementById("editSeasonEnd");
 
+  let savedSeasonStart = "";
+  let savedSeasonEnd = "";
+  function toggleSeasonFields() {
+    const isYearRound = yearRoundCheckbox.checked;
+
+    if (isYearRound) {
+      // Save current values before clearing
+      savedSeasonStart = seasonStartInput.value;
+      savedSeasonEnd = seasonEndInput.value;
+
+      seasonStartInput.value = "";
+      seasonEndInput.value = "";
+      seasonStartInput.disabled = true;
+      seasonEndInput.disabled = true;
+    } else {
+      // Restore saved values when unchecked
+      seasonStartInput.value = savedSeasonStart;
+      seasonEndInput.value = savedSeasonEnd;
+      seasonStartInput.disabled = false;
+      seasonEndInput.disabled = false;
+    }
+  }
+
+  // listen for checkbox change
+  yearRoundCheckbox.addEventListener("change", toggleSeasonFields);
   rowsBox.innerHTML = "";
   errorBox.textContent = "";
 
@@ -181,7 +225,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const stock = escapeHtml(p.stock_quantity);
       const imageUrl = escapeHtml(p.image_url ?? p.image ?? "");
       return `
-        <div class="prod-table row" data-product-id="${p.product_id}"data-image-url="${imageUrl}">
+        <div class="prod-table row" data-product-id="${p.product_id}"data-image-url="${imageUrl}"data-season-start="${p.season_start_date || ""}"data-season-end="${p.season_end_date || ""}">
           <div class="cell-name">${name}</div>
           <div class="cell-category">${category}</div>
           <div class="cell-price">£${price}</div>
@@ -220,7 +264,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         const imgUrl = row.dataset.imageUrl || "";
         const preview = document.getElementById("editImagePreview");
         const fileInput = document.getElementById("editImage");
-
+        const seasonStart = row.dataset.seasonStart || "";
+        const seasonEnd = row.dataset.seasonEnd || "";
+        const isYearRound = !seasonStart && !seasonEnd;
+        savedSeasonStart = seasonStart;
+        savedSeasonEnd = seasonEnd;
         // reset file input every time you open modal
         fileInput.value = "";
 
@@ -248,7 +296,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("editUnit").value = unit;
         document.getElementById("editStock").value = stock;
         document.getElementById("editAvailable").checked = available;
-
+        document.getElementById("editSeasonStart").value = seasonStart;
+        document.getElementById("editSeasonEnd").value = seasonEnd;
+        document.getElementById("editIsYearRound").checked = isYearRound;
+        toggleSeasonFields();
         editModal.style.display = "flex";
         return;
       }
@@ -285,9 +336,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       formData.append("price", price);
       formData.append("unit", unit);
       formData.append("stock_quantity", stock);
-
+      formData.append("season_start_date", document.getElementById("editSeasonStart").value);
+      formData.append("season_end_date", document.getElementById("editSeasonEnd").value);
+      formData.append("is_year_round", document.getElementById("editIsYearRound").checked ? "true" : "false");
       // Some backends expect "true"/"false" strings in multipart
-      formData.append("availability_status", available)? 1:0;
+      formData.append("availability_status", available? "true" : "false");
 
       //  Optional image
       const imageFile = document.getElementById("editImage")?.files?.[0];
@@ -324,6 +377,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             stock_quantity: stock,
             availability_status: available
           });
+          row.dataset.seasonStart = document.getElementById("editSeasonStart").value;
+          row.dataset.seasonEnd = document.getElementById("editSeasonEnd").value;
+          row.dataset.isYearRound = document.getElementById("editIsYearRound").checked ? "true" : "false";
 
           // If backend returns updated image URL, store it for next edit open
           if (data.image_url || data.image) {
