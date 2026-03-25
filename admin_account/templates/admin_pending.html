@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'admin_dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="admin_layout">
+
+    <aside class="admin_sidebar">
+        <a href="{% url 'admin_home' %}">
+            <i class="fa fa-chart-line"></i> Dashboard
+        </a>
+
+        <a href="{% url 'admin_pending_page' %}">
+            <i class="fa fa-user-clock"></i> Pending Approvals
+        </a>
+
+        <a href="{% url 'admin_failed_page' %}">
+            <i class="fa fa-triangle-exclamation"></i> Failed Logins
+        </a>
+
+        <a href="{% url 'admin_deleted_page' %}">
+            <i class="fa fa-user-slash"></i> Deleted Accounts
+        </a>
+
+        <a href="{% url 'admin_financial_page' %}">
+            <i class="fa fa-file-invoice-dollar"></i> Financial Reports
+        </a>
+
+        <a href="{% url 'admin_analytics_page' %}">
+            <i class="fa fa-chart-pie"></i> Analytics
+        </a>
+    </aside>
+
+    <main class="admin_main">
+
+        <div class="admin_container">
+
+            <h1>Pending Approvals</h1>
+
+            <section class="admin_section">
+                <h2>Community Groups</h2>
+                <div id="communityContainer"></div>
+            </section>
+
+            <section class="admin_section">
+                <h2>Restaurants</h2>
+                <div id="restaurantContainer"></div>
+            </section>
+
+            <section class="admin_section">
+                <h2>Producers</h2>
+                <div id="producerContainer"></div>
+            </section>
+
+        </div>
+
+    </main>
+</div>
+
+<script>
+function getToken() {
+    return localStorage.getItem("access") || sessionStorage.getItem("access");
+}
+
+async function loadPendingAccounts() {
+    const response = await fetch("/admin-dashboard/pending/api/", {
+        headers: { "Authorization": "Bearer " + getToken() }
+    });
+
+    const data = await response.json();
+
+    const community = data.customers.filter(c => c.account_type === "community");
+    const restaurants = data.customers.filter(c => c.account_type === "restaurant");
+    const producers = data.producers;
+
+    renderList(community, "communityContainer", "customer");
+    renderList(restaurants, "restaurantContainer", "customer");
+    renderList(producers, "producerContainer", "producer");
+}
+
+function renderList(list, containerId, role) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = "";
+
+    if (!list.length) {
+        container.innerHTML = `<p class="empty-message">No pending approvals.</p>`;
+        return;
+    }
+
+    list.forEach(item => {
+        container.innerHTML += `
+            <div class="admin_card">
+                <p><strong>Name:</strong> ${item.organisation_name || item.name}</p>
+                <p><strong>Email:</strong> ${item.email}</p>
+                <p><strong>Phone:</strong> ${item.phone || "N/A"}</p>
+
+                <button class="approve_btn" onclick="approveAccount('${item.user_id}', '${role}')">Approve</button>
+                <button class="reject_btn" onclick="rejectAccount('${item.user_id}')">Reject</button>
+            </div>
+        `;
+    });
+}
+
+async function approveAccount(id, role) {
+    await fetch("/admin-dashboard/approve/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + getToken()
+        },
+        body: JSON.stringify({ user_id: id, role })
+    });
+    loadPendingAccounts();
+}
+
+async function rejectAccount(id) {
+    await fetch("/admin-dashboard/reject/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + getToken()
+        },
+        body: JSON.stringify({ user_id: id })
+    });
+    loadPendingAccounts();
+}
+
+window.onload = loadPendingAccounts;
+</script>
+
+{% endblock %}

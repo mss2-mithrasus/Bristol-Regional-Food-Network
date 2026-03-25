@@ -158,10 +158,36 @@ def payment_success(request):
                     f'producer_{pid}_special_instruction', ''
                 )
 
-                # SAFE float conversions
-                customer_pays = float(group.get('subtotal') or 0)
-                commission_amount = float(group.get('commission') or 0)
-                producer_gets = customer_pays - commission_amount
+                # # SAFE float conversions
+                # customer_pays = float(group.get('subtotal') or 0)
+                # commission_amount = float(group.get('commission') or 0)
+                # producer_gets = customer_pays - commission_amount
+
+                # suborder = SubOrder.objects.create(
+                #     order=order,
+                #     producer=producer,
+                #     delivery_date=delivery_date,
+                #     subtotal=customer_pays,
+                #     payout_amount=producer_gets,
+                #     status='Pending',
+                #     special_instruction=special_instruction,
+                # )
+                from decimal import Decimal, ROUND_HALF_UP
+
+                # Convert safely to Decimal
+                customer_pays = Decimal(str(group.get('subtotal') or "0"))
+
+                # Commission = 5%
+                commission_amount = (customer_pays * Decimal("0.05")).quantize(
+                    Decimal("0.01"),
+                    rounding=ROUND_HALF_UP
+                )
+
+                # Producer payout = 95%
+                producer_gets = (customer_pays * Decimal("0.95")).quantize(
+                    Decimal("0.01"),
+                    rounding=ROUND_HALF_UP
+                )
 
                 suborder = SubOrder.objects.create(
                     order=order,

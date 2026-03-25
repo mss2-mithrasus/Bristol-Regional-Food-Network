@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'admin_dashboard.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<div class="admin_layout">
+
+    <!-- SIDEBAR -->
+    <aside class="admin_sidebar">
+        <a href="{% url 'admin_home' %}">
+            <i class="fa fa-chart-line"></i> Dashboard
+        </a>
+
+        <a href="{% url 'admin_pending_page' %}">
+            <i class="fa fa-user-clock"></i> Pending Approvals
+        </a>
+
+        <a href="{% url 'admin_failed_page' %}">
+            <i class="fa fa-triangle-exclamation"></i> Failed Logins
+        </a>
+
+        <a href="{% url 'admin_deleted_page' %}">
+            <i class="fa fa-user-slash"></i> Deleted Accounts
+        </a>
+
+        <a href="{% url 'admin_financial_page' %}">
+            <i class="fa fa-file-invoice-dollar"></i> Financial Reports
+        </a>
+
+        <a href="{% url 'admin_analytics_page' %}">
+            <i class="fa fa-chart-pie"></i> Analytics
+        </a>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="admin_main">
+
+        <div class="admin_container">
+
+            <h1>Marketplace Analytics</h1>
+
+            <!-- FILTERS -->
+            <section class="admin_section">
+                <h2>Filters</h2>
+
+                <label>Start Date:</label>
+                <input type="date" id="analyticsStart">
+
+                <label>End Date:</label>
+                <input type="date" id="analyticsEnd">
+
+                <label>Producer:</label>
+                <select id="analyticsProducer">
+                    <option value="">All Producers</option>
+                </select>
+
+                <button class="approve_btn" onclick="loadAnalytics()">Apply Filters</button>
+                <button class="download_btn" onclick="window.print()">Print / Save as PDF</button>
+            </section>
+
+            <!-- PIE CHARTS -->
+            <section class="admin_section">
+                <h2>Producer Breakdown</h2>
+
+                <div class="pie-row">
+
+                    <div class="pie-wrapper">
+                        <h3>Payout</h3>
+                        <canvas id="payoutChart"></canvas>
+                        <div class="no-data" id="payoutNoData">No data found</div>
+                    </div>
+
+                    <div class="pie-wrapper">
+                        <h3>Commission</h3>
+                        <canvas id="commissionChart"></canvas>
+                        <div class="no-data" id="commissionNoData">No data found</div>
+                    </div>
+
+                    <div class="pie-wrapper">
+                        <h3>Orders</h3>
+                        <canvas id="ordersChart"></canvas>
+                        <div class="no-data" id="ordersNoData">No data found</div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- LINE CHARTS -->
+            <section class="admin_section">
+                <h2>Total Revenue Over Time</h2>
+                <div class="line-wrapper">
+                    <canvas id="revenueChart"></canvas>
+                    <div class="no-data" id="revenueNoData">No data found</div>
+                </div>
+            </section>
+
+            <section class="admin_section">
+                <h2>Total Commission Over Time</h2>
+                <div class="line-wrapper">
+                    <canvas id="commissionTimeChart"></canvas>
+                    <div class="no-data" id="commissionTimeNoData">No data found</div>
+                </div>
+            </section>
+
+        </div>
+
+    </main>
+</div>
+
+<!-- INLINE SCRIPT -->
+<script>
+let payoutChart, commissionChart, ordersChart, revenueChart, commissionTimeChart;
+
+function getToken() {
+    return localStorage.getItem("access") || sessionStorage.getItem("access");
+}
+
+function formatGBP(value) {
+    return "£" + Number(value).toFixed(2);
+}
+
+function getColor(name) {
+    const colors = {
+        "Willowbrook Veg Co.": "rgba(75, 192, 192, 0.7)",
+        "Greenfield Orchard Supplies": "rgba(255, 159, 64, 0.7)",
+        "Avon Valley Herb Farm": "rgba(153, 102, 255, 0.7)",
+        "Chew Valley Farms": "rgba(255, 99, 132, 0.7)"
+    };
+    return colors[name] || "rgba(100, 100, 100, 0.7)";
+}
+
+async function loadAnalytics() {
+    const startInput = document.getElementById("analyticsStart");
+    const endInput = document.getElementById("analyticsEnd");
+    const producer = document.getElementById("analyticsProducer").value;
+
+    const metaRes = await fetch("/admin-dashboard/analytics/meta/", {
+        headers: { "Authorization": "Bearer " + getToken() }
+    });
+    const meta = await metaRes.json();
+
+    startInput.min = meta.min_date;
+    startInput.max = meta.max_date;
+    endInput.min = meta.min_date;
+    endInput.max = meta.max_date;
+
+    if (!startInput.value) startInput.value = meta.min_date;
+    if (!endInput.value) endInput.value = meta.max_date;
+
+    const res = await fetch(
+        `/admin-dashboard/analytics/data/?start=${startInput.value}&end=${endInput.value}&producer=${producer}`,
+        { headers: { "Authorization": "Bearer " + getToken() } }
+    );
+
+    const data = await res.json();
+
+    populateProducerDropdown(data.producers);
+    renderCharts(data);
+}
+
+function populateProducerDropdown(producers) {
+    const select = document.getElementById("analyticsProducer");
+    if (select.options.length > 1) return;
+
+    producers.forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = p.business_name;
+        select.appendChild(opt);
+    });
+}
+function toggleNoData(chartId, noDataId, dataset) {
+    const chartCanvas = document.getElementById(chartId);
+    const noDataDiv = document.getElementById(noDataId);
+
+    if (!dataset || dataset.length === 0) {
+        chartCanvas.style.display = "none";
+        noDataDiv.style.display = "block";
+    } else {
+        chartCanvas.style.display = "block";
+        noDataDiv.style.display = "none";
+    }
+}
+
+function renderCharts(data) {
+    [payoutChart, commissionChart, ordersChart, revenueChart, commissionTimeChart].forEach(c => c?.destroy());
+
+    const pieOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        devicePixelRatio: 2,
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return formatGBP(context.raw);
+                    }
+                }
+            }
+        }
+    };
+
+
+    payoutChart = new Chart(document.getElementById("payoutChart"), {
+        type: "pie",
+        data: {
+            labels: data.payout.map(x => x.producer__business_name),
+            datasets: [{
+                data: data.payout.map(x => x.total),
+                backgroundColor: data.payout.map(x => getColor(x.producer__business_name))
+            }]
+        },
+        options: pieOptions
+    });
+    toggleNoData("payoutChart", "payoutNoData", data.payout);
+
+    commissionChart = new Chart(document.getElementById("commissionChart"), {
+        type: "pie",
+        data: {
+            labels: data.commission.map(x => x.producer__business_name),
+            datasets: [{
+                data: data.commission.map(x => x.total),
+                backgroundColor: data.commission.map(x => getColor(x.producer__business_name))
+            }]
+        },
+        options: pieOptions
+    });
+    toggleNoData("commissionChart", "commissionNoData", data.commission);
+
+
+    ordersChart = new Chart(document.getElementById("ordersChart"), {
+        type: "pie",
+        data: {
+            labels: data.orders.map(x => x.producer__business_name),
+            datasets: [{
+                data: data.orders.map(x => x.count),
+                backgroundColor: data.orders.map(x => getColor(x.producer__business_name))
+            }]
+        },
+        options: pieOptions
+    });
+    toggleNoData("ordersChart", "ordersNoData", data.orders);
+
+
+
+    const lineOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        devicePixelRatio: 2,
+        scales: {
+            x: {
+                ticks: { maxRotation: 45, minRotation: 45 }
+            },
+            y: {
+                ticks: {
+                    callback: function(value) {
+                        return formatGBP(value);
+                    }
+                }
+            }
+        },
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return formatGBP(context.raw);
+                    }
+                }
+            }
+        }
+    };
+
+
+    revenueChart = new Chart(document.getElementById("revenueChart"), {
+        type: "line",
+        data: {
+            labels: data.revenue.map(x => x.created_at__date),
+            datasets: [{
+                label: "Revenue (£)",
+                data: data.revenue.map(x => x.total),
+                borderColor: "rgba(54, 162, 235, 1)",
+                borderWidth: 2,
+                tension: 0.3,
+                fill: false
+            }]
+        },
+        options: lineOptions
+    });
+    toggleNoData("revenueChart", "revenueNoData", data.revenue);
+
+
+    commissionTimeChart = new Chart(document.getElementById("commissionTimeChart"), {
+        type: "line",
+        data: {
+            labels: data.commission_time.map(x => x.created_at__date),
+            datasets: [{
+                label: "Commission (£)",
+                data: data.commission_time.map(x => x.total),
+                borderColor: "rgba(255, 99, 132, 1)",
+                borderWidth: 2,
+                tension: 0.3,
+                fill: false
+            }]
+        },
+        options: lineOptions
+    });
+    toggleNoData("commissionTimeChart", "commissionTimeNoData", data.commission_time);
+
+}
+
+window.onload = loadAnalytics;
+document.getElementById("analyticsProducer").addEventListener("change", loadAnalytics);
+</script>
+
+{% endblock %}
