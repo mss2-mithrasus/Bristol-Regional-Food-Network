@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'admin_dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="admin_layout">
+
+    <aside class="admin_sidebar">
+        <a href="{% url 'admin_home' %}">
+            <i class="fa fa-chart-line"></i> Dashboard
+        </a>
+
+        <a href="{% url 'admin_pending_page' %}">
+            <i class="fa fa-user-clock"></i> Pending Approvals
+        </a>
+
+        <a href="{% url 'admin_failed_page' %}">
+            <i class="fa fa-triangle-exclamation"></i> Failed Logins
+        </a>
+
+        <a href="{% url 'admin_deleted_page' %}">
+            <i class="fa fa-user-slash"></i> Deleted Accounts
+        </a>
+
+        <a href="{% url 'admin_financial_page' %}">
+            <i class="fa fa-file-invoice-dollar"></i> Financial Reports
+        </a>
+
+        <a href="{% url 'admin_analytics_page' %}">
+            <i class="fa fa-chart-pie"></i> Analytics
+        </a>
+    </aside>
+
+    <main class="admin_main">
+
+        <div class="admin_container print-area">
+
+            <h1>Financial Reports</h1>
+
+            <section class="admin_section">
+                <h2>Date Filter</h2>
+
+                <label>Start Date:</label>
+                <input type="date" id="startDate">
+
+                <label>End Date:</label>
+                <input type="date" id="endDate">
+
+                <button class="approve_btn" onclick="loadFinancialReport()">Generate Report</button>
+                <button class="download_btn" onclick="downloadCSV()">Download CSV</button>
+                <button class="download_btn" onclick="window.print()">Print / Save as PDF</button>
+            </section>
+
+            <section class="admin_section">
+                <h2>Summary</h2>
+                <div id="financialSummary" class="pill-row"></div>
+            </section>
+
+            <section class="admin_section">
+                <h2>Order Breakdown</h2>
+                <div id="financialError" class="empty-message"></div>
+
+                <div class="table-container">
+                    <table class="financial-table">
+                        <thead>
+                            <tr>
+                                <th>Order #</th>
+                                <th>Customer</th>
+                                <th>Created</th>
+                                <th>Order Value</th>
+                                <th>Commission</th>
+                                <th>Payout</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="financialTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+        </div>
+
+    </main>
+</div>
+
+<div id="adminOrderAuditModal" class="modal order-modal" style="display:none;">
+    <div class="modal-content order-modal-content">
+
+        <button id="adminCloseAuditBtn" class="audit-close-btn">Close</button>
+        <h2>Order Audit</h2>
+
+        <div class="audit-grid">
+            <p><strong>Order ID:</strong> <span id="adOrderId">—</span></p>
+            <p><strong>Customer:</strong> <span id="adCustomer">—</span></p>
+
+            <p><strong>Status:</strong> <span id="adStatus">—</span></p>
+            <p><strong>Created:</strong> <span id="adCreated">—</span></p>
+
+            <p><strong>Total:</strong> <span id="adTotal">—</span></p>
+            <p><strong>Commission:</strong> <span id="adCommission">—</span></p>
+
+            <p><strong>Payout:</strong> <span id="adPayout">—</span></p>
+        </div>
+
+        <h3>Producers</h3>
+        <div id="adProducers"></div>
+
+    </div>
+</div>
+
+<script>
+function getToken() {
+    return localStorage.getItem("access") || sessionStorage.getItem("access");
+}
+
+function money(n) {
+    return "£" + Number(n || 0).toFixed(2);
+}
+
+// Date validation 
+async function loadDateLimits() {
+    const startInput = document.getElementById("startDate");
+    const endInput = document.getElementById("endDate");
+
+    const res = await fetch("/admin-dashboard/financial-reports/meta/", {
+        headers: { "Authorization": "Bearer " + getToken() }
+    });
+
+    const meta = await res.json();
+
+    if (!meta.min_date || !meta.max_date) return;
+
+    startInput.min = meta.min_date;
+    startInput.max = meta.max_date;
+
+    endInput.min = meta.min_date;
+    endInput.max = meta.max_date;
+
+    if (!startInput.value) startInput.value = meta.min_date;
+    if (!endInput.value) endInput.value = meta.max_date;
+
+    startInput.addEventListener("change", () => {
+        if (startInput.value > endInput.value) {
+            endInput.value = startInput.value;
+        }
+    });
+
+    endInput.addEventListener("change", () => {
+        if (endInput.value < startInput.value) {
+            startInput.value = endInput.value;
+        }
+    });
+}
+
+// Financial report
+async function loadFinancialReport() {
+    const start = document.getElementById("startDate").value;
+    const end = document.getElementById("endDate").value;
+
+    const response = await fetch(`/admin-dashboard/financial-reports/api/?start=${start}&end=${end}`, {
+        headers: { "Authorization": "Bearer " + getToken() }
+    });
+
+    const data = await response.json();
+
+    document.getElementById("financialSummary").innerHTML = `
+        <div class="pill"><span>Total Order Value</span><strong>${money(data.total_order_value)}</strong></div>
+        <div class="pill"><span>Network Commission</span><strong>${money(data.total_commission)}</strong></div>
+        <div class="pill"><span>Producer Payments</span><strong>${money(data.total_producer_payments)}</strong></div>
+        <div class="pill"><span>Orders Processed</span><strong>${data.order_count}</strong></div>
+    `;
+
+    const tbody = document.getElementById("financialTableBody");
+    tbody.innerHTML = "";
+
+    if (!data.orders.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-message">No orders found.</td></tr>`;
+        return;
+    }
+
+    data.orders.forEach(o => {
+        const tr = document.createElement("tr");
+        tr.dataset.order = JSON.stringify(o);
+
+        tr.innerHTML = `
+            <td>#${o.id}</td>
+            <td>${o.customer}</td>
+            <td>${new Date(o.created_at).toLocaleString()}</td>
+            <td>${money(o.total)}</td>
+            <td>${money(o.commission)}</td>
+            <td>${money(o.producer_payment)}</td>
+            <td><button class="approve_btn admin-audit-btn">View</button></td>
+        `;
+
+        tbody.appendChild(tr);
+    });
+
+    attachAuditButtons();
+}
+
+function attachAuditButtons() {
+    document.querySelectorAll(".admin-audit-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const row = btn.closest("tr");
+            const o = JSON.parse(row.dataset.order);
+
+            document.getElementById("adOrderId").textContent = "#" + o.id;
+            document.getElementById("adCustomer").textContent = o.customer;
+            document.getElementById("adStatus").textContent = o.status;
+            document.getElementById("adCreated").textContent = new Date(o.created_at).toLocaleString();
+            document.getElementById("adTotal").textContent = money(o.total);
+            document.getElementById("adCommission").textContent = money(o.commission);
+            document.getElementById("adPayout").textContent = money(o.producer_payment);
+
+            const prodBox = document.getElementById("adProducers");
+            prodBox.innerHTML = "";
+
+            o.producers.forEach(p => {
+                prodBox.innerHTML += `
+                    <div class="admin_card">
+                        <p><strong>${p.producer}</strong></p>
+                        <p>Total: ${money(p.subtotal)}</p>
+                        <p>Commission: ${money(p.commission)}</p>
+                        <p>Payout: ${money(p.payout)}</p>
+                    </div>
+                `;
+            });
+
+            document.getElementById("adminOrderAuditModal").style.display = "flex";
+        });
+    });
+
+    document.getElementById("adminCloseAuditBtn").onclick = () => {
+        document.getElementById("adminOrderAuditModal").style.display = "none";
+    };
+}
+
+function downloadCSV() {
+    const start = document.getElementById("startDate").value;
+    const end = document.getElementById("endDate").value;
+    window.location.href = `/admin-dashboard/financial-reports/export-csv/?start=${start}&end=${end}`;
+}
+
+window.onload = loadDateLimits;
+</script>
+
+{% endblock %}
