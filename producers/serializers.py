@@ -3,6 +3,7 @@ from rest_framework import serializers
 from product.models import Product, ProductCategory, Allergen, ProductAllergen, SeasonalAvailability
 from user_accounts.models import ProducerAccount
 from order_management.models import SubOrder, OrderItem
+from .models import SettlementReport, ProducerSettlementOrder
 import json
 
 class DashboardOrderSerializer(serializers.ModelSerializer):
@@ -165,6 +166,7 @@ class ProducerOrderSerializer(serializers.ModelSerializer):
     delivery_type = serializers.SerializerMethodField()
     items = OrderItemSerializer(many=True, read_only=True)
     total_value = serializers.DecimalField(source="payout_amount", max_digits=10, decimal_places=2)
+    special_instruction = serializers.SerializerMethodField()
 
     class Meta:
         model = SubOrder
@@ -232,3 +234,35 @@ class ProducerOrderSerializer(serializers.ModelSerializer):
         if obj.delivery_date:
             return "Delivery"
         return "Collection"
+    
+    def get_special_instruction(self, obj):
+        return obj.special_instruction or ""
+    
+class ProducerSettlementOrderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProducerSettlementOrder
+        fields = [
+            "order_id",
+            "order_value",
+            "commission_amount",
+            "producer_payout",
+        ]
+
+
+class SettlementReportSerializer(serializers.ModelSerializer):
+    settlement_orders = ProducerSettlementOrderSerializer(many=True)
+
+    class Meta:
+        model = SettlementReport
+        fields = [
+            "settlement_report_id",
+            "producer",
+            "transaction_id",
+            "week_start",
+            "week_end",
+            "total_order_value",
+            "commission_amount",
+            "payout_amount",
+            "payment_status",
+            "settlement_orders",
+        ]

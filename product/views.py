@@ -10,9 +10,8 @@ from django.db.models import Q
 from rest_framework.permissions import IsAuthenticated
 from user_accounts.permissions import IsCustomer
 from django.contrib.auth.decorators import login_required
-from shopping_cart.utils import get_available_stock 
+from shopping_cart.utils import get_available_stock  # Add this import
 from product.utils import food_miles
-
 
 # api to return all product categories for the frontend page
 
@@ -149,39 +148,38 @@ class ProductSearchAPIView(APIView):
 
 class ProductDetailAPIView(APIView):
     permission_classes = [IsAuthenticated, IsCustomer]
-    
+
     def get(self, request, product_id):
         # getting product based on primary key
         product = get_object_or_404(Product, pk=product_id)
-        
-        # Calculate available stock for this product
+# Calculate available stock for this product
         available_stock = get_available_stock(
             product, 
             exclude_user=request.user if request.user.is_authenticated else None
         )
-        
+
         serializer = ProductSerializer(product)
         product_dict = serializer.data
         product_dict['available_stock'] = available_stock
-        
-        # getting all the allergens for the product
+
+# getting all the allergens for the product
         allergens = product.productallergen_set.all()
         allergens_serializer = ProductAllergenSerializer(allergens, many=True)
-        
+
         #food miles
-        
+
         customer = request.user.customeraccount
-        
+
         customer_postcode = customer.address.postcode
         producer_postcode = product.producer.address.postcode
-        
+
         print("customer postcode:", customer_postcode)
         print("producer postcode:", producer_postcode)
-        
+
         farm_miles = food_miles(customer_postcode, producer_postcode)
-        
-        
-        
+
+
+
         return Response({"product": serializer.data, "farm_miles": farm_miles, "allergens": allergens_serializer.data}, status=status.HTTP_200_OK)
 
 

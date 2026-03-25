@@ -120,6 +120,56 @@
 .timeline-by::before {
     content: '— ';
 }
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.status-badge.pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-badge.confirmed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.ready {
+    background: #cce5ff;
+    color: #004085;
+}
+
+.status-badge.delivered {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
+/* Collected badge style */
+.status-badge.collected {
+    background: #d1c4e9;
+    color: #512da8;
+}
+
+/* Producer status badge styles */
+.producer-meta .status-badge {
+    padding: 4px 12px;
+    font-size: 12px;
+}
+
+/* Make sure the timeline header badges match */
+.timeline-header .collection-badge,
+.timeline-header .delivery-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
 </style>
 {% endblock %}
 
@@ -150,7 +200,18 @@
                 {% if producer.status == "Confirmed" or producer.status == "Ready" or producer.status == "Delivered" %}
                 <div class="timeline-item completed">
                     <span class="timeline-date">{{ order.created_at|date:"M j, Y" }}</span>
-                    <span class="timeline-status">{{ producer.name }} - {{ producer.status }}</span>
+                    <span class="timeline-status">
+                        {{ producer.name }} - 
+                        {% if producer.status == "Delivered" %}
+                            {% if producer.is_collection %}
+                                Collected
+                            {% else %}
+                                Delivered
+                            {% endif %}
+                        {% else %}
+                            {{ producer.status }}
+                        {% endif %}
+                    </span>
                 </div>
                 {% endif %}
             {% endfor %}
@@ -198,19 +259,33 @@
     
     <!-- Order Items by Producer -->
     <h2 class="section-title">Order Items</h2>
-    
+
     {% for producer in producers %}
     <div class="producer-section">
         <div class="producer-header">
             <div>
                 <h3>{{ producer.name }}</h3>
                 <div class="producer-meta">
-                    <span>Delivery: {{ producer.delivery_date|date:"F j, Y" }}</span>
-                    <span class="status-badge status-{{ producer.status|lower }}">{{ producer.status }}</span>
+                    <span>{% if producer.is_collection %}Collection Date:{% else %}Delivery Date:{% endif %} {{ producer.delivery_date|date:"F j, Y" }}</span>
+                    <span class="status-badge 
+                        {% if producer.status == 'Delivered' %}
+                            {% if producer.is_collection %}collected{% else %}delivered{% endif %}
+                        {% else %}
+                            status-{{ producer.status|lower }}
+                        {% endif %}">
+                        {% if producer.status == 'Delivered' %}
+                            {% if producer.is_collection %}
+                                <i class="fa-solid fa-hand-holding-box"></i> Collected
+                            {% else %}
+                                <i class="fa-solid fa-truck"></i> Delivered
+                            {% endif %}
+                        {% else %}
+                            {{ producer.status }}
+                        {% endif %}
+                    </span>
                 </div>
             </div>
         </div>
-        
         <!-- Itemised List -->
         <div class="items-table">
             <div class="items-header">
@@ -242,7 +317,14 @@
                 <span>£{{ producer.subtotal|floatformat:2 }}</span>
             </div>
         </div>
-        
+         <!-- ADD THIS BLOCK -->
+         {% if producer.special_instruction %}
+         <div class="special-instruction-display">
+             <h4><i class="fa-regular fa-note-sticky"></i> Special Instructions:</h4>
+             <p>{{ producer.special_instruction }}</p>
+         </div>
+         {% endif %}
+
         <!-- Status History with meaningful messages (REPLACED SECTION) -->
         {% if producer.status_history %}
         <div class="status-history-section">
@@ -318,7 +400,7 @@
     <div class="order-totals">
         <div class="total-row">
             <span>Subtotal:</span>
-            <span>£{{ order.total_amount|add:commission|floatformat:2 }}</span>
+            <span>£{{ total|floatformat:2 }}</span>
         </div>
         <div class="total-row">
             <span>Commission (5%):</span>

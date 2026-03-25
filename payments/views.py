@@ -36,41 +36,50 @@ def create_payment_intent(request):
 
 def payment_page(request):
     if request.method == 'POST':
-        total = request.POST.get('total')
-        
+        total = request.POST.get('total') or "0"
+
+        # Extract producer-specific fields
         form_data = request.POST.dict()
         producer_data = {}
+
         for key, value in request.POST.items():
-            if key.startswith('producer_') and (key.endswith('_delivery_date') or key.endswith('_method')):
+            if key.startswith('producer_') and (
+                key.endswith('_delivery_date') or 
+                key.endswith('_method') or 
+                key.endswith('_special_instruction')
+            ):
                 producer_data[key] = value
-        
+
+        # Store everything in session
         request.session['checkout_data'] = {
             'total': total,
             'producer_data': producer_data,
             'form_data': form_data,
         }
-        
+
         return render(request, 'payment.html', {
             'total': total,
             'stripe_public_key': settings.STRIPE_PUBLIC_KEY
         })
+
     return redirect('multi_checkout')
+
+
 
 def payment_success(request):
     payment_intent_id = request.GET.get('payment_intent')
-    
+
     if not payment_intent_id:
         return redirect('/')
-    
-    # ===== TRY TO FIND EXISTING ORDER FIRST =====
+
+    # Try to find an existing order first
     try:
-        # Try to find existing payment transaction
-        existing_payment = PaymentTransaction.objects.get(stripe_payment_intent_id=payment_intent_id)
+        existing_payment = PaymentTransaction.objects.get(
+            stripe_payment_intent_id=payment_intent_id
+        )
         order = existing_payment.order
-        
-        print(f" Found existing order #{order.order_id} for payment {payment_intent_id}")
-        
-        # Collect items from database
+
+        # Collect items for display
         all_items = []
         for suborder in order.suborders.all():
             for item in suborder.items.all():
@@ -78,14 +87,13 @@ def payment_success(request):
                     'name': item.product.name,
                     'quantity': item.quantity,
                     'price': float(item.price_at_purchase),
-                    'unit': item.product.unit if hasattr(item.product, 'unit') else '',
+                    'unit': getattr(item.product, 'unit', ''),
                     'image': item.product.image.url if item.product.image else None,
                     'producer': suborder.producer.business_name
                 })
-        
-        # Check if any delivery was needed
+
         has_delivery = any(sub.delivery_date for sub in order.suborders.all())
-        
+
         return render(request, 'payment_success.html', {
             'order_id': order.order_id,
             'total': float(order.total_amount),
@@ -97,42 +105,34 @@ def payment_success(request):
             'show_address': has_delivery,
             'user_email': request.user.email
         })
-        
+
     except PaymentTransaction.DoesNotExist:
-        # ===== NO EXISTING ORDER - CREATE NEW ONE =====
-        print(f" No existing order found for {payment_intent_id}, creating new order")
-        
-        # Get checkout data from session
+        # No existing order — create a new one
         checkout_data = request.session.get('checkout_data', {})
         user_address = request.session.get('user_address', {})
         producer_groups = request.session.get('producer_groups', [])
-        
+
         if not producer_groups:
             return redirect('multi_checkout')
-        
-        # total = float(checkout_data.get('total', 0))
-        # commission = round(total * 0.05, 2)
 
-        total = sum(group['total'] for group in producer_groups)
-        commission = sum(group['commission'] for group in producer_groups)
+        # SAFE float conversion
+        total = sum(float(group.get('total') or 0) for group in producer_groups)
+        commission = sum(float(group.get('commission') or 0) for group in producer_groups)
 
-
-        
-        # Check if any producer needs delivery
+        # Determine if any producer requires delivery
         has_delivery = False
+        producer_data = checkout_data.get('producer_data', {})
+
         for group in producer_groups:
-            producer_id = group['producer']['id']
-            producer_data = checkout_data.get('producer_data', {})
-            method_key = f'producer_{producer_id}_method'
-            delivery_method = producer_data.get(method_key, 'delivery')
-            if delivery_method == 'delivery':
+            pid = group['producer']['id']
+            method = producer_data.get(f'producer_{pid}_method', 'delivery')
+            if method == 'delivery':
                 has_delivery = True
                 break
-        
-        # Get the cart
+
+        # Create main order
         cart = Cart.objects.get(customer=request.user)
-        
-        # Create Order (only save address if needed)
+
         order = Order.objects.create(
             customer=request.user.customeraccount,
             total_amount=total,
@@ -141,88 +141,94 @@ def payment_success(request):
             delivery_postcode=user_address.get('postcode', '') if has_delivery else '',
             order_status='Pending'
         )
-        
-        print(f" New order created: #{order.order_id}")
-        
-        # Create SubOrders and collect items
+
         all_items = []
-        
-        # Use transaction to ensure all stock updates happen together
+
+        # Create suborders + update stock
         with transaction.atomic():
             for group in producer_groups:
-                producer_id = group['producer']['id']
-                producer_data = checkout_data.get('producer_data', {})
-                date_key = f'producer_{producer_id}_delivery_date'
-                delivery_date = producer_data.get(date_key, None)
-                
-                # producer = ProducerAccount.objects.get(id=producer_id)
-                # subtotal = float(group['subtotal'])
-                # producer_total = float(group['total'])
-                
+                pid = group['producer']['id']
+                producer = ProducerAccount.objects.get(id=pid)
+
+                # Delivery date
+                delivery_date = producer_data.get(f'producer_{pid}_delivery_date') or None
+
+                # Special instruction
+                special_instruction = producer_data.get(
+                    f'producer_{pid}_special_instruction', ''
+                )
+
+                # # SAFE float conversions
+                # customer_pays = float(group.get('subtotal') or 0)
+                # commission_amount = float(group.get('commission') or 0)
+                # producer_gets = customer_pays - commission_amount
+
                 # suborder = SubOrder.objects.create(
                 #     order=order,
                 #     producer=producer,
-                #     delivery_date=delivery_date if delivery_date else None,
-                #     subtotal=subtotal,
-                #     payout_amount=producer_total,
+                #     delivery_date=delivery_date,
+                #     subtotal=customer_pays,
+                #     payout_amount=producer_gets,
                 #     status='Pending',
+                #     special_instruction=special_instruction,
                 # )
+                from decimal import Decimal, ROUND_HALF_UP
 
-                producer = ProducerAccount.objects.get(id=producer_id)
+                # Convert safely to Decimal
+                customer_pays = Decimal(str(group.get('subtotal') or "0"))
 
-                subtotal = float(group['subtotal'])          
-                commission = float(group['commission'])      
-                producer_total = float(group['total'])       
+                # Commission = 5%
+                commission_amount = (customer_pays * Decimal("0.05")).quantize(
+                    Decimal("0.01"),
+                    rounding=ROUND_HALF_UP
+                )
+
+                # Producer payout = 95%
+                producer_gets = (customer_pays * Decimal("0.95")).quantize(
+                    Decimal("0.01"),
+                    rounding=ROUND_HALF_UP
+                )
 
                 suborder = SubOrder.objects.create(
                     order=order,
                     producer=producer,
-                    delivery_date=delivery_date if delivery_date else None,
-                    subtotal=subtotal,            
-                    payout_amount=subtotal,       
+                    delivery_date=delivery_date,
+                    subtotal=customer_pays,
+                    payout_amount=producer_gets,
                     status='Pending',
+                    special_instruction=special_instruction,
                 )
 
-               
+                # Create order items + update stock
                 for item_data in group['items']:
                     product = Product.objects.get(product_id=item_data['product_id'])
-                    
-                    quantity_purchased = item_data['quantity']
-                    
-                    # Check if enough stock exists (should be true, but double-check)
-                    if product.stock_quantity >= quantity_purchased:
-                        # Reduce the stock
-                        product.stock_quantity -= quantity_purchased
-                        
-                        # Update availability status if stock becomes 0
-                        if product.stock_quantity == 0:
-                            product.availability_status = False
-                        
-                        product.save()
-                        print(f" Stock reduced for {product.name}: +{quantity_purchased} purchased, {product.stock_quantity} remaining")
-                    else:
-                        # This shouldn't happen if cart validation worked, but handle just in case
-                        print(f" ERROR: Not enough stock for {product.name}. Available: {product.stock_quantity}, Requested: {quantity_purchased}")
+                    qty = item_data['quantity']
+
+                    if product.stock_quantity < qty:
                         raise Exception(f"Insufficient stock for {product.name}")
-                    
-                    # Create order item
+
+                    product.stock_quantity -= qty
+                    if product.stock_quantity == 0:
+                        product.availability_status = False
+                    product.save()
+
                     OrderItem.objects.create(
                         suborder=suborder,
                         product=product,
-                        quantity=quantity_purchased,
+                        quantity=qty,
                         price_at_purchase=item_data['price']
                     )
-                    
+
                     all_items.append({
                         'name': item_data['product_name'],
-                        'quantity': quantity_purchased,
+                        'quantity': qty,
                         'price': item_data['price'],
                         'unit': item_data.get('unit', ''),
                         'image': item_data.get('image', None),
                         'producer': producer.business_name
                     })
-            
-            # Create PaymentTransaction
+
+            # Create payment transaction
             PaymentTransaction.objects.create(
                 order=order,
                 amount=total,
@@ -231,31 +237,26 @@ def payment_success(request):
                 payment_status='succeeded',
                 stripe_payment_intent_id=payment_intent_id
             )
-            
-            # Create Commission
+
+            # Create commission record
             Commission.objects.create(
                 order=order,
                 commission_amount=commission,
                 producer_payout=total - commission,
                 status='pending'
             )
-        
-        # Notify producers about the new order
+
+        # Notify producers
         try:
             notify_producers_new_order(order)
-            print(f"Sent new order notifications to producers for order #{order.order_id}")
         except Exception as e:
-            print(f"Could not notify producers: {e}")
-            
-        
-        # Clear cart and session
+            print("Notification error:", e)
+
+        # Clear cart + session
         cart.items.all().delete()
-        session_keys = ['checkout_data', 'user_address', 'producer_groups']
-        for key in session_keys:
-            if key in request.session:
-                del request.session[key]
-        
-        # Return success page
+        for key in ['checkout_data', 'user_address', 'producer_groups']:
+            request.session.pop(key, None)
+
         return render(request, 'payment_success.html', {
             'order_id': order.order_id,
             'total': float(order.total_amount),

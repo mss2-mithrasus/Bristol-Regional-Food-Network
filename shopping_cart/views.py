@@ -109,7 +109,7 @@ def cart_view(request):
     subtotal = sum(item.quantity * item.product.price for item in cart_items_list)
     subtotal_float = float(subtotal)
     network_fee = round(subtotal_float * 0.05, 2)  # Calculate 5% commission
-    total = round(subtotal_float + network_fee, 2)  # Calculate total including fee
+    total = subtotal_float  # Total to pay is same as subtotal (commission already included)
     # Group by producer
     producers = []
     producer_dict = {}

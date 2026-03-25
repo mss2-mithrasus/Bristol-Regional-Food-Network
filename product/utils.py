@@ -82,6 +82,3 @@ def food_miles(postcode1, postcode2):
     
     # round distance to 2 decimal places
     return round(miles, 2)
-    
-    
-

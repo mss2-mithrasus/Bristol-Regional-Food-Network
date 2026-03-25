@@ -373,6 +373,39 @@
     border-left: 3px solid #406083;
 }
 
+/* Special Instructions */
+.special-instructions {
+    margin-top: 15px;
+    padding: 12px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    border-left: 3px solid #406083;
+}
+
+.special-instructions label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #406083;
+    font-size: 14px;
+}
+
+.special-instruction-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+}
+
+.special-instruction-input:focus {
+    outline: none;
+    border-color: #406083;
+    box-shadow: 0 0 0 2px rgba(64, 96, 131, 0.1);
+}
+
 /* Warning Messages */
 .producer-warning {
     color: #dc3545;

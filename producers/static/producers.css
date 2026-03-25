@@ -323,7 +323,7 @@
   color: #1d3557;          /* dark readable text */
 }
 .form-group textarea{ resize:vertical; }
-.form-group-full{ grid-column: 1 / -1; }
+.form-group-full{ grid-column: 1 / -1;}
 .form-actions{
   display:flex;
   justify-content:center;
@@ -478,4 +478,31 @@
   display: flex;
   justify-content: center;
   margin-top: 15px;
+}
+.year-round-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    justify-content: flex-start;
+    text-align: left;
+    width: 100%;
+}
+
+.year-round-label input {
+    margin: 0;
+    transform: scale(1.1); 
+}
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 30px;           
+  justify-content: flex-start;  
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
 }
