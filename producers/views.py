@@ -118,9 +118,13 @@ class ProducerCreateProductAPI(APIView):
     POST /producers/api/products/create/
     Expects multipart/form-data (FormData), supports image upload.
     """
+    parser_classes = (MultiPartParser, FormParser)
     permission_classes = [IsAuthenticated, IsProducer]
 
     def post(self, request):
+        
+        print("FILES RECIEIVED:",request.FILES)
+        print("DATA RECIEVED", request.data)
         serializer = ProductCreateSerializer(data=request.data, context={"request": request})
         if serializer.is_valid():
             product = serializer.save()

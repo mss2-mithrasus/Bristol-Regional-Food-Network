@@ -93,9 +93,12 @@ class ProductCreateSerializer(serializers.Serializer):
             stock_quantity=stock,
             availability_status=True,
             organic_certified=organic_certified,
-            image=image,
             **validated_data
         )
+        
+        if image:
+            product.image = image
+            product.save()
 
         if seasonal_type == "available_yearly":
             SeasonalAvailability.objects.create(

@@ -1,6 +1,7 @@
 
 from django.db import models
 from django.conf import settings
+from cloudinary_storage.storage import MediaCloudinaryStorage
 
 class ProductCategory(models.Model):
     category_id = models.AutoField(primary_key=True)
@@ -41,7 +42,7 @@ class Product(models.Model):
     availability_status = models.BooleanField(default=True)
     harvest_date = models.DateField(null=True, blank=True)
     organic_certified = models.BooleanField(default=False)
-    image = models.ImageField(upload_to='product_images/', null=True, blank=True)
+    image = models.ImageField(upload_to='product_images/', storage=MediaCloudinaryStorage(), null=True, blank=True)
     
     allergens = models.ManyToManyField(
         Allergen, through="ProductAllergen", blank=True, related_name="products"
