@@ -56,7 +56,7 @@
 .pay-table.head,
 .pay-table.row {
   display: grid !important;
-  grid-template-columns: 1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr 0.8fr !important;
+  grid-template-columns: 1fr 1.3fr 1fr 2fr 1fr 1.1fr 1.1fr  !important;
   width: 100%;
   box-sizing: border-box;
 }
@@ -227,6 +227,17 @@
     left: 0;
     top: 0;
     width: 100%;
+  }
+  .button-pill,
+  .panel-controls,
+  #historySection {
+    display: none !important;
+  }
+  .section-title:nth-of-type(2) {
+    display: none !important;
+  }
+  #processSettlementBtn {
+    display: none !important;
   }
 
 }

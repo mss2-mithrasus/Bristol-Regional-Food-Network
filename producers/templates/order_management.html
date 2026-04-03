@@ -248,6 +248,7 @@ function renderOrders(orders){
         row.dataset.deliveryDate=o.delivery_date;
         row.dataset.items=JSON.stringify(o.items);
         row.dataset.total=o.total_value;
+        row.dataset.specialInstruction = o.special_instruction || "";
 
         const readyToConfirm = canConfirmOrder(o.created_at);
         const pendingTooltip = !readyToConfirm && o.status === 'Pending'
@@ -298,7 +299,7 @@ document.addEventListener("click",function(e){
     document.getElementById("dDeliveryAddress").value=row.dataset.deliveryAddress||"";
     document.getElementById("dOrderDate").value=row.dataset.orderDate||"";
     document.getElementById("dDeliveryDate").value=row.dataset.deliveryDate||"";
-
+    document.getElementById("dSpecialInstruction").value=row.dataset.specialInstruction || "";
     document.getElementById("dTotalAmount").textContent="£"+(row.dataset.total||"0.00");
 
     const itemsWrap=document.getElementById("itemsRows");

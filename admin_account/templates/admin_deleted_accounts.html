@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'admin_dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="admin_layout">
+
+    <aside class="admin_sidebar">
+        <a href="{% url 'admin_home' %}">
+            <i class="fa fa-chart-line"></i> Dashboard
+        </a>
+
+        <a href="{% url 'admin_pending_page' %}">
+            <i class="fa fa-user-clock"></i> Pending Approvals
+        </a>
+
+        <a href="{% url 'admin_failed_page' %}">
+            <i class="fa fa-triangle-exclamation"></i> Failed Logins
+        </a>
+
+        <a href="{% url 'admin_deleted_page' %}">
+            <i class="fa fa-user-slash"></i> Deleted Accounts
+        </a>
+
+        <a href="{% url 'admin_financial_page' %}">
+            <i class="fa fa-file-invoice-dollar"></i> Financial Reports
+        </a>
+
+        <a href="{% url 'admin_analytics_page' %}">
+            <i class="fa fa-chart-pie"></i> Analytics
+        </a>
+    </aside>
+
+    <main class="admin_main">
+
+        <div class="admin_container">
+
+            <h1>Deleted Accounts</h1>
+
+            <section class="admin_section">
+                <h2>Account Deletion History</h2>
+                <div id="deletedAccountsContainer"></div>
+            </section>
+
+        </div>
+
+    </main>
+</div>
+
+<script>
+function getToken() {
+    return localStorage.getItem("access") || sessionStorage.getItem("access");
+}
+
+async function loadDeletedAccounts() {
+    const res = await fetch("/admin-dashboard/deleted-accounts/api/", {
+        headers: { "Authorization": "Bearer " + getToken() }
+    });
+
+    const list = await res.json();
+    const container = document.getElementById("deletedAccountsContainer");
+
+    if (!list.length) {
+        container.innerHTML = `<p class="empty-message">No deleted accounts.</p>`;
+        return;
+    }
+
+    list.forEach(item => {
+        container.innerHTML += `
+            <div class="admin_card">
+                <p><strong>Hashed ID:</strong> ${item.hashed_user_identifier}</p>
+                <p><strong>Role:</strong> ${item.role}</p>
+                <p><strong>Reason:</strong> ${item.reason}</p>
+                <p><strong>Deleted At:</strong> ${new Date(item.deleted_at).toLocaleString()}</p>
+            </div>
+        `;
+    });
+}
+
+window.onload = loadDeletedAccounts;
+</script>
+
+{% endblock %}

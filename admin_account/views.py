@@ -3,6 +3,8 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils.decorators import method_decorator
 from django.views import View
+from django.db.models import Sum, Count, F
+from django.db.models.functions import TruncDate
 from user_accounts.permissions import IsAdmin
 
 from rest_framework.views import APIView
@@ -25,6 +27,7 @@ from decimal import Decimal
 from order_management.models import Order, SubOrder
 from payments.models import PaymentTransaction
 from django.views.decorators.http import require_GET
+from decimal import Decimal, ROUND_HALF_UP
 
 
 # Check if user is admin
@@ -37,13 +40,40 @@ def is_admin(user):
 @method_decorator(user_passes_test(is_admin), name="dispatch")
 class AdminHomePageView(View):
     def get(self, request):
-        pending_customers = CustomerAccount.objects.filter(account_verified=False)
-        pending_producers = ProducerAccount.objects.filter(account_verified=False)
+        return render(request, "admin_home_page.html")
 
-        return render(request, "admin_home_page.html", {
-            "pending_customers": pending_customers,
-            "pending_producers": pending_producers,
-        })
+
+@method_decorator(login_required, name="dispatch")
+@method_decorator(user_passes_test(is_admin), name="dispatch")
+class AdminPendingPageView(View):
+    def get(self, request):
+        return render(request, "admin_pending.html")
+
+@method_decorator(login_required, name="dispatch")
+@method_decorator(user_passes_test(is_admin), name="dispatch")
+class AdminFailedLoginsPageView(View):
+    def get(self, request):
+        return render(request, "admin_failed_logins.html")
+
+
+@method_decorator(login_required, name="dispatch")
+@method_decorator(user_passes_test(is_admin), name="dispatch")
+class AdminDeletedAccountsPageView(View):
+    def get(self, request):
+        return render(request, "admin_deleted_accounts.html")
+
+
+@method_decorator(login_required, name="dispatch")
+@method_decorator(user_passes_test(is_admin), name="dispatch")
+class AdminFinancialReportsPageView(View):
+    def get(self, request):
+        return render(request, "admin_financial_reports.html")
+
+@method_decorator(login_required, name="dispatch")
+@method_decorator(user_passes_test(is_admin), name="dispatch")
+class AdminAnalyticsPageView(View):
+    def get(self, request):
+        return render(request, "admin_analytics.html")
 
 
 # Show pending accounts
@@ -172,6 +202,30 @@ class FailedLoginAttemptsView(APIView):
 
 # ADDED 19/03/2026
 # Admin financial reports 
+@require_GET
+def FinancialReportsMeta(request):
+    """
+    Returns earliest and latest PAID order dates.
+    Used to auto-fill the date pickers on the financial reports page.
+    """
+    paid_order_ids = PaymentTransaction.objects.filter(
+        payment_status=PaymentTransaction.PaymentStatus.SUCCEEDED
+    ).values_list("order_id", flat=True)
+
+    try:
+        min_date = Order.objects.filter(order_id__in=paid_order_ids).earliest("created_at").created_at.date()
+        max_date = Order.objects.filter(order_id__in=paid_order_ids).latest("created_at").created_at.date()
+    except Order.DoesNotExist:
+        return JsonResponse({
+            "min_date": None,
+            "max_date": None
+        })
+
+    return JsonResponse({
+        "min_date": min_date,
+        "max_date": max_date
+    })
+
 @require_GET 
 def FinancialReports(request):
     """
@@ -226,12 +280,22 @@ def FinancialReports(request):
     for order in orders_qs:
         producer_rows = []
         for s in order.suborders.all():
+            subtotal = Decimal(str(s.subtotal))
+
+            commission = (subtotal * Decimal("0.05")).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+
+            payout = (subtotal * Decimal("0.95")).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+
             producer_rows.append({
                 "producer": str(s.producer),
-                "subtotal": str(s.subtotal),
-                "payout": str(s.payout_amount),
+                "subtotal": str(subtotal),
+                "commission": str(commission),
+                "payout": str(payout),
             })
-
         order_payout = sum(
             (s.payout_amount for s in order.suborders.all()),
             Decimal("0.00")
@@ -303,8 +367,8 @@ def FinancialReportsCSV(request):
         "Created At",
         "Status",
         "Total Amount",
-        "Commission Amount",
-        "Producer Payout (sum of suborders)",
+        "Commission Amount (5%)",
+        "Producer Payout (95%)",
     ])
 
     for order in orders_qs:
@@ -320,18 +384,26 @@ def FinancialReportsCSV(request):
         ])
 
     return response
-
 @require_GET
-def AnalyticsData(request):
+def AnalyticsMeta(request):
     """
-    Returns analytics data for charts:
-    - Payout per producer
-    - Commission per producer
-    - Orders per producer
-    - Revenue over time
-    - Commission over time
+    Returns earliest and latest order dates.
+    Used to auto-fill the date pickers on the analytics page.
     """
+    try:
+        min_date = Order.objects.earliest("created_at").created_at.date()
+        max_date = Order.objects.latest("created_at").created_at.date()
+    except Order.DoesNotExist:
+        return JsonResponse({
+            "min_date": None,
+            "max_date": None
+        })
 
+    return JsonResponse({
+        "min_date": min_date,
+        "max_date": max_date
+    })
+def AnalyticsData(request):
     start_str = request.GET.get("start")
     end_str = request.GET.get("end")
     producer_id = request.GET.get("producer")
@@ -348,9 +420,11 @@ def AnalyticsData(request):
         filters["order__created_at__date__lte"] = parse_date(end_str)
         order_filters["created_at__date__lte"] = parse_date(end_str)
 
-    # Producer filter
+    # Producer filter 
     if producer_id:
         filters["producer_id"] = producer_id
+        # Producer filter
+        order_filters["suborders__producer_id"] = producer_id
 
     # 1. Payout per producer
     payout = (
@@ -364,7 +438,7 @@ def AnalyticsData(request):
     commission = (
         SubOrder.objects.filter(**filters)
         .values("producer__business_name")
-        .annotate(total=Sum("order__commission_amount"))
+        .annotate(total=Sum(F("subtotal") * Decimal("0.05")))
         .order_by("-total")
     )
 
@@ -376,8 +450,7 @@ def AnalyticsData(request):
         .order_by("-count")
     )
 
-
-    # 4. Revenue over time
+    # 4. Revenue over time 
     revenue = (
         Order.objects.filter(**order_filters)
         .values("created_at__date")
@@ -385,17 +458,16 @@ def AnalyticsData(request):
         .order_by("created_at__date")
     )
 
-    # 5. Commission over time
+    # 5. Commission over time 
     commission_time = (
         Order.objects.filter(**order_filters)
         .values("created_at__date")
-        .annotate(total=Sum("commission_amount"))
+        .annotate(total=Sum(F("total_amount") * Decimal("0.05")))
         .order_by("created_at__date")
     )
 
-    # Producer list for dropdown
     producers = list(
-        ProducerAccount.objects.values("id", "business_name")
+        ProducerAccount.objects.values("id", "business_name").order_by("business_name")
     )
 
     return JsonResponse({

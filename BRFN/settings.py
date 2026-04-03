@@ -51,6 +51,9 @@ INSTALLED_APPS = [
     'notifications',
     'content',
     'admin_account',
+    'cloudinary',
+    'cloudinary_storage',
+    
     
 
 ]
@@ -211,3 +214,13 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')  # Add to .env
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')  # Add to .env
 DEFAULT_FROM_EMAIL = 'BRFN <noreply@brfn.com>'
+
+# cloudinary 
+
+import cloudinary
+
+cloudinary.config(cloudinary_url=os.getenv("CLOUDINARY_URL"))
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
+MEDIA_URL = "/media/"

@@ -8,3 +8,5 @@ sqlparse==0.5.5
 tzdata==2025.3
 pillow==10.4.0
 stripe>=14.4.1
+django-cloudinary-storage==0.3.0
+cloudinary>=1.33.0
