@@ -653,9 +653,9 @@ def reorder(request, order_id):
         return JsonResponse(response_data)
 
 
-@login_required
+"""@login_required
 def download_receipt(request, order_id):
-    """View receipt (printable version)"""
+    #View receipt (printable version)
     try:
         order = Order.objects.get(
             order_id=order_id,
@@ -689,7 +689,7 @@ def download_receipt(request, order_id):
         'is_receipt_view': True,  # Flag to hide success message
     }
     
-    return render(request, 'payment_success.html', context)
+    return render(request, 'payment_success.html', context)"""
 
 def update_checkout_address(request):
     """Save edited address to session"""

@@ -415,11 +415,11 @@
     <!-- Action Buttons (Reorder and Download) -->
     <div class="action-buttons">
         <button onclick="reorder('{{ order.order_id }}')" class="reorder-btn">
-             Reorder Items
+            Reorder Items
+        <button onclick="window.print()" class="download-btn">
+            Download Receipt
         </button>
-        <a href="{% url 'download_receipt' order.order_id %}" class="download-btn">
-             Download Receipt
-        </a>
+        
     </div>
 </div>
 
