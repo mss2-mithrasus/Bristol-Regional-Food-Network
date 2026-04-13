@@ -30,4 +30,6 @@ urlpatterns = [
     path('notifications/api/read/<int:notification_id>/', notification_views.mark_producer_notification_read, name='api_producer_notification_read'),
     path('notifications/api/read-all/', notification_views.mark_all_producer_read, name='api_producer_notifications_read_all'),
     path('notifications/api/unread-count/', notification_views.get_producer_unread_count, name='api_producer_unread_count'),
+    path('api/low-stock-alerts/', views.get_low_stock_alerts, name='low_stock_alerts'),
+    path('api/low-stock-alerts/<int:alert_id>/resolve/', views.resolve_low_stock_alert, name='resolve_low_stock_alert'),
 ]

@@ -417,9 +417,9 @@
         <button onclick="reorder('{{ order.order_id }}')" class="reorder-btn">
              Reorder Items
         </button>
-        <a href="{% url 'download_receipt' order.order_id %}" class="download-btn">
-             Download Receipt
-        </a>
+        <button onclick="window.print()" class="download-btn">
+            Download Receipt
+        </button>
     </div>
 </div>
 

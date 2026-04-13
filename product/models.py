@@ -42,6 +42,7 @@ class Product(models.Model):
     availability_status = models.BooleanField(default=True)
     harvest_date = models.DateField(null=True, blank=True)
     organic_certified = models.BooleanField(default=False)
+    low_stock_threshold = models.PositiveIntegerField(default=10)
     image = models.ImageField(upload_to='product_images/', storage=MediaCloudinaryStorage(), null=True, blank=True)
     
     allergens = models.ManyToManyField(

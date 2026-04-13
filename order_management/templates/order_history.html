@@ -640,10 +640,6 @@
                             <i class="fa-regular fa-clock"></i> Pending
                         {% endif %}
                     </span>
-                    
-                    {% if producer.status == "Pending" and producer.hours_remaining %}
-                        <span class="countdown-badge"><i class="fa-regular fa-clock"></i> {{ producer.hours_remaining }}h left</span>
-                    {% endif %}
                 </div>
                 {% endfor %}
                 

@@ -224,7 +224,8 @@ def add_to_cart(request):
             quantity=requested_quantity,
             reserved_until=reservation_expiry
         )
-    
+    from producers.low_stock_service import check_low_stock
+    check_low_stock(product)
     # Return updated cart data
     cart_serializer = CartSerializer(cart)
     
@@ -322,6 +323,10 @@ def update_cart_item(request, item_id):
         cart_item.quantity = new_quantity
         cart_item.reserved_until = timezone.now() + timedelta(minutes=30)  # Extend reservation
         cart_item.save()
+        
+        from producers.low_stock_service import check_low_stock
+        check_low_stock(product)
+        
         # Check if reducing quantity freed up stock for waiting customers
         transaction.on_commit(lambda: check_and_notify_stock_available(product))
         # Get updated cart

@@ -11,13 +11,13 @@
 
     {% if producer_groups %}
 
-    <!-- ===== PAYMENT FORM (wrap entire checkout) ===== -->
+    <!-- PAYMENT FORM (wrap entire checkout) -->
     <form method="POST" action="{% url 'payments:payment_page' %}" id="globalPaymentForm" onsubmit="syncSpecialInstructions(); return validateGlobalPayment();">
     
         {% csrf_token %}
 
         {% for group in producer_groups %}
-        <!-- ===== PRODUCER CARD ===== -->
+        <!-- PRODUCER CARD -->
         <div class="producer-checkout-card" id="producer-{{ group.producer.id }}">
             <div class="producer-header">
                 <h3>{{ group.producer.name }}</h3>
@@ -86,8 +86,23 @@
                         <div class="address-card customer-address">
                             <div class="address-header">
                                 <h4>Your Delivery Address</h4>
+
                             </div>
-                            <div class="address-details">
+                            <!--div class="address-details">
+                                <div class="address-item address-full">
+                                    <span class="address-label">Street</span>
+                                    <span class="address-value" id="customer-street-{{ group.producer.id }}">{{ user_address.street|default:"No address saved" }}</span>
+                                </div>
+                                <div class="address-item">
+                                    <span class="address-label">Postcode</span>
+                                    <span class="address-value" id="customer-postcode-{{ group.producer.id }}">{{ user_address.postcode|default:"" }}</span>
+                                </div>
+                                <button type="button" class="edit-address-btn" onclick="editAddress('{{ group.producer.id }}')">
+                                    <i class="fa-solid fa-pencil"></i> Edit
+                                </button>
+                            </div-->
+                            <!-- DISPLAY MODE (unchanged) -->
+                            <div id="address-display-{{ group.producer.id }}" class="address-details">
                                 <div class="address-item address-full">
                                     <span class="address-label">Street</span>
                                     <span class="address-value" id="customer-street-{{ group.producer.id }}">{{ user_address.street|default:"No address saved" }}</span>
@@ -100,6 +115,24 @@
                                     <i class="fa-solid fa-pencil"></i> Edit
                                 </button>
                             </div>
+
+                            <!-- EDIT MODE (added) -->
+                            <div id="address-edit-{{ group.producer.id }}" class="address-details" style="display: none;">
+                                <div class="address-item address-full">
+                                    <span class="address-label">Street</span>
+                                    <input type="text" id="edit-street-{{ group.producer.id }}" class="address-input" value="{{ user_address.street|default:'' }}">
+                                </div>
+                                <div class="address-item">
+                                    <span class="address-label">Postcode</span>
+                                    <input type="text" id="edit-postcode-{{ group.producer.id }}" class="address-input" value="{{ user_address.postcode|default:'' }}">
+                                    <div id="postcode-status-{{ group.producer.id }}" style="font-size: 12px; margin-top: 4px;"></div>
+                                </div>
+                                <div class="edit-actions" style="margin-top: 10px;">
+                                    <button type="button" class="save-btn" onclick="saveAddress('{{ group.producer.id }}')">Save</button>
+                                    <button type="button" class="cancel-btn" onclick="cancelAddressEdit('{{ group.producer.id }}')">Cancel</button>
+                                </div>
+                            </div>
+
 
                             <label for="date-{{ group.producer.id }}" style="margin-top: 10px; display: block;">
                                 Select delivery date (48h minimum):
@@ -334,6 +367,91 @@ function validateGlobalPayment() {
     }
     return true;
 }
+
+// NEW ADDRESS EDITING FUNCTIONS
+function editAddress(producerId) {
+    const displayDiv = document.getElementById(`address-display-${producerId}`);
+    const editDiv = document.getElementById(`address-edit-${producerId}`);
+    if (displayDiv) displayDiv.style.display = 'none';
+    if (editDiv) editDiv.style.display = 'block';
+}
+
+function cancelAddressEdit(producerId) {
+    const displayDiv = document.getElementById(`address-display-${producerId}`);
+    const editDiv = document.getElementById(`address-edit-${producerId}`);
+    if (displayDiv) displayDiv.style.display = 'block';
+    if (editDiv) editDiv.style.display = 'none';
+    const statusDiv = document.getElementById(`postcode-status-${producerId}`);
+    if (statusDiv) statusDiv.innerHTML = '';
+}
+
+function saveAddress(producerId) {
+    const streetInput = document.getElementById(`edit-street-${producerId}`);
+    const postcodeInput = document.getElementById(`edit-postcode-${producerId}`);
+    const statusDiv = document.getElementById(`postcode-status-${producerId}`);
+    let street = streetInput ? streetInput.value.trim() : '';
+    let postcode = postcodeInput ? postcodeInput.value.trim().toUpperCase() : '';
+
+    if (!street || !postcode) {
+        if (statusDiv) statusDiv.innerHTML = '❌ Both street and postcode are required';
+        return;
+    }
+    // UK postcode format validation
+    const postcodeRegex = /^[A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}$/i;
+    if (!postcodeRegex.test(postcode)) {
+        if (statusDiv) statusDiv.innerHTML = '❌ Invalid UK postcode format';
+        return;
+    }
+    if (statusDiv) statusDiv.innerHTML = '⏳ Validating postcode...';
+
+    // Validate existence using postcodes.io (free, no API key)
+    fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(postcode)}/validate`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.result === true) {
+                // Postcode exists – save to session
+                return fetch('/orders/update-checkout-address/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ street: street, postcode: postcode })
+                });
+            } else {
+                throw new Error('Postcode not found in UK database');
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update displayed address for all producers (global address)
+                document.querySelectorAll(`[id^="customer-street-"]`).forEach(el => {
+                    el.textContent = street;
+                });
+                document.querySelectorAll(`[id^="customer-postcode-"]`).forEach(el => {
+                    el.textContent = postcode;
+                });
+                cancelAddressEdit(producerId);
+                showToast('Address Updated', 'Your delivery address has been saved', 'success');
+            } else {
+                throw new Error(data.error || 'Save failed');
+            }
+        })
+        .catch(error => {
+            console.error('Address save error:', error);
+            if (statusDiv) statusDiv.innerHTML = `❌ ${error.message || 'Could not save address'}`;
+        });
+}
+
+function showToast(title, message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast-notification ${type}`;
+    toast.innerHTML = `<div class="toast-content"><div class="toast-title">${title}</div><div class="toast-message">${message}</div></div><button class="toast-close" onclick="this.parentElement.remove()">×</button>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+}
+
 </script>
 
 {% endblock %}
