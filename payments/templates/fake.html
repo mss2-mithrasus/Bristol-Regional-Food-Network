@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block head %}
+<script src="https://js.stripe.com/v3/"></script>
+<link rel="stylesheet" href="{% static 'payments.css' %}">
+<!-- Ensure Font Awesome is loaded (already in base, but safe to include) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+    /* Custom CVV input styling */
+    .custom-cvv-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    .custom-cvv-input {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        font-size: 16px;
+        font-family: inherit;
+        transition: all 0.3s ease;
+        background-color: #f8f9fa;
+        letter-spacing: 2px;
+    }
+    .custom-cvv-input:focus {
+        outline: none;
+        border-color: #2b7a2b;
+        background-color: white;
+        box-shadow: 0 0 0 4px rgba(43, 122, 43, 0.1);
+    }
+    .cvv-toggle {
+        position: absolute;
+        right: 10px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 18px;
+        color: #666;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        transition: background-color 0.2s;
+    }
+    .cvv-toggle:hover {
+        background-color: rgba(0,0,0,0.05);
+        color: #2b7a2b;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="payment-container">
+    <div class="payment-box">
+        <h2 class="title"> Complete Payment</h2>
+        
+        <div class="order-summary">
+            <div class="summary-row">
+                <span>Subtotal:</span>
+                <span>£{{ total|floatformat:2 }}</span>
+            </div>
+            <div class="summary-row total">
+                <span>Total Amount:</span>
+                <span>£{{ total|floatformat:2 }}</span>
+            </div>
+        </div>
+        
+        <form id="payment-form">
+            {% csrf_token %}
+            
+            <!-- Card Number Field (Stripe) -->
+            <div class="card-field-container">
+                <label class="field-label">Card Number</label>
+                <div id="card-number-element" class="card-field"></div>
+            </div>
+            
+            <!-- Expiry and Custom CVV -->
+            <div class="card-row">
+                <!-- Expiry Field (Stripe) -->
+                <div class="card-field-container">
+                    <label class="field-label">Expiry Date</label>
+                    <div id="card-expiry-element" class="card-field"></div>
+                </div>
+                
+                <!-- Custom CVV Field -->
+                <div class="card-field-container">
+                    <label class="field-label">CVV</label>
+                    <div class="custom-cvv-wrapper">
+                        <input type="password" id="cvv-input" class="custom-cvv-input" 
+                               placeholder="123" maxlength="4" inputmode="numeric" pattern="[0-9]*">
+                        <button type="button" id="cvv-toggle" class="cvv-toggle" tabindex="-1">
+                            <i class="fa-regular fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="cvv-tooltip">
+                        Last 3 digits on back of card (Amex: 4 digits on front)
+                    </div>
+                </div>
+            </div>
+            
+            <div id="card-errors"></div>
+            <button id="submit-btn">
+                <span id="button-text">Pay £{{ total|floatformat:2 }}</span>
+            </button>
+            <div id="payment-message"></div>
+        </form>
+        
+        <div class="security-badge">
+            <span>🔒 Secure Payment by Stripe</span>
+            <span>✅ PCI Compliant</span>
+            <span>🔐 Encrypted</span>
+        </div>
+    </div>
+</div>
+
+<script>
+const stripe = Stripe('{{ stripe_public_key }}');
+let cardNumberElement;
+let cardExpiryElement;
+let clientSecret;
+
+initialize();
+
+document.getElementById('payment-form').addEventListener('submit', handleSubmit);
+
+// CVV visibility toggle with Font Awesome icons
+const cvvInput = document.getElementById('cvv-input');
+const cvvToggle = document.getElementById('cvv-toggle');
+const eyeIcon = cvvToggle.querySelector('i');
+
+cvvToggle.addEventListener('click', () => {
+    if (cvvInput.type === 'password') {
+        cvvInput.type = 'text';
+        eyeIcon.classList.remove('fa-eye');
+        eyeIcon.classList.add('fa-eye-slash');
+    } else {
+        cvvInput.type = 'password';
+        eyeIcon.classList.remove('fa-eye-slash');
+        eyeIcon.classList.add('fa-eye');
+    }
+});
+
+// Placeholder change on blur/focus (optional)
+cvvInput.addEventListener('blur', () => {
+    if (!cvvInput.value) {
+        cvvInput.placeholder = 'XXX';
+    }
+});
+cvvInput.addEventListener('focus', () => {
+    cvvInput.placeholder = '123';
+});
+
+async function initialize() {
+    try {
+        const response = await fetch('/payments/create-payment-intent/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ total: '{{ total }}' })
+        });
+        
+        const data = await response.json();
+        if (data.error) {
+            showMessage(data.error);
+            return;
+        }
+        
+        clientSecret = data.clientSecret;
+        
+        const elements = stripe.elements({ clientSecret: clientSecret });
+        
+        cardNumberElement = elements.create('cardNumber', {
+            style: {
+                base: {
+                    fontSize: '16px',
+                    fontFamily: 'Arial, sans-serif',
+                    color: '#333',
+                    '::placeholder': { color: '#aaa' },
+                },
+                invalid: { color: '#dc3545' },
+            },
+            showIcon: true,
+        });
+        cardExpiryElement = elements.create('cardExpiry', {
+            style: {
+                base: {
+                    fontSize: '16px',
+                    fontFamily: 'Arial, sans-serif',
+                    color: '#333',
+                    '::placeholder': { color: '#aaa' },
+                },
+                invalid: { color: '#dc3545' },
+            },
+            placeholder: 'MM/YY',
+        });
+        
+        cardNumberElement.mount('#card-number-element');
+        cardExpiryElement.mount('#card-expiry-element');
+        
+        [cardNumberElement, cardExpiryElement].forEach(element => {
+            element.on('change', ({error}) => {
+                const displayError = document.getElementById('card-errors');
+                if (error) {
+                    displayError.textContent = error.message;
+                    displayError.classList.add('visible');
+                } else {
+                    displayError.textContent = '';
+                    displayError.classList.remove('visible');
+                }
+            });
+        });
+        
+    } catch (error) {
+        console.error(error);
+        showMessage('Failed to initialize payment.');
+    }
+}
+
+async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    
+    const cvv = cvvInput.value.trim();
+    if (!cvv || !/^\d{3,4}$/.test(cvv)) {
+        showMessage('Please enter a valid CVV (3-4 digits).');
+        setLoading(false);
+        return;
+    }
+    
+    try {
+        // Create a PaymentMethod using the card details from Stripe Elements and the custom CVV
+        const { error, paymentMethod } = await stripe.createPaymentMethod({
+            type: 'card',
+            card: cardNumberElement,
+            billing_details: {
+                // Optionally add name, address if needed
+            },
+        });
+        
+        if (error) {
+            throw error;
+        }
+        
+        // Confirm the payment intent with the created payment method
+        const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+            payment_method: paymentMethod.id,
+        });
+        
+        if (confirmError) {
+            throw confirmError;
+        }
+        
+        if (paymentIntent.status === 'succeeded') {
+            window.location.href = '/payments/success/?payment_intent=' + paymentIntent.id;
+        } else {
+            showMessage('Payment not successful. Please try again.');
+        }
+    } catch (err) {
+        console.error(err);
+        showMessage(err.message);
+        setLoading(false);
+    }
+}
+
+function showMessage(message) {
+    const messageEl = document.getElementById('payment-message');
+    messageEl.textContent = message;
+    setTimeout(() => {
+        messageEl.textContent = '';
+    }, 5000);
+}
+
+function setLoading(isLoading) {
+    const submitBtn = document.getElementById('submit-btn');
+    const buttonText = document.getElementById('button-text');
+    if (isLoading) {
+        submitBtn.disabled = true;
+        buttonText.textContent = 'Processing...';
+    } else {
+        submitBtn.disabled = false;
+        buttonText.textContent = 'Pay £{{ total|floatformat:2 }}';
+    }
+}
+</script>
+{% endblock %}

@@ -93,7 +93,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "stock_quantity",
             "organic_certified",
             "seasonal_availability",
-            
+            "low_stock_threshold", 
             
         ]
         

@@ -9,13 +9,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import request, status
 from rest_framework.permissions import IsAuthenticated
-from producers.models import ProducerSettlementOrder, SettlementReport
+from producers.models import ProducerSettlementOrder, SettlementReport, LowStockAlert
 from product.models import Product, ProductCategory, Allergen,ProductAllergen
 from product.serializers import ProductSerializer
 from user_accounts.permissions import IsProducer
 from user_accounts.models import ProducerAccount
+from producers.low_stock_service import check_low_stock
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
-
+from rest_framework.decorators import api_view, permission_classes
 from .serializers import DashboardOrderSerializer, ProductCreateSerializer, ProducerOrderSerializer, SettlementReportSerializer
 from order_management.models import OrderStatusHistory, OrderStatusHistory, SubOrder
 from payments.models import Commission
@@ -167,6 +168,7 @@ class ProducerProductListAPI(APIView):
                 "season_start_date": season.season_start_date.isoformat() if season and season.season_start_date else None,
                 "season_end_date": season.season_end_date.isoformat() if season and season.season_end_date else None,
                 "is_year_round": season.is_year_round if season else False,
+                "low_stock_threshold": p.low_stock_threshold,
             })
 
         return Response(data, status=status.HTTP_200_OK)
@@ -225,7 +227,22 @@ class ProducerUpdateProductAPI(APIView):
         product.unit = request.data.get("unit", product.unit)
 
         new_stock = request.data.get("stock_quantity", product.stock_quantity)
+        try:
+            new_stock = int(new_stock)
+        except (TypeError, ValueError):
+            new_stock = product.stock_quantity
         product.stock_quantity = new_stock
+        # Auto-restore availability when stock is added back
+        if new_stock > 0 and not product.availability_status and request.data.get("availability_status") is None:
+            product.availability_status = True
+            print(f" Product {product.name} automatically made available again")
+        # Update low stock threshold if provided
+        new_threshold = request.data.get("low_stock_threshold")
+        if new_threshold is not None:
+            try:
+                product.low_stock_threshold = int(new_threshold)
+            except (TypeError, ValueError):
+                pass
 
         availability = request.data.get("availability_status")
         if availability is not None:
@@ -247,7 +264,7 @@ class ProducerUpdateProductAPI(APIView):
             season.season_end_date = end or None
         season.save()
         product.save()
-
+        check_low_stock(product)
         # If stock increased, notify customers waiting for this product
         if int(new_stock) > old_stock:
             from django.db import transaction
@@ -331,17 +348,6 @@ class ProducerUpdateOrderStatusAPI(APIView):
         # Define the valid status flow
         status_flow = ["Pending", "Confirmed", "Ready", "Delivered"]
         
-        # CHECK 48-HOUR PREPARATION WINDOW
-        if new_status == "Confirmed" and suborders.first().status == "Pending":
-            order_created_at = suborders.first().order.created_at
-            hours_passed = (timezone.now() - order_created_at).total_seconds() / 3600
-            if hours_passed < 48:
-                hours_remaining = round(48 - hours_passed, 1)
-                return Response({
-                    "error": f"Cannot confirm this order yet. The 48-hour preparation window has not passed. "
-                             f"Please wait {hours_remaining} more hours before confirming. "
-                }, status=400)
-
         # Check each suborder for valid status progression
         for sub in suborders:
             current_status = sub.status
@@ -368,7 +374,17 @@ class ProducerUpdateOrderStatusAPI(APIView):
                     "error": f"Cannot change status from {current_status} to {new_status}. "
                             f"{'Next status should be: ' + next_status if next_status else 'Order is complete.'}"
                 }, status=400)
-        
+                
+            if current_status == "Ready" and new_status == "Delivered":
+                delivery_date = sub.delivery_date
+                today = timezone.now().date()
+                
+                # If delivery date exists and today is before delivery date, block
+                if delivery_date and today < delivery_date:
+                    return Response({
+                        "error": f"Cannot mark as delivered before the delivery date ({delivery_date.strftime('%d %b %Y')}). "
+                                f"Please wait until the delivery date."
+                    }, status=400)
         # Update all suborders for this producer
         updated_suborders = []
         for sub in suborders:
@@ -400,7 +416,7 @@ class ProducerUpdateOrderStatusAPI(APIView):
             order.save()
             print(f"Updated main order #{order.order_id} status to {order.order_status}")
         
-        # ===== SEND NOTIFICATIONS TO CUSTOMER =====
+        # SEND NOTIFICATIONS TO CUSTOMER
         from notifications.models import Notification
         
         customer = order.customer.user  # Get the customer user
@@ -879,3 +895,67 @@ class ProcessSettlementAPI(APIView):
             "created": True,
             "data": serializer.data
         }, status=201)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsProducer])
+def get_low_stock_alerts(request):
+    """Get all active low stock alerts for the producer"""
+    producer = ProducerAccount.objects.filter(user=request.user).first()
+    
+    if not producer:
+        return Response({'error': 'Producer not found'}, status=404)
+    
+    alerts = LowStockAlert.objects.filter(
+        producer=producer,
+        is_resolved=False,
+        is_active=True
+    ).select_related('product')
+    
+    alert_data = []
+    for alert in alerts:
+        local_created_at = timezone.localtime(alert.created_at)
+        alert_data.append({
+            'alert_id': alert.alert_id,
+            'product_id': alert.product.product_id,
+            'product_name': alert.product.name,
+            'product_image': alert.product.image.url if alert.product.image else None,
+            'current_stock': alert.current_stock,
+            'threshold': alert.threshold,
+            'unit': alert.product.unit,
+            'created_at': alert.created_at.isoformat(),
+            'created_at_formatted': local_created_at.strftime('%d %b %Y %H:%M'),
+            'status': 'active'
+        })
+    
+    return Response({
+        'alerts': alert_data,
+        'alert_count': len(alert_data)
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsProducer])
+def resolve_low_stock_alert(request, alert_id):
+    """Manually resolve a low stock alert"""
+    producer = ProducerAccount.objects.filter(user=request.user).first()
+    
+    if not producer:
+        return Response({'error': 'Producer not found'}, status=404)
+    
+    try:
+        alert = LowStockAlert.objects.get(
+            alert_id=alert_id,
+            producer=producer,
+            is_resolved=False
+        )
+    except LowStockAlert.DoesNotExist:
+        return Response({'error': 'Alert not found'}, status=404)
+    
+    alert.is_resolved = True
+    alert.is_active = False
+    alert.resolved_at = timezone.now()
+    alert.save()
+    
+    return Response({
+        'success': True,
+        'message': f'Alert for {alert.product.name} resolved'
+    })

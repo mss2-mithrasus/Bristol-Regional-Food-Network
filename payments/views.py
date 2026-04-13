@@ -211,7 +211,8 @@ def payment_success(request):
                     if product.stock_quantity == 0:
                         product.availability_status = False
                     product.save()
-
+                    from producers.low_stock_service import check_low_stock
+                    check_low_stock(product)
                     OrderItem.objects.create(
                         suborder=suborder,
                         product=product,

@@ -8,9 +8,12 @@ from rest_framework.permissions import AllowAny
 from rest_framework import generics
 from django.db.models import Q
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from user_accounts.permissions import IsProducer
 from user_accounts.permissions import IsCustomer
 from django.contrib.auth.decorators import login_required
-from shopping_cart.utils import get_available_stock  # Add this import
+from shopping_cart.utils import get_available_stock 
 from product.utils import food_miles
 
 # api to return all product categories for the frontend page
@@ -202,3 +205,36 @@ class ProductCategoryListAPIView(generics.ListAPIView):
     permission_classes = [AllowAny]
     queryset = ProductCategory.objects.all()
     serializer_class = ProductCategorySerializer
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated, IsProducer])
+def update_low_stock_threshold(request, product_id):
+    """Update low stock threshold for a product"""
+    try:
+        product = Product.objects.get(product_id=product_id, producer__user=request.user)
+    except Product.DoesNotExist:
+        return Response({'error': 'Product not found'}, status=404)
+    
+    threshold = request.data.get('low_stock_threshold')
+    if threshold is None:
+        return Response({'error': 'Threshold value required'}, status=400)
+    
+    try:
+        threshold = int(threshold)
+        if threshold < 0:
+            raise ValueError
+    except ValueError:
+        return Response({'error': 'Threshold must be a positive integer'}, status=400)
+    
+    product.low_stock_threshold = threshold
+    product.save()
+    
+    from producers.low_stock_service import check_low_stock
+    check_low_stock(product)
+    
+    return Response({
+        'success': True,
+        'product_id': product.product_id,
+        'name': product.name,
+        'low_stock_threshold': product.low_stock_threshold
+    })

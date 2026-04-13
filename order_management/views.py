@@ -15,7 +15,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 import json
 import traceback
 from django.db.models import Sum
-
+from django.db import transaction
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ def multi_checkout(request):
         # Producer gets customer price minus commission
         producer_payout = customer_price - producer_commission
 
-        # ===== GET PRODUCER ADDRESS =====
+        # GET PRODUCER ADDRESS
         producer_address = None
         try:
             # Check what type 'producer' is and get address accordingly
@@ -100,7 +100,7 @@ def multi_checkout(request):
         except Exception as e:
             print(f"Error getting producer address: {e}")
             producer_address = None
-        # ===== END PRODUCER ADDRESS =====
+        # END PRODUCER ADDRESS
         
         # Format items for template with MORE DETAILS
         formatted_items = []
@@ -321,7 +321,31 @@ def order_detail(request, order_id):
             'producer_address': producer_address,
             'special_instruction': suborder.special_instruction if hasattr(suborder, 'special_instruction') else None,  # Added from friend's version
         })
+    # Determine overall status based on all suborders
+    all_suborder_statuses = [suborder.status for suborder in order.suborders.all()]
     
+    status_priority = {
+    'Pending': 1,
+    'Confirmed': 2,
+    'Ready': 3,
+    'Delivered': 4
+}
+
+    lowest_priority = 999
+    overall_status = 'Delivered'
+
+    for status in all_suborder_statuses:
+        priority = status_priority.get(status, 0)
+        if priority < lowest_priority:
+            lowest_priority = priority
+            overall_status = status
+    
+    # Special case: If all suborders are Delivered, show as Delivered
+    all_delivered = all(status == 'Delivered' for status in all_suborder_statuses)
+    if all_delivered:
+        overall_status = 'Delivered'
+    
+    print(f" Order #{order.order_id} overall status: {overall_status} (suborder statuses: {all_suborder_statuses})")
     # Masked payment info
     masked_payment = {
         'card_last4': '4242',
@@ -344,7 +368,7 @@ def order_detail(request, order_id):
         'delivery_address': order.delivery_address,
         'delivery_postcode': order.delivery_postcode,
         'order_date': order.created_at,
-        'status': order.order_status,
+        'status': overall_status,
         'payment': masked_payment,
         'can_download': True,
         'has_collection': has_collection,
@@ -431,14 +455,7 @@ def order_history(request):
                 'delivery_date': suborder.delivery_date,
                 'item_count': suborder.items.count(),
                 'subtotal': suborder.subtotal,
-                'hours_remaining': None
             }
-
-            # Calculate hours remaining for pending orders
-            if suborder.status == "Pending":
-                hours_passed = (timezone.now() - order.created_at).total_seconds() / 3600
-                if hours_passed < 48:
-                    producer_info['hours_remaining'] = round(48 - hours_passed)
 
             producers_data.append(producer_info)
 
@@ -463,19 +480,29 @@ def order_history(request):
         # Overall status logic
         all_statuses = [p['status'] for p in producers_data]
 
-        if any(s == 'Pending' for s in all_statuses):
-            overall_status = 'Pending'
-        elif all(s in ['Confirmed', 'Ready', 'Delivered'] for s in all_statuses):
-            if all(s in ['Ready', 'Delivered'] for s in all_statuses):
-                if all(s == 'Delivered' for s in all_statuses):
-                    overall_status = 'Delivered'
-                else:
-                    overall_status = 'Ready'
-            else:
-                overall_status = 'Confirmed'
-        else:
-            overall_status = order.order_status
+        # Map status priority: Delivered (or Collected) is highest, then Ready, then Confirmed, then Pending
+        status_priority = {
+        'Pending': 1,
+        'Confirmed': 2,
+        'Ready': 3,
+        'Delivered': 4
+        }
 
+        lowest_priority = 999
+        overall_status = 'Delivered'
+
+        for status in all_statuses:
+            priority = status_priority.get(status, 0)
+            if priority < lowest_priority:
+                lowest_priority = priority
+                overall_status = status
+
+        # Special case: If all producers are either Delivered or Collected, show as Delivered
+        all_delivered_or_collected = all(
+            p['status'] == 'Delivered' for p in producers_data
+        )
+        if all_delivered_or_collected:
+            overall_status = 'Delivered'
         order_data.append({
             'order_id': order.order_id,
             'order_number': f"ORD-{order.order_id:06d}",
@@ -518,7 +545,6 @@ def reorder(request, order_id):
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     
     try:
-        # Get the original order
         order = Order.objects.get(
             order_id=order_id,
             customer=request.user.customeraccount
@@ -527,36 +553,29 @@ def reorder(request, order_id):
     except Order.DoesNotExist:
         return JsonResponse({'error': 'Order not found'}, status=404)
     
-    # Get or create cart for user
-    from django.db import transaction
-    
     with transaction.atomic():
         cart, created = Cart.objects.get_or_create(customer=request.user)
         print(f" Cart {'created' if created else 'found'}")
         
-        # Clean up expired items first
         now = timezone.now()
         expired = cart.items.filter(reserved_until__lt=now)
         if expired.exists():
             print(f" Cleaning {expired.count()} expired items")
             expired.delete()
         
-        # Track items
         unavailable_items = []
         added_items = []
         total_amount = 0
         total_items = 0
         
-        # Process each suborder
         for suborder in order.suborders.all():
             for order_item in suborder.items.all():
                 product = order_item.product
                 quantity = order_item.quantity
-                # Use the historical price from when order was placed
                 price = float(order_item.price_at_purchase)
                 item_total = price * quantity
                 
-                print(f"  - Processing: {product.name}, Qty: {quantity}, Price from order: £{price}")
+                print(f"  - Processing: {product.name}, Qty: {quantity}")
                 
                 try:
                     # Check if product exists and is active
@@ -579,7 +598,6 @@ def reorder(request, order_id):
                         cart__customer=request.user
                     ).aggregate(total=Sum('quantity'))['total'] or 0
                     
-                    # Get what this user already has in cart
                     user_cart_item = CartItem.objects.filter(
                         cart=cart,
                         product=product
@@ -587,21 +605,12 @@ def reorder(request, order_id):
                     
                     user_current_quantity = user_cart_item.quantity if user_cart_item else 0
                     
-                    # Calculate available for this user to add
-                    # If stock_quantity doesn't exist, assume unlimited
                     if hasattr(product, 'stock_quantity'):
                         available_to_add = product.stock_quantity - other_users_reservations - user_current_quantity
-                        print(f"    Stock: {product.stock_quantity}, Others reserved: {other_users_reservations}")
                     else:
-                        # If no stock tracking, assume unlimited
                         available_to_add = 999999
-                        print(f"    No stock tracking - assuming unlimited")
                     
-                    print(f"    User currently has: {user_current_quantity}, Can add: {available_to_add}")
-                    
-                    # If stock tracking exists and we don't have enough
                     if hasattr(product, 'stock_quantity') and quantity > available_to_add:
-                        max_possible = user_current_quantity + available_to_add
                         unavailable_items.append({
                             'name': product.name,
                             'quantity': quantity,
@@ -609,28 +618,23 @@ def reorder(request, order_id):
                             'total': item_total,
                             'producer': suborder.producer.business_name,
                             'available': available_to_add,
-                            'reason': f'Only {available_to_add} available (requested {quantity})'
+                            'reason': f'Only {available_to_add} available'
                         })
                         continue
                     
-                    # Set reservation expiry (30 minutes from now)
                     reservation_expiry = timezone.now() + timedelta(minutes=30)
                     
                     if user_cart_item:
-                        # Update existing cart item
                         user_cart_item.quantity += quantity
                         user_cart_item.reserved_until = reservation_expiry
                         user_cart_item.save()
-                        print(f"     Updated existing cart item: now {user_cart_item.quantity}")
                     else:
-                        # Create new cart item
                         CartItem.objects.create(
                             cart=cart,
                             product=product,
                             quantity=quantity,
                             reserved_until=reservation_expiry
                         )
-                        print(f"     Created new cart item")
                     
                     added_items.append({
                         'name': product.name,
@@ -645,7 +649,6 @@ def reorder(request, order_id):
                     
                 except Exception as e:
                     print(f"     Error: {e}")
-                    import traceback
                     traceback.print_exc()
                     unavailable_items.append({
                         'name': order_item.product.name,
@@ -665,22 +668,18 @@ def reorder(request, order_id):
             'total_amount': total_amount,
             'total_amount_formatted': f"£{total_amount:.2f}",
             'total_items': total_items,
-            'cart_url': '/cart/',
-            'checkout_url': '/orders/checkout/multi/'
         }
         
         if unavailable_items:
             unavailable_total = sum(item['total'] for item in unavailable_items)
             response_data['unavailable_total'] = unavailable_total
             response_data['unavailable_total_formatted'] = f"£{unavailable_total:.2f}"
-            response_data['warning'] = f"{len(unavailable_items)} items were unavailable"
         
-        print(f" Reorder complete: {len(added_items)} added (£{total_amount}), {len(unavailable_items)} unavailable")
         return JsonResponse(response_data)
     
-@login_required
+"""@login_required
 def download_receipt(request, order_id):
-    """View receipt (printable version)"""
+    #View receipt (printable version)
     try:
         order = Order.objects.get(
             order_id=order_id,
@@ -714,7 +713,7 @@ def download_receipt(request, order_id):
         'is_receipt_view': True,  # Flag to hide success message
     }
     
-    return render(request, 'payment_success.html', context)
+    return render(request, 'payment_success.html', context)"""
 
 def update_checkout_address(request):
     """Save edited address to session"""

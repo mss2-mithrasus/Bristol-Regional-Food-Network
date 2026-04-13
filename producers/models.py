@@ -52,15 +52,12 @@ class Inventory(models.Model):
 class SettlementReport(models.Model):
     settlement_report_id = models.AutoField(primary_key=True)
 
-    # Placeholder for now: use the main user model (works even if you later create ProducerAccount)
     producer = models.ForeignKey(
         "user_accounts.ProducerAccount",
         on_delete=models.CASCADE,
         db_column="producer_id",
         related_name="settlement_reports",
     )
-
-    # Placeholder for now: transaction reference (later can become FK to a payments table)
     transaction_id = models.CharField(
         max_length=100,
         null=True,
@@ -96,8 +93,6 @@ class ProducerSettlementOrder(models.Model):
         related_name="settlement_orders",
     )
 
-    # Placeholder for now: store order id as integer.
-    # Later: convert to ForeignKey once your Orders model exists.
     order_id = models.IntegerField(db_column="order_id")
 
     order_value = models.DecimalField(max_digits=10, decimal_places=2)
@@ -182,7 +177,7 @@ class RecipeProduct(models.Model):
 class SavedRecipe(models.Model):
     saved_id = models.AutoField(primary_key=True)
 
-    # Placeholder: use AUTH_USER_MODEL (later can become CustomerAccount)
+    
     customer = models.ForeignKey(
         "user_accounts.CustomerAccount",
         on_delete=models.CASCADE,
@@ -216,3 +211,30 @@ class EducationalContent(models.Model):
     class Meta:
         managed = True
         db_table = "educational_content"
+
+class LowStockAlert(models.Model):
+    """Track low stock alerts for products"""
+    alert_id = models.AutoField(primary_key=True)
+    product = models.ForeignKey(
+        'product.Product',
+        on_delete=models.CASCADE,
+        related_name='low_stock_alerts'
+    )
+    producer = models.ForeignKey(
+        'user_accounts.ProducerAccount',
+        on_delete=models.CASCADE,
+        related_name='low_stock_alerts'
+    )
+    current_stock = models.PositiveIntegerField()
+    threshold = models.PositiveIntegerField()
+    is_active = models.BooleanField(default=True)
+    is_resolved = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        db_table = "low_stock_alerts"
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Low Stock Alert: {self.product.name} - {self.current_stock}/{self.threshold}"

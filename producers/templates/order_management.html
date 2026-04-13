@@ -195,26 +195,6 @@ fetch("/producer/api/orders/",{
     console.error(err);
 });
 
-
-function canConfirmOrder(createdAt) {
-  const orderTime = new Date(createdAt);
-  const now = new Date();
-  const hoursPassed = (now - orderTime) / (1000 * 60 * 60);
-  return hoursPassed >= 48;
-}
-
-setInterval(() => {
-  document.querySelectorAll(".order-row").forEach(row => {
-      if (row.dataset.status !== "Pending") return;
-      const createdAt = row.dataset.orderDate;
-      if (!createdAt) return;
-      const label = row.querySelector(".prep-window-label");
-      if (label && canConfirmOrder(createdAt)) {
-          label.remove();
-      }
-  });
-}, 60000); // check every 60 seconds
-
 function renderOrders(orders){
 
   const container=document.getElementById("ordersRows");
@@ -250,11 +230,6 @@ function renderOrders(orders){
         row.dataset.total=o.total_value;
         row.dataset.specialInstruction = o.special_instruction || "";
 
-        const readyToConfirm = canConfirmOrder(o.created_at);
-        const pendingTooltip = !readyToConfirm && o.status === 'Pending'
-            ? `title="Cannot confirm yet — 48-hour preparation window has not passed"`
-            : '';
-
         row.innerHTML=`
         <div><strong>#${o.order_id}</strong></div>
         <div>${o.customer_name}</div>
@@ -265,7 +240,7 @@ function renderOrders(orders){
         <div><strong>£${o.total_value}</strong></div>
 
         <div>
-            <select class="status-select" data-id="${o.order_id}" ${pendingTooltip}>
+            <select class="status-select" data-id="${o.order_id}">
                 <option ${o.status==="Pending"?"selected":""}>Pending</option>
                 <option ${o.status==="Confirmed"?"selected":""}>Confirmed</option>
                 <option ${o.status==="Ready"?"selected":""}>Ready</option>

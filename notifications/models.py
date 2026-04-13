@@ -24,7 +24,7 @@ class StockAlert(models.Model):
     
     class Meta:
         db_table = "stock_alerts"
-        unique_together = ['customer', 'product']  # One alert per product per customer
+        unique_together = ['customer', 'product'] 
     
     def __str__(self):
         return f"{self.customer.email} wants {self.requested_quantity} x {self.product.name}"
@@ -73,6 +73,8 @@ class ProducerNotification(models.Model):
     NOTIFICATION_TYPES = [
         ('new_order', 'New Order'),
         ('order_update', 'Order Update'),
+        ('low_stock', 'Low Stock Alert'),
+        ('low_stock_resolved', 'Low Stock Resolved'),
         ('general', 'General'),
     ]
     
@@ -86,7 +88,7 @@ class ProducerNotification(models.Model):
     title = models.CharField(max_length=200)
     message = models.TextField()
     
-    # Related objects (optional)
+    # Related objects
     order = models.ForeignKey('order_management.Order', on_delete=models.SET_NULL, null=True, blank=True)
     suborder = models.ForeignKey('order_management.SubOrder', on_delete=models.SET_NULL, null=True, blank=True)
     

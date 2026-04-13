@@ -13,6 +13,6 @@ urlpatterns = [
     path('api/products/', views.ProductSearchAPIView.as_view(), name='api.product-search'),
     path('product/<int:product_id>/', views.product_detail, name='product-detail'),
     path('api/product/<int:product_id>/', views.ProductDetailAPIView.as_view(), name="api-product_detail"),
-    
+    path('api/product/<int:product_id>/threshold/', views.update_low_stock_threshold, name='update_low_stock_threshold'),
     
 ]
