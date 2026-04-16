@@ -124,9 +124,10 @@ async function buildNav() {
     if (role === "producer") dashboardUrl = "/producer/home/";
     if (role === "admin") dashboardUrl = "/admin/home/";
 
+    let customerLinks = "";
     let customerIcons = "";
+
     if (role === "customer") {
-        // First, get unread count for the badge
         let unreadCount = 0;
         try {
             const badgeResp = await fetch('/notifications/api/unread-count/', {
@@ -140,24 +141,32 @@ async function buildNav() {
             console.error('Error fetching notification count:', error);
         }
 
-        customerIcons = `
-            <a href="javascript:void(0);" onclick="headerGoToCart()" class="cart-icon ${currentPath === '/cart/' ? 'active' : ''}">
-                <i class="fa-solid fa-cart-shopping"></i>
-                <span class="cart-badge" id="cart-badge" style="display: none;">0</span>
+        customerLinks = `
+            <a href="/customer/home/surplus-deals/" class="${currentPath === '/customer/home/surplus-deals/' ? 'active' : ''}">
+                <i class="fa-solid fa-tag"></i> Surplus Deals
             </a>
+        `;
+
+        customerIcons = `
             <a href="/notifications/" class="notifications-icon ${currentPath === '/notifications/' ? 'active' : ''}">
                 <i class="fa-solid fa-bell"></i>
                 <span class="notification-badge" id="notification-badge" style="display: ${unreadCount > 0 ? 'flex' : 'none'};">${unreadCount}</span>
             </a>
+            <a href="javascript:void(0);" onclick="headerGoToCart()" class="cart-icon ${currentPath === '/cart/' ? 'active' : ''}">
+                <i class="fa-solid fa-cart-shopping"></i>
+                <span class="cart-badge" id="cart-badge" style="display: none;">0</span>
+            </a>
         `;
+
     }
 
     nav.innerHTML = `
         <a href="${dashboardUrl}" class="${currentPath.startsWith(dashboardUrl) ? 'active' : ''}">Home</a>
+        ${customerIcons}
+        ${customerLinks}
         <a href="/user_profile/" class="${currentPath === '/user_profile/' ? 'active' : ''}">
             <i class="fa-solid fa-user"></i>
         </a>
-        ${customerIcons}
     `;
 
     // Update cart badge count

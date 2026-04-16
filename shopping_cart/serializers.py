@@ -2,6 +2,9 @@ from rest_framework import serializers
 from .models import Cart, CartItem
 from product.models import Product
 from product.serializers import ProductSerializer
+from django.utils import timezone 
+from producers.models import SurplusDiscount
+from producers.utils import is_product_valid_for_fulfilment, get_earliest_fulfilment_date
 
 class CartItemSerializer(serializers.ModelSerializer):
     """Serializer for cart items"""
@@ -59,17 +62,65 @@ class AddToCartSerializer(serializers.Serializer):
     product_id = serializers.IntegerField()
     quantity = serializers.IntegerField(min_value=1, max_value=99)
     
-    def validate_product_id(self, value):
-        """Check if product exists and is available"""
-        try:
-            product = Product.objects.get(product_id=value, availability_status=True)
-        except Product.DoesNotExist:
-            raise serializers.ValidationError("Product not found or unavailable")
+    # def validate_product_id(self, value):
+    #     """Check if product exists and is available"""
+    #     try:
+    #         product = Product.objects.get(product_id=value, availability_status=True)
+    #     except Product.DoesNotExist:
+    #         raise serializers.ValidationError("Product not found or unavailable")
         
-        # Check stock
+    #     # Check stock
+    #     if product.stock_quantity < 1:
+    #         raise serializers.ValidationError("Product out of stock")
+        
+    #     return value
+
+    # Micaiah changed for best before checks
+    def validate_product_id(self, value):
+        try:
+            product = Product.objects.get(product_id=value)
+        except Product.DoesNotExist:
+            raise serializers.ValidationError("Product not found")
+
+        today = timezone.now().date()
+        earliest_fulfilment_date = get_earliest_fulfilment_date()
+
+        if product.best_before_date and product.best_before_date < today:
+            product.availability_status = False
+            product.is_expired = True
+            product.save(update_fields=["availability_status", "is_expired"])
+
+            SurplusDiscount.objects.filter(
+                product=product,
+                status="active"
+            ).update(status="expired")
+
+            raise serializers.ValidationError(
+                "This product has passed its best before date and can no longer be purchased."
+            )
+
+        if product.best_before_date and product.best_before_date < earliest_fulfilment_date:
+            product.availability_status = False
+            product.save(update_fields=["availability_status"])
+
+            SurplusDiscount.objects.filter(
+                product=product,
+                status="active"
+            ).update(status="cancelled")
+
+            raise serializers.ValidationError(
+                "This product cannot be purchased because its best before date is earlier than the earliest fulfilment date."
+            )
+
+        if not is_product_valid_for_fulfilment(product):
+            raise serializers.ValidationError("This product is not available for fulfilment.")
+
+        if not product.availability_status:
+            raise serializers.ValidationError("Product not found or unavailable")
+
         if product.stock_quantity < 1:
             raise serializers.ValidationError("Product out of stock")
-        
+
         return value
 
 

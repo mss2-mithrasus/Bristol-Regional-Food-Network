@@ -9,6 +9,53 @@
     <link rel="stylesheet" href="{% static 'base.css' %}">
     <link rel="stylesheet" href="{% static 'user_profile.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+    .remove-item {
+        display: none;
+        position: fixed !important;
+        inset: 0 !important;
+        background: rgba(0,0,0,0.4) !important;
+        justify-content: center !important;
+        align-items: center !important;
+        z-index: 99999 !important;
+    }
+
+    .remove-box {
+        background: white !important;
+        padding: 20px !important;
+        border-radius: 8px !important;
+        text-align: center !important;
+        width: 280px !important;
+        max-width: 90vw !important;
+        box-shadow: 0 0 15px rgba(64, 96, 131, 0.4) !important;
+    }
+
+    .removal-actions {
+        margin-top: 15px;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .removal-actions button {
+        padding: 8px 14px;
+        border: none;
+        cursor: pointer;
+        background: #406083;
+        color: white;
+        border-radius: 10px;
+        flex: 1;
+    }
+
+    #successPopup .removal-actions {
+        justify-content: center;
+    }
+
+    #successPopup .removal-actions button {
+        flex: 0 0 auto;
+        min-width: 90px;
+    }
+    </style>
 </head>
 
 <body>
@@ -36,15 +83,15 @@
         <h2>Personal Details</h2>
 
         <p><strong>First Name:</strong> <span id="first_name"></span>
-            <button onclick="enableEdit('first_name')" class="edit_btn">Edit</button>
+            <button type="button" onclick="enableEdit('first_name')" class="edit_btn">Edit</button>
         </p>
 
         <p><strong>Last Name:</strong> <span id="last_name"></span>
-            <button onclick="enableEdit('last_name')" class="edit_btn">Edit</button>
+            <button type="button" onclick="enableEdit('last_name')" class="edit_btn">Edit</button>
         </p>
 
         <p><strong>Phone:</strong> <span id="phone"></span>
-            <button onclick="enableEdit('phone')" class="edit_btn">Edit</button>
+            <button type="button" onclick="enableEdit('phone')" class="edit_btn">Edit</button>
         </p>
     </div>
 
@@ -52,11 +99,11 @@
         <h2>Address</h2>
 
         <p><strong>Address Line:</strong> <span id="address_line"></span>
-            <button onclick="enableEdit('address_line')" class="edit_btn">Edit</button>
+            <button type="button" onclick="enableEdit('address_line')" class="edit_btn">Edit</button>
         </p>
 
         <p><strong>Postcode:</strong> <span id="postcode"></span>
-            <button onclick="enableEdit('postcode')" class="edit_btn">Edit</button>
+            <button type="button" onclick="enableEdit('postcode')" class="edit_btn">Edit</button>
         </p>
     </div>
     <!-- Customer account -->
@@ -87,16 +134,18 @@
         <p><strong>Verified:</strong> <span id="producer_verified"></span></p>
     </div>
 
-    <button id="saveBtn" class="submit_btn" style="display:none;" onclick="saveChanges()">Save Changes</button>
+    <button type="button" id="saveBtn" class="submit_btn" style="display:none;" onclick="saveChanges()">Save Changes</button>
 
     <p class="delete_text">
     To delete your account 
-    <button class="delete_btn" onclick="openDeleteForm()">click here</button>
+    <button type="button" class="delete_btn" onclick="openDeleteForm()">click here</button>
     </p>
     <div id="deleteForm" class="delete_form" style="display:none;">
         <div class="delete_form_content">
             <h3>Delete Account</h3>
-
+            <p style="color:#b02a37; font-weight:600;">
+                Permanent deletion cannot be undone.
+            </p>
             <label for="deleteReason">Reason for deleting:</label>
             <select id="deleteReason">
                 <option value="I no longer use the service">I no longer use the service</option>
@@ -106,206 +155,274 @@
                 <option value="I am switching to another platform">I am switching to another platform</option>
             </select>
 
-            <button class="submit_btn" onclick="openFinalConfirm('soft')">Deactivate Account (Keep Data)</button>
-            <button class="perm_delete_btn" onclick="openFinalConfirm('hard')">Permanently Delete Account</button>
-            <button class="edit_btn" onclick="closeDeleteForm()" style="margin-top: 10px">Close</button>
+            <button type="button" class="submit_btn" onclick="startDeleteFlow('soft')">Deactivate Account (Keep Data)</button>
+            <button type="button" class="perm_delete_btn" onclick="startDeleteFlow('hard')">Permanently Delete Account</button>
+            <button type="button" class="edit_btn" onclick="closeDeleteForm()" style="margin-top: 10px">Close</button>
         </div>
     </div>
-    <!-- ADDED (10-03-26) - Double confirmation for delete -->
-    <div id="confirmFinalDelete" class="delete_form" style="display:none;">
-        <div class="delete_form_content">
-            <h3>Are you absolutely sure?</h3>
-            <p>This action cannot be undone.</p>
+    
 
-            <button id="finalSoftDeleteBtn" class="submit_btn">Yes, deactivate my account</button>
-            <button id="finalHardDeleteBtn" class="perm_delete_btn">Yes, permanently delete my account</button>
+    <button type="button" class="submit_btn" onclick="logoutUser()">Logout</button>
 
-            <button class="edit_btn" onclick="closeFinalConfirm()" style="margin-top: 10px">Cancel</button>
-        </div>
-    </div>
-
-    <button class="submit_btn" onclick="logoutUser()">Logout</button>
 </main>
 
-
-
 <script>
-function getAccessToken() {
-    return localStorage.getItem("access") || sessionStorage.getItem("access");
-}
+document.addEventListener("DOMContentLoaded", function () {
+    function getAccessToken() {
+        return localStorage.getItem("access") || sessionStorage.getItem("access");
+    }
 
-if (!getAccessToken()) {
-    window.location.href = "/login/";
-}
-
-function logoutUser() {
-    localStorage.clear();
-    sessionStorage.clear();
-    window.location.href = "/";
-}
-
-let profileData = {};
-
-async function loadProfile() {
-    const response = await fetch("/api/user/profile/", {
-        headers: { "Authorization": "Bearer " + getAccessToken() }
-    });
-
-    if (!response.ok) {
-        logoutUser();
+    if (!getAccessToken()) {
+        window.location.href = "/login/";
         return;
     }
 
-    profileData = await response.json();
-    localStorage.setItem("role", profileData.role);
-
-
-    for (const key in profileData) {
-        const el = document.getElementById(key);
-        if (el) el.innerText = profileData[key] || "";
+    function logoutUser() {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = "/";
     }
 
-    if (profileData.role === "customer") {
-        document.getElementById("customer-section").style.display = "block";
+    window.logoutUser = logoutUser;
 
-        if (profileData.account_type === "community") {
-            document.getElementById("community-section").style.display = "block";
+    let deleteActionType = null;
+    let successOkCallback = null;
+    let profileData = {};
+
+    function showSuccessPopup(message, onOk = null) {
+        document.getElementById("successMessage").textContent = message;
+        document.getElementById("successPopup").style.display = "flex";
+        successOkCallback = onOk;
+    }
+
+    function closeSuccessPopup() {
+        document.getElementById("successPopup").style.display = "none";
+        successOkCallback = null;
+    }
+
+    function closeDeleteConfirmPopup() {
+        document.getElementById("deleteConfirmPopup").style.display = "none";
+        deleteActionType = null;
+    }
+
+    function openDeleteForm() {
+        document.getElementById("deleteForm").style.display = "flex";
+    }
+
+    function closeDeleteForm() {
+        document.getElementById("deleteForm").style.display = "none";
+    }
+
+    function startDeleteFlow(type) {
+        deleteActionType = type;
+        closeDeleteForm();
+
+        const popupText = document.getElementById("deleteConfirmMessage");
+        const confirmBtn = document.getElementById("confirmDeleteYesBtn");
+
+        if (type === "soft") {
+            popupText.textContent = "Are you sure you want to deactivate your account?";
+            confirmBtn.textContent = "Deactivate";
+        } else {
+            popupText.textContent = "Are you sure you want to permanently delete your account?";
+            confirmBtn.textContent = "Delete";
         }
 
-        if (profileData.account_type === "restaurant") {
-            document.getElementById("restaurant-section").style.display = "block";
+        document.getElementById("deleteConfirmPopup").style.display = "flex";
+    }
+
+    window.openDeleteForm = openDeleteForm;
+    window.closeDeleteForm = closeDeleteForm;
+    window.startDeleteFlow = startDeleteFlow;
+
+    async function loadProfile() {
+        const response = await fetch("/api/user/profile/", {
+            headers: { "Authorization": "Bearer " + getAccessToken() }
+        });
+
+        if (!response.ok) {
+            logoutUser();
+            return;
+        }
+
+        profileData = await response.json();
+        localStorage.setItem("role", profileData.role);
+
+        for (const key in profileData) {
+            const el = document.getElementById(key);
+            if (el) el.innerText = profileData[key] || "";
+        }
+
+        if (profileData.role === "customer") {
+            document.getElementById("customer-section").style.display = "block";
+
+            if (profileData.account_type === "community") {
+                document.getElementById("community-section").style.display = "block";
+            }
+
+            if (profileData.account_type === "restaurant") {
+                document.getElementById("restaurant-section").style.display = "block";
+            }
+        }
+
+        if (profileData.role === "producer") {
+            document.getElementById("producer-section").style.display = "block";
         }
     }
 
-    if (profileData.role === "producer") {
-        document.getElementById("producer-section").style.display = "block";
+    function enableEdit(field) {
+        const span = document.getElementById(field);
+        const value = span.innerText;
+        span.innerHTML = `<input id="${field}_input" value="${value}">`;
+        document.getElementById("saveBtn").style.display = "block";
     }
-}
 
-loadProfile();
+    window.enableEdit = enableEdit;
 
-function enableEdit(field) {
-    const span = document.getElementById(field);
-    const value = span.innerText;
+    async function saveChanges() {
+        const payload = {};
 
-    span.innerHTML = `<input id="${field}_input" value="${value}">`;
-    document.getElementById("saveBtn").style.display = "block";
-}
-// Save edited changes 
-async function saveChanges() {
-    const payload = {};
+        ["first_name", "last_name", "phone", "address_line", "postcode"].forEach(field => {
+            const input = document.getElementById(field + "_input");
+            if (input) payload[field] = input.value;
+        });
 
-    ["first_name", "last_name", "phone", "address_line", "postcode"].forEach(field => {
-        const input = document.getElementById(field + "_input");
-        if (input) payload[field] = input.value;
+        const response = await fetch("/api/user/update/", {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + getAccessToken()
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            await loadProfile();
+            document.getElementById("saveBtn").style.display = "none";
+            showSuccessPopup("Profile updated successfully!");
+        } else {
+            showSuccessPopup("Update failed.");
+        }
+    }
+
+    window.saveChanges = saveChanges;
+
+    async function confirmSoftDelete() {
+        const reason = document.getElementById("deleteReason").value;
+
+        const response = await fetch("/api/account/soft-delete/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + getAccessToken()
+            },
+            body: JSON.stringify({ reason })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showSuccessPopup(
+                data.message || "Account deactivated successfully.",
+                () => logoutUser()
+            );
+        } else {
+            showSuccessPopup(data.error || "Could not deactivate account.");
+        }
+    }
+
+    async function confirmHardDelete() {
+        const reason = document.getElementById("deleteReason").value;
+
+        const response = await fetch("/api/account/hard-delete/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + getAccessToken()
+            },
+            body: JSON.stringify({ reason })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showSuccessPopup(
+                data.message || "Account deleted successfully.",
+                () => logoutUser()
+            );
+        } else {
+            showSuccessPopup(data.error || "Could not delete account.");
+        }
+    }
+
+    document.getElementById("confirmDeleteYesBtn").addEventListener("click", async function () {
+        const action = deleteActionType;
+        closeDeleteConfirmPopup();
+
+        if (action === "soft") {
+            await confirmSoftDelete();
+        } else if (action === "hard") {
+            await confirmHardDelete();
+        }
     });
 
-    const response = await fetch("/api/user/update/", {
-        method: "PUT",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + getAccessToken()
-        },
-        body: JSON.stringify(payload)
+    document.getElementById("confirmDeleteNoBtn").addEventListener("click", function () {
+        closeDeleteConfirmPopup();
     });
 
-    if (response.ok) {
-        alert("Profile updated!");
-        loadProfile();
-        document.getElementById("saveBtn").style.display = "none";
-    } else {
-        alert("Update failed.");
-    }
-}
-// Delete account
-function openDeleteForm() {
-    document.getElementById("deleteForm").style.display = "flex";
-}
+    document.getElementById("successPopupOkBtn").addEventListener("click", function () {
+        const callback = successOkCallback;
+        closeSuccessPopup();
 
-function closeDeleteForm() {
-    document.getElementById("deleteForm").style.display = "none";
-}
-
-async function confirmSoftDelete() {
-    const reason = document.getElementById("deleteReason").value;
-
-    const response = await fetch("/api/account/soft-delete/", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + getAccessToken()
-        },
-        body: JSON.stringify({ reason })
+        if (typeof callback === "function") {
+            callback();
+        }
     });
 
-    const data = await response.json();
+    window.addEventListener("click", function(event) {
+        const deleteForm = document.getElementById("deleteForm");
+        const deleteConfirmPopup = document.getElementById("deleteConfirmPopup");
+        const successPopup = document.getElementById("successPopup");
 
-    if (response.ok) {
-        alert(data.message);
-        logoutUser();
-    } else {
-        alert(data.error);
-    }
-}
-async function confirmHardDelete() {
-    const reason = document.getElementById("deleteReason").value;
+        if (event.target === deleteForm) {
+            closeDeleteForm();
+        }
 
-    const response = await fetch("/api/account/hard-delete/", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + getAccessToken()
-        },
-        body: JSON.stringify({ reason })
+        if (event.target === deleteConfirmPopup) {
+            closeDeleteConfirmPopup();
+        }
+
+        if (event.target === successPopup) {
+            const callback = successOkCallback;
+            closeSuccessPopup();
+
+            if (typeof callback === "function") {
+                callback();
+            }
+        }
     });
 
-    const data = await response.json();
-
-    if (response.ok) {
-        alert(data.message);
-        logoutUser();
-    } else {
-        alert(data.error);
-    }
-}
-
-// Double-confirmation logic
-let deleteMode = null;
-
-function openFinalConfirm(mode) {
-    deleteMode = mode;
-
-    const softBtn = document.getElementById("finalSoftDeleteBtn");
-    const hardBtn = document.getElementById("finalHardDeleteBtn");
-
-    if (mode === "soft") {
-        softBtn.style.display = "block";
-        hardBtn.style.display = "none";
-    } else {
-        softBtn.style.display = "none";
-        hardBtn.style.display = "block";
-    }
-
-    document.getElementById("confirmFinalDelete").style.display = "flex";
-}
-
-function closeFinalConfirm() {
-    document.getElementById("confirmFinalDelete").style.display = "none";
-}
-
-// Final confirmation buttons
-document.getElementById("finalSoftDeleteBtn").addEventListener("click", () => {
-    closeFinalConfirm();
-    confirmSoftDelete();
+    loadProfile();
 });
-
-document.getElementById("finalHardDeleteBtn").addEventListener("click", () => {
-    closeFinalConfirm();
-    confirmHardDelete();
-});
-
-
 </script>
+<div id="deleteConfirmPopup" class="remove-item" style="display:none;">
+    <div class="remove-box">
+        <p id="deleteConfirmMessage">Are you sure you want to delete your account?</p>
+        <div class="removal-actions">
+            <button id="confirmDeleteYesBtn" type="button">Delete</button>
+            <button id="confirmDeleteNoBtn" type="button">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<div id="successPopup" class="remove-item" style="display:none;">
+    <div class="remove-box">
+        <p id="successMessage">Action completed successfully.</p>
+        <div class="removal-actions">
+            <button id="successPopupOkBtn" type="button">OK</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
 

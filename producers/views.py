@@ -1,5 +1,4 @@
 import csv
-from decimal import ROUND_HALF_UP, Decimal
 from itertools import product
 from django.http import HttpResponse
 from django.db.models import Count, Sum
@@ -9,7 +8,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import request, status
 from rest_framework.permissions import IsAuthenticated
-from producers.models import ProducerSettlementOrder, SettlementReport, LowStockAlert
+from producers.models import ProducerSettlementOrder, SettlementReport, LowStockAlert, SurplusDiscount
 from product.models import Product, ProductCategory, Allergen,ProductAllergen
 from product.serializers import ProductSerializer
 from user_accounts.permissions import IsProducer
@@ -17,14 +16,23 @@ from user_accounts.models import ProducerAccount
 from producers.low_stock_service import check_low_stock
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.decorators import api_view, permission_classes
-from .serializers import DashboardOrderSerializer, ProductCreateSerializer, ProducerOrderSerializer, SettlementReportSerializer
+from .serializers import DashboardOrderSerializer, ProductCreateSerializer, ProducerOrderSerializer, SettlementReportSerializer, SurplusDiscountSerializer
 from order_management.models import OrderStatusHistory, OrderStatusHistory, SubOrder
 from payments.models import Commission
 from django.db.models.functions import TruncWeek
 from django.utils import timezone
 from datetime import date, timedelta, datetime
 from product.models import SeasonalAvailability
-
+from .utils import (
+    expire_surplus_deals,
+    deactivate_surplus_if_sold_out,
+    deactivate_expired_products,
+    get_earliest_fulfilment_date,
+    is_product_valid_for_fulfilment,
+    deactivate_surplus_if_not_fulfillable,
+)
+from django.utils.dateparse import parse_date
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 class ProducerDashboardAPI(APIView):
     permission_classes = [IsAuthenticated, IsProducer]
 
@@ -140,6 +148,8 @@ class ProducerProductListAPI(APIView):
     permission_classes = [IsAuthenticated, IsProducer]
 
     def get(self, request):
+        deactivate_expired_products()
+        expire_surplus_deals()
         producer_account = ProducerAccount.objects.filter(user=request.user).first()
         if not producer_account:
             return Response({"error": "Producer account not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -154,6 +164,22 @@ class ProducerProductListAPI(APIView):
         data = []
         for p in products:
             season = p.seasonal_availability.first()
+            # active_surplus = SurplusDiscount.objects.filter(
+            #     product=p,
+            #     status="active",
+            #     expiry_date__gt=timezone.now()
+            # ).first()
+            active_surplus = None
+            if is_product_valid_for_fulfilment(p):
+                active_surplus = SurplusDiscount.objects.filter(
+                    product=p,
+                    status="active",
+                    expiry_date__gt=timezone.now()
+                ).first()
+
+            days_until_best_before = None
+            if p.best_before_date:
+                days_until_best_before = (p.best_before_date - timezone.now().date()).days
             data.append({
                 "product_id": p.product_id,
                 "name": p.name,
@@ -163,12 +189,19 @@ class ProducerProductListAPI(APIView):
                 "unit": p.unit,
                 "stock_quantity": p.stock_quantity,
                 "availability_status": p.availability_status,
+                "is_expired": p.is_expired,
                 "harvest_date": p.harvest_date.isoformat() if p.harvest_date else None,
+                "best_before_date": p.best_before_date.isoformat() if p.best_before_date else None,
                 "image": p.image.url if p.image else None,
                 "season_start_date": season.season_start_date.isoformat() if season and season.season_start_date else None,
                 "season_end_date": season.season_end_date.isoformat() if season and season.season_end_date else None,
                 "is_year_round": season.is_year_round if season else False,
                 "low_stock_threshold": p.low_stock_threshold,
+                "has_active_surplus": active_surplus is not None,
+                "active_surplus_id": active_surplus.surplus_id if active_surplus else None,
+                "surplus_discount_percentage": active_surplus.discount_percentage if active_surplus else None,
+                "surplus_expiry_date": active_surplus.expiry_date.isoformat() if active_surplus else None,
+                "days_until_best_before": days_until_best_before,
             })
 
         return Response(data, status=status.HTTP_200_OK)
@@ -203,7 +236,7 @@ class ProducerDeleteProductAPI(APIView):
     
 class ProducerUpdateProductAPI(APIView):
     permission_classes = [IsAuthenticated, IsProducer]
-
+    parser_classes = (MultiPartParser, FormParser)
     def put(self, request, product_id):
         producer_account = ProducerAccount.objects.filter(user=request.user).first()
         if not producer_account:
@@ -223,19 +256,55 @@ class ProducerUpdateProductAPI(APIView):
         # Update fields
         product.name = request.data.get("name", product.name)
         product.description = request.data.get("description", product.description)
-        product.price = request.data.get("price", product.price)
+        #product.price = request.data.get("price", product.price)
+        price_value = request.data.get("price")
+        if price_value not in [None, ""]:
+            try:
+                product.price = Decimal(str(price_value))
+            except (InvalidOperation, ValueError):
+                return Response(
+                    {"error": "Price must be a valid number."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         product.unit = request.data.get("unit", product.unit)
+        #product.best_before_date = request.data.get("best_before_date") or None
+        best_before_value = request.data.get("best_before_date")
+        if best_before_value:
+            parsed_best_before = parse_date(best_before_value)
+            if not parsed_best_before:
+                return Response(
+                    {"error": "Best before date is invalid."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            product.best_before_date = parsed_best_before
+        else:
+            product.best_before_date = None
 
         new_stock = request.data.get("stock_quantity", product.stock_quantity)
         try:
             new_stock = int(new_stock)
         except (TypeError, ValueError):
             new_stock = product.stock_quantity
+
         product.stock_quantity = new_stock
-        # Auto-restore availability when stock is added back
-        if new_stock > 0 and not product.availability_status and request.data.get("availability_status") is None:
+
+        today = timezone.now().date()
+        earliest_fulfilment_date = get_earliest_fulfilment_date()
+
+        # Expiry logic
+        if product.best_before_date and product.best_before_date < today:
+            product.is_expired = True
+        else:
+            product.is_expired = False
+
+        # Availability logic
+        if product.stock_quantity <= 0:
+            product.availability_status = False
+        elif product.best_before_date and product.best_before_date < earliest_fulfilment_date:
+            product.availability_status = False
+        else:
             product.availability_status = True
-            print(f" Product {product.name} automatically made available again")
+
         # Update low stock threshold if provided
         new_threshold = request.data.get("low_stock_threshold")
         if new_threshold is not None:
@@ -244,15 +313,14 @@ class ProducerUpdateProductAPI(APIView):
             except (TypeError, ValueError):
                 pass
 
-        availability = request.data.get("availability_status")
-        if availability is not None:
-            product.availability_status = str(availability).lower() in ["true", "1", "yes"]
+        
         image = request.FILES.get("image")
         if image:
             product.image = image
         start = request.data.get("season_start_date")
         end = request.data.get("season_end_date")
         is_year_round = request.data.get("is_year_round") == "true"
+
         season, created = SeasonalAvailability.objects.get_or_create(product=product)
 
         season.is_year_round = is_year_round
@@ -260,11 +328,13 @@ class ProducerUpdateProductAPI(APIView):
             season.season_start_date = None
             season.season_end_date = None
         else:
-            season.season_start_date = start or None
-            season.season_end_date = end or None
+            season.season_start_date = parse_date(start) if start else None
+            season.season_end_date = parse_date(end) if end else None
         season.save()
         product.save()
         check_low_stock(product)
+        deactivate_surplus_if_sold_out(product)
+        deactivate_surplus_if_not_fulfillable(product)
         # If stock increased, notify customers waiting for this product
         if int(new_stock) > old_stock:
             from django.db import transaction
@@ -959,3 +1029,97 @@ def resolve_low_stock_alert(request, alert_id):
         'success': True,
         'message': f'Alert for {alert.product.name} resolved'
     })
+# Micaiah added - 13-04-2026
+# Surplus discount 
+class ProducerCreateSurplusDealAPI(APIView):
+    permission_classes = [IsAuthenticated, IsProducer]
+
+    def post(self, request, product_id):
+        deactivate_expired_products()
+        expire_surplus_deals()
+
+        producer_account = ProducerAccount.objects.filter(user=request.user).first()
+        if not producer_account:
+            return Response({"error": "Producer account not found"}, status=404)
+
+        product = Product.objects.filter(
+            product_id=product_id,
+            producer=producer_account
+        ).first()
+
+        if not product:
+            return Response({"error": "Product not found"}, status=404)
+        
+        if not is_product_valid_for_fulfilment(product):
+            return Response(
+                {
+                    "error": "This product cannot be offered as a surplus deal because its best before date is earlier than the earliest customer fulfilment date."
+                },
+                status=400
+            )
+        existing_active = SurplusDiscount.objects.filter(
+            product=product,
+            status="active",
+            expiry_date__gt=timezone.now()
+        ).first()
+
+        if existing_active:
+            return Response(
+                {"error": "This product already has an active surplus deal."},
+                status=400
+            )
+
+        payload = request.data.copy()
+        payload["product"] = product.product_id
+
+        serializer = SurplusDiscountSerializer(data=payload)
+        if serializer.is_valid():
+            deal = serializer.save(status="active")
+            return Response(SurplusDiscountSerializer(deal).data, status=201)
+
+        return Response(serializer.errors, status=400)
+
+
+class ProducerSurplusDealsAPI(APIView):
+    permission_classes = [IsAuthenticated, IsProducer]
+
+    def get(self, request):
+        expire_surplus_deals()
+
+        producer_account = ProducerAccount.objects.filter(user=request.user).first()
+        if not producer_account:
+            return Response({"error": "Producer account not found"}, status=404)
+
+        all_deals = (
+            SurplusDiscount.objects
+            .filter(product__producer=producer_account)
+            .select_related("product")
+            .order_by("-date_discount_created")
+        )
+
+        deals = [deal for deal in all_deals if is_product_valid_for_fulfilment(deal.product) or deal.status != "active"]
+
+        serializer = SurplusDiscountSerializer(deals, many=True)
+        return Response(serializer.data, status=200)
+
+
+class ProducerRemoveSurplusDealAPI(APIView):
+    permission_classes = [IsAuthenticated, IsProducer]
+
+    def post(self, request, surplus_id):
+        producer_account = ProducerAccount.objects.filter(user=request.user).first()
+        if not producer_account:
+            return Response({"error": "Producer account not found"}, status=404)
+
+        deal = SurplusDiscount.objects.filter(
+            surplus_id=surplus_id,
+            product__producer=producer_account
+        ).first()
+
+        if not deal:
+            return Response({"error": "Surplus deal not found"}, status=404)
+
+        deal.status = "cancelled"
+        deal.save(update_fields=["status", "updated_at"])
+
+        return Response({"message": "Surplus deal removed successfully."}, status=200)

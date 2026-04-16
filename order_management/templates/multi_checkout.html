@@ -45,7 +45,20 @@
                                 {% endif %}
                             </div>
                             <span class="p-qty">x{{ item.quantity }}</span>
-                            <span class="p-price">£{{ item.price_formatted }}</span>
+                            <!-- <span class="p-price">£{{ item.price_formatted }}</span> -->
+                            <!-- Micaiah added for surplus discount -->
+                            <span class="p-price">
+                                {% if item.has_surplus_discount %}
+                                    <span style="text-decoration: line-through; color:#777;">
+                                        £{{ item.original_price|floatformat:2 }}
+                                    </span>
+                                    <strong style="color:#c62828;">
+                                        £{{ item.price_formatted }}
+                                    </strong>
+                                {% else %}
+                                    £{{ item.price_formatted }}
+                                {% endif %}
+                            </span>
                         </li>
                         {% endfor %}
                     </ul>
@@ -58,7 +71,20 @@
                         {% for item in group.items %}
                         <div class="summary-row">
                             <span class="summary-label">{{ item.name }} x{{ item.quantity }}</span>
-                            <span class="summary-value">£{{ item.price_formatted }}</span>
+                            <!-- <span class="summary-value">£{{ item.price_formatted }}</span> -->
+                            <!-- Micaiah changed for surplus discount  -->
+                            <span class="summary-value">
+                                {% if item.has_surplus_discount %}
+                                    <span style="text-decoration: line-through; color:#777;">
+                                        £{{ item.original_price|floatformat:2 }}
+                                    </span>
+                                    <strong style="color:#c62828;">
+                                        £{{ item.price_formatted }}
+                                    </strong>
+                                {% else %}
+                                    £{{ item.price_formatted }}
+                                {% endif %}
+                            </span>
                         </div>
                         {% endfor %}
                         <div class="summary-row">
@@ -393,16 +419,16 @@ function saveAddress(producerId) {
     let postcode = postcodeInput ? postcodeInput.value.trim().toUpperCase() : '';
 
     if (!street || !postcode) {
-        if (statusDiv) statusDiv.innerHTML = '❌ Both street and postcode are required';
+        if (statusDiv) statusDiv.innerHTML = 'Both street and postcode are required';
         return;
     }
     // UK postcode format validation
     const postcodeRegex = /^[A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}$/i;
     if (!postcodeRegex.test(postcode)) {
-        if (statusDiv) statusDiv.innerHTML = '❌ Invalid UK postcode format';
+        if (statusDiv) statusDiv.innerHTML = 'Invalid UK postcode format';
         return;
     }
-    if (statusDiv) statusDiv.innerHTML = '⏳ Validating postcode...';
+    if (statusDiv) statusDiv.innerHTML = 'Validating postcode...';
 
     // Validate existence using postcodes.io (free, no API key)
     fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(postcode)}/validate`)

@@ -3,9 +3,10 @@ from rest_framework import serializers
 from product.models import Product, ProductCategory, Allergen, ProductAllergen, SeasonalAvailability
 from user_accounts.models import ProducerAccount
 from order_management.models import SubOrder, OrderItem
-from .models import SettlementReport, ProducerSettlementOrder
+from django.utils import timezone
+from .models import SettlementReport, ProducerSettlementOrder, SurplusDiscount
 import json
-
+from datetime import timedelta
 class DashboardOrderSerializer(serializers.ModelSerializer):
 
     id = serializers.IntegerField(source="order.order_id")
@@ -46,6 +47,7 @@ class ProductCreateSerializer(serializers.Serializer):
     stock = serializers.IntegerField(min_value=0)
     allergens = serializers.CharField(required=False, allow_blank=True)
     harvest_date = serializers.DateField(required=False, allow_null=True)
+    best_before_date = serializers.DateField(required=False, allow_null=True)
     image = serializers.ImageField(required=False, allow_null=True)
     organic_certified = serializers.BooleanField(required=False, default=False)
     seasonal_type = serializers.CharField(required=False)
@@ -138,11 +140,98 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = "__all__"
+# Micaiah added - 13-04-2026 - Surplus Serilizers
+class SurplusDiscountSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    original_price = serializers.DecimalField(
+        source="product.price",
+        max_digits=8,
+        decimal_places=2,
+        read_only=True
+    )
+    discounted_price = serializers.SerializerMethodField()
 
+    class Meta:
+        model = SurplusDiscount
+        fields = [
+            "surplus_id",
+            "product",
+            "product_name",
+            "original_price",
+            "discount_percentage",
+            "discounted_price",
+            "note",
+            "expiry_date",
+            "status",
+            "date_discount_created",
+        ]
 
+    def get_discounted_price(self, obj):
+        if not obj.product:
+            return None
+        return round(float(obj.product.price) * (100 - obj.discount_percentage) / 100, 2)
+
+    def validate_discount_percentage(self, value):
+        if value < 10 or value > 50:
+            raise serializers.ValidationError("Discount must be between 10% and 50%.")
+        return value
+
+    def validate_expiry_date(self, value):
+        if value <= timezone.now():
+            raise serializers.ValidationError("Expiry date must be in the future.")
+        return value
+    
+    def validate(self, attrs):
+        product = attrs.get("product")
+        expiry_date = attrs.get("expiry_date")
+
+        if product:
+            earliest_fulfilment_date = timezone.now().date() + timedelta(days=2)
+
+            if product.best_before_date:
+                if timezone.now().date() > product.best_before_date:
+                    raise serializers.ValidationError({
+                        "product": "This product has passed its best before date and cannot be marked as surplus."
+                    })
+
+                if product.best_before_date < earliest_fulfilment_date:
+                    raise serializers.ValidationError({
+                        "product": "This product cannot be offered as a surplus deal because its best before date is earlier than the earliest customer fulfilment date."
+                    })
+
+                if expiry_date and expiry_date.date() > product.best_before_date:
+                    raise serializers.ValidationError({
+                        "expiry_date": "Surplus deal expiry cannot be later than the product's best before date."
+                    })
+
+        return attrs
+    
+# class OrderItemSerializer(serializers.ModelSerializer):
+#     product_name = serializers.CharField(source="product.name")
+#     image = serializers.SerializerMethodField()
+
+#     class Meta:
+#         model = OrderItem
+#         fields = [
+#             "product_name",
+#             "quantity",
+#             "price_at_purchase",
+#             "image",
+#         ]
+
+#     def get_image(self, obj):
+#         if obj.product.image:
+#             return obj.product.image.url
+#         return None
+
+# Micaiah changed for surplus discount 
 class OrderItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name")
     image = serializers.SerializerMethodField()
+    original_price_at_purchase = serializers.SerializerMethodField()
+    has_surplus_discount = serializers.SerializerMethodField()
+    line_total = serializers.SerializerMethodField()
+    original_line_total = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
@@ -150,6 +239,10 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "product_name",
             "quantity",
             "price_at_purchase",
+            "original_price_at_purchase",
+            "has_surplus_discount",
+            "line_total",
+            "original_line_total",
             "image",
         ]
 
@@ -158,6 +251,20 @@ class OrderItemSerializer(serializers.ModelSerializer):
             return obj.product.image.url
         return None
 
+    def get_original_price_at_purchase(self, obj):
+        original_price = getattr(obj, "original_price_at_purchase", None) or obj.price_at_purchase
+        return float(original_price)
+
+    def get_has_surplus_discount(self, obj):
+        original_price = getattr(obj, "original_price_at_purchase", None) or obj.price_at_purchase
+        return float(obj.price_at_purchase) != float(original_price)
+
+    def get_line_total(self, obj):
+        return float(obj.quantity * obj.price_at_purchase)
+
+    def get_original_line_total(self, obj):
+        original_price = getattr(obj, "original_price_at_purchase", None) or obj.price_at_purchase
+        return float(obj.quantity * original_price)
 
 class ProducerOrderSerializer(serializers.ModelSerializer):
 
@@ -168,7 +275,10 @@ class ProducerOrderSerializer(serializers.ModelSerializer):
     created_at = serializers.DateTimeField(source="order.created_at", format="%d/%m/%Y")
     delivery_type = serializers.SerializerMethodField()
     items = OrderItemSerializer(many=True, read_only=True)
-    total_value = serializers.DecimalField(source="payout_amount", max_digits=10, decimal_places=2)
+    #total_value = serializers.DecimalField(source="payout_amount", max_digits=10, decimal_places=2)
+    # Micaiah changed for surplus discount
+    total_value = serializers.DecimalField(source="subtotal", max_digits=10, decimal_places=2)
+    # Change end     
     special_instruction = serializers.SerializerMethodField()
 
     class Meta:

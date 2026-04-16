@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block head %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'product.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="category-container">
+    <h2 class="category-title">Surplus Deals</h2>
+    <div class="product-container"></div>
+</div>
+
+<script>
+function getToken() {
+    return localStorage.getItem("access") || sessionStorage.getItem("access");
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
+
+function showNotification(message, type) {
+    const existing = document.querySelector('.notification');
+    if (existing) existing.remove();
+
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <span>${message}</span>
+        <button onclick="this.parentElement.remove()">×</button>
+    `;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 3000);
+}
+
+function updateCartBadge(count) {
+    const badge = document.getElementById('cart-badge');
+    if (badge) {
+        if (count > 0) {
+            badge.textContent = count;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+}
+
+async function addToCart(productId, quantity, button) {
+    const token = getToken();
+    if (!token) {
+        window.location.href = "/login/";
+        return;
+    }
+
+    if (button) {
+        button.textContent = 'Adding...';
+        button.disabled = true;
+    }
+
+    try {
+        const response = await fetch('/cart/api/add/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token,
+                'X-CSRFToken': csrftoken,
+            },
+            body: JSON.stringify({
+                product_id: parseInt(productId),
+                quantity: quantity
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message, 'success');
+            updateCartBadge(data.cart_total_items);
+
+            const display = button?.closest('.product-card')?.querySelector('.quantity-display');
+            if (display) display.textContent = '1';
+        } else {
+            showNotification(data.error || 'Could not add to cart', 'error');
+        }
+    } catch (error) {
+        console.error(error);
+        showNotification('Something went wrong', 'error');
+    } finally {
+        if (button) {
+            button.textContent = 'Add to Cart';
+            button.disabled = false;
+        }
+    }
+}
+
+
+function getProducts(products) {
+    const data = document.querySelector(".product-container");
+    if (!data) return;
+
+    data.innerHTML = "";
+
+    products.forEach(product => {
+        const card = document.createElement("div");
+        card.className = "product-card";
+        card.dataset.productId = product.product_id;
+        card.dataset.maxStock = product.stock_quantity || 0;
+
+        const priceHtml = product.has_surplus_discount
+            ? `
+                <h4 class="field">
+                    <span class="label">Price:</span>
+                    <span style="text-decoration: line-through; color:#777;">
+                        £${Number(product.original_price).toFixed(2)}
+                    </span>
+                    <strong style="color:#c62828;">
+                        £${Number(product.discounted_price).toFixed(2)}
+                    </strong>
+                </h4>
+
+                <div style="margin:8px 0;">
+                    <span style="background:#ffe5e5; color:#c62828; padding:4px 8px; border-radius:10px; font-size:12px; font-weight:bold;">
+                        ${product.discount_percentage}% OFF
+                    </span>
+                </div>
+
+                ${product.surplus_note ? `
+                    <p style="font-size:13px; color:black;">
+                        <strong>Discount Reason:</strong>
+                        ${product.surplus_note}
+                    </p>
+                ` : ""}
+
+                ${product.surplus_expiry_date ? `
+                    <p style="font-size:13px; color:#b26a00;">
+                        <strong>Surplus Deal Ends:</strong>
+                        ${new Date(product.surplus_expiry_date).toLocaleString('en-GB', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        })}
+                    </p>
+                ` : ""}
+            `
+            : `
+                <h4 class="field">
+                    <span class="label">Price:</span> £${Number(product.price).toFixed(2)}
+                </h4>
+            `;
+        // Micaiah added best before date
+        const bestBeforeHtml = product.best_before_date
+            ? `
+                <h4 class="field">
+                    <span class="label">Best before:</span>
+                    ${new Date(product.best_before_date + "T00:00:00").toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                    })}
+                </h4>
+            `
+            : "";
+        card.innerHTML = `
+            <img src="${product.image ? product.image : '/static/images/default-product.png'}">
+
+            <div class="field-row">
+                <h4 class="field"><span class="label">Product:</span> ${product.name}</h4>
+            </div>
+
+            <h4 class="field"><span class="label">Producer:</span> ${product.producer_name}</h4>
+
+            ${priceHtml}
+            ${bestBeforeHtml}   
+
+            <div class="status-section">
+                <h4 class="field">
+                    <span class="label">Status:</span>
+                    ${product.availability_status ? '<span class="status-available">Available</span>' : '<span class="status-out-of-stock">Out of stock</span>'}
+                </h4>
+            </div>
+
+            <div class="button-group">
+                <div class="quantity">
+                    <button class="minus">-</button>
+                    <span class="quantity-display">1</span>
+                    <button class="plus">+</button>
+                </div>
+                <button class="add-cart">Add to Cart</button>
+            </div>
+
+            <a href="/customer/home/product/${product.product_id}/">
+                <button class="product-details">View Product Details</button>
+            </a>
+        `;
+
+        data.appendChild(card);
+
+        const plusBtn = card.querySelector('.plus');
+        const minusBtn = card.querySelector('.minus');
+        const addToCartBtn = card.querySelector('.add-cart');
+
+        plusBtn?.addEventListener('click', function(e) {
+            e.preventDefault();
+            const display = card.querySelector('.quantity-display');
+            const maxStock = parseInt(card.dataset.maxStock);
+
+            if (display) {
+                const currentQty = parseInt(display.textContent);
+                if (currentQty < maxStock) {
+                    display.textContent = currentQty + 1;
+                } else {
+                    showNotification(`Only ${maxStock} items available in stock`, 'error');
+                }
+            }
+        });
+
+        minusBtn?.addEventListener('click', function(e) {
+            e.preventDefault();
+            const display = card.querySelector('.quantity-display');
+            if (display) {
+                const currentQty = parseInt(display.textContent);
+                if (currentQty > 1) {
+                    display.textContent = currentQty - 1;
+                }
+            }
+        });
+
+        addToCartBtn?.addEventListener('click', function(e) {
+            e.preventDefault();
+            const productId = card.dataset.productId;
+            const quantityDisplay = card.querySelector('.quantity-display');
+            const quantity = quantityDisplay ? parseInt(quantityDisplay.textContent) : 1;
+            addToCart(productId, quantity, this);
+        });
+    });
+}
+
+document.addEventListener("DOMContentLoaded", async function() {
+    const token = getToken();
+    if (!token) {
+        window.location.href = "/login/";
+        return;
+    }
+
+    try {
+        const response = await fetch("/customer/home/api/surplus-deals/", {
+            headers: {
+                "Authorization": "Bearer " + token
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.products && data.products.length > 0) {
+            getProducts(data.products);
+        } else {
+            document.querySelector(".product-container").innerHTML = "<p>No surplus deals available right now.</p>";
+        }
+    } catch (error) {
+        console.error(error);
+        document.querySelector(".product-container").innerHTML = "<p>Error loading surplus deals.</p>";
+    }
+});
+</script>
+
+<style>
+.quantity {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.quantity-display {
+    min-width: 30px;
+    text-align: center;
+    font-weight: bold;
+    color: #406083;
+}
+
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border-left: 4px solid;
+}
+
+.notification.success { border-left-color: #28a745; }
+.notification.error { border-left-color: #dc3545; }
+
+.notification button {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #999;
+}
+
+.status-section { margin: 10px 0; }
+.status-available { color: #28a745; font-weight: bold; }
+.status-out-of-stock { color: #dc3545; font-weight: bold; }
+</style>
+{% endblock %}

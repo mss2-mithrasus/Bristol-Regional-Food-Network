@@ -40,7 +40,11 @@ class Product(models.Model):
     unit = models.CharField(max_length=50)
     stock_quantity = models.PositiveIntegerField()
     availability_status = models.BooleanField(default=True)
+    is_expired = models.BooleanField(default=False)
     harvest_date = models.DateField(null=True, blank=True)
+    # Micaiah added - 13-04-2026 - For surplus discount
+    best_before_date = models.DateField(null=True, blank=True)
+    # End surplus discount addition 
     organic_certified = models.BooleanField(default=False)
     low_stock_threshold = models.PositiveIntegerField(default=10)
     image = models.ImageField(upload_to='product_images/', storage=MediaCloudinaryStorage(), null=True, blank=True)
@@ -49,6 +53,7 @@ class Product(models.Model):
         Allergen, through="ProductAllergen", blank=True, related_name="products"
     )
     
+
     class Meta:
         managed = True
         db_table = "products"

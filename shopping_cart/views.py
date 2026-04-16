@@ -16,6 +16,8 @@ from django.db.models import Sum, Q
 from .models import Cart, CartItem
 from product.models import Product
 from .serializers import CartSerializer, AddToCartSerializer, UpdateCartItemSerializer
+from producers.models import SurplusDiscount
+from producers.utils import is_product_valid_for_fulfilment, get_earliest_fulfilment_date
 
 def check_and_notify_stock_available(product):
     """Check if product now has available stock and notify waiting customers"""
@@ -37,6 +39,47 @@ def check_and_notify_stock_available(product):
         except ImportError as e:
             print(f" Notification import error: {e}")
     return 0
+
+def block_if_product_not_fulfillable(product):
+    """
+    Block products that cannot be fulfilled.
+
+    Cases:
+    - already past best before date -> mark expired/unavailable and expire surplus deals
+    - before earliest fulfilment date -> mark unavailable and cancel active surplus deals
+    """
+    today = timezone.now().date()
+    earliest_fulfilment_date = get_earliest_fulfilment_date()
+
+    if product.best_before_date:
+        # Truly expired
+        if product.best_before_date < today:
+            product.availability_status = False
+            product.is_expired = True
+            product.save(update_fields=["availability_status", "is_expired"])
+
+            SurplusDiscount.objects.filter(
+                product=product,
+                status="active"
+            ).update(status="expired")
+
+            return True
+
+        # Not expired yet, but cannot be fulfilled in time
+        if product.best_before_date < earliest_fulfilment_date:
+            if product.availability_status:
+                product.availability_status = False
+                product.save(update_fields=["availability_status"])
+
+            SurplusDiscount.objects.filter(
+                product=product,
+                status="active"
+            ).update(status="cancelled")
+
+            return True
+
+    return False
+
 def cart_view(request):
     """
     Display shopping cart page
@@ -82,6 +125,16 @@ def cart_view(request):
     
     # Get all cart items
     cart_items = cart.items.select_related('product__producer').all()
+    # Removed items from cart f they r expired after adding to the cart
+    expired_cart_items = []
+    for item in cart_items:
+        if block_if_product_not_fulfillable(item.product):
+            expired_cart_items.append(item)
+
+    if expired_cart_items:
+        for item in expired_cart_items:
+            item.delete()
+        cart_items = cart.items.select_related('product__producer').all()
     items_count = cart_items.count()
     
     
@@ -106,7 +159,9 @@ def cart_view(request):
         print(f"  - {item.product.name} x {item.quantity} = £{item.subtotal}")
     
     # Calculate totals
-    subtotal = sum(item.quantity * item.product.price for item in cart_items_list)
+    #subtotal = sum(item.quantity * item.product.price for item in cart_items_list)
+    # Micaiah changed for surplus discount
+    subtotal = sum(item.subtotal for item in cart_items_list)
     subtotal_float = float(subtotal)
     network_fee = round(subtotal_float * 0.05, 2)  # Calculate 5% commission
     total = subtotal_float  # Total to pay is same as subtotal (commission already included)
@@ -158,12 +213,54 @@ def add_to_cart(request):
     product_id = serializer.validated_data['product_id']
     requested_quantity = serializer.validated_data['quantity']
     
+    # try:
+    #     product = Product.objects.select_for_update().get(
+    #         product_id=product_id, 
+    #         availability_status=True
+    #     )
+    # except Product.DoesNotExist:
+    #     return Response(
+    #         {'error': 'Product not found or unavailable'},
+    #         status=status.HTTP_404_NOT_FOUND
+    #     )
+
     try:
-        product = Product.objects.select_for_update().get(
-            product_id=product_id, 
-            availability_status=True
-        )
+        product = Product.objects.select_for_update().get(product_id=product_id)
     except Product.DoesNotExist:
+        return Response(
+            {'error': 'Product not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    if block_if_product_not_fulfillable(product):
+        earliest_fulfilment_date = get_earliest_fulfilment_date()
+
+        if product.best_before_date and product.best_before_date < timezone.now().date():
+            error_message = "This product has passed its best before date and can no longer be purchased."
+        else:
+            error_message = (
+                f"This product cannot be purchased because its best before date is earlier "
+                f"than the earliest fulfilment date ({earliest_fulfilment_date.strftime('%d %b %Y')})."
+            )
+
+        return Response(
+            {
+                'success': False,
+                'error': error_message
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if not is_product_valid_for_fulfilment(product):
+        return Response(
+            {
+                'success': False,
+                'error': 'This product is not available for fulfilment.'
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    if not product.availability_status:
         return Response(
             {'error': 'Product not found or unavailable'},
             status=status.HTTP_404_NOT_FOUND
@@ -252,6 +349,26 @@ def update_cart_item(request, item_id):
             status=status.HTTP_404_NOT_FOUND
         )
     product = cart_item.product
+    if block_if_product_not_fulfillable(product):
+        earliest_fulfilment_date = get_earliest_fulfilment_date()
+
+        if product.best_before_date and product.best_before_date < timezone.now().date():
+            error_message = 'This product has passed its best before date and can no longer remain in the cart.'
+        else:
+            error_message = (
+                f'This product can no longer remain in the cart because its best before date '
+                f'is earlier than the earliest fulfilment date ({earliest_fulfilment_date.strftime("%d %b %Y")}).'
+            )
+
+        cart_item.delete()
+
+        return Response(
+            {
+                'success': False,
+                'error': error_message
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
     if request.method == 'DELETE':
         # Remove item from cart
         product_name = cart_item.product.name
@@ -377,6 +494,18 @@ def get_cart_item_available_stock(request, item_id):
         )
         
         product = cart_item.product
+        if block_if_product_not_fulfillable(product):
+            return Response({
+                'success': True,
+                'item_id': item_id,
+                'product_id': product.product_id,
+                'product_name': product.name,
+                'current_quantity': cart_item.quantity,
+                'max_total_allowed': 0,
+                'additional_can_add': 0,
+                'total_stock': product.stock_quantity,
+                'other_users_reserved': 0
+            })
         
         other_users_reservations = CartItem.objects.filter(
             product=product,
@@ -422,12 +551,25 @@ def cart_icon_data(request):
 @permission_classes([IsAuthenticated])
 def check_product_availability(request, product_id):
     """Check how many units of a product are available for the current user"""
+    # try:
+    #     product = Product.objects.get(product_id=product_id)
+        
+    #     from .utils import get_available_stock
+    #     available = get_available_stock(product, exclude_user=request.user)
     try:
         product = Product.objects.get(product_id=product_id)
-        
+
+        if block_if_product_not_fulfillable(product):
+            return Response({
+                'success': True,
+                'product_id': product_id,
+                'available': 0,
+                'total_stock': product.stock_quantity,
+                'is_available_to_user': False
+            })
+
         from .utils import get_available_stock
-        available = get_available_stock(product, exclude_user=request.user)
-        
+        available = get_available_stock(product, exclude_user=request.user) 
         return Response({
             'success': True,
             'product_id': product_id,
