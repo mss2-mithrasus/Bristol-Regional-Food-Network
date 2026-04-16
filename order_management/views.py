@@ -16,6 +16,8 @@ import json
 import traceback
 from django.db.models import Sum
 from django.db import transaction
+from producers.utils import is_product_valid_for_fulfilment, get_earliest_fulfilment_date
+from producers.utils import expire_surplus_deals, deactivate_expired_products
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +26,8 @@ def order_home(request):
 
 
 def multi_checkout(request):
+    deactivate_expired_products()
+    expire_surplus_deals()
     # Get user (similar to cart_view)
     user = None
     if request.user.is_authenticated:
@@ -38,6 +42,20 @@ def multi_checkout(request):
     try:
         cart = Cart.objects.get(customer=user)
         print(f" Cart found: {cart.cart_id}, Items: {cart.total_items}")
+        invalid_items = []
+        for cart_item in cart.items.select_related('product').all():
+            product = cart_item.product
+            if not is_product_valid_for_fulfilment(product):
+                invalid_items.append(cart_item)
+
+        if invalid_items:
+            for item in invalid_items:
+                item.delete()
+
+            messages.warning(
+                request,
+                "Some items were removed from your cart because they are no longer available for fulfilment."
+            )
     except Cart.DoesNotExist:
         # No cart - empty checkout
         print(" No cart found")
@@ -48,6 +66,7 @@ def multi_checkout(request):
         })
     
     # Get items grouped by producer using the model method (same as cart_view)
+    cart.refresh_from_db()
     items_by_producer_dict = cart.get_items_grouped_by_producer()
     print(f" Producers in cart: {len(items_by_producer_dict)}")
     
@@ -105,6 +124,8 @@ def multi_checkout(request):
         # Format items for template with MORE DETAILS
         formatted_items = []
         for item in data['items']:
+            if not is_product_valid_for_fulfilment(item.product):
+                continue
             # Get product details
             product = item.product
             
@@ -129,17 +150,37 @@ def multi_checkout(request):
             if hasattr(product, 'organic_certified'):
                 organic = product.organic_certified
             
+            # formatted_items.append({
+            #     'product': product,
+            #     'product_id': product.product_id if hasattr(product, 'product_id') else product.id,
+            #     'name': product.name,
+            #     'quantity': item.quantity,
+            #     'price': float(product.price),
+            #     'price_formatted': f"{float(product.price):.2f}",
+            #     'unit': unit,
+            #     'image': image_url,
+            #     'organic_certified': organic,
+            # })
+            
+            # Micaiah changed for surplus discount
+            unit_price = float(item.unit_price)
+            original_price = float(product.price)
+
             formatted_items.append({
                 'product': product,
                 'product_id': product.product_id if hasattr(product, 'product_id') else product.id,
                 'name': product.name,
                 'quantity': item.quantity,
-                'price': float(product.price),
-                'price_formatted': f"{float(product.price):.2f}",
+                'price': unit_price,
+                'price_formatted': f"{unit_price:.2f}",
                 'unit': unit,
                 'image': image_url,
                 'organic_certified': organic,
+                'original_price': original_price,
+                'has_surplus_discount': unit_price != original_price,
             })
+        if not formatted_items:
+            continue
         
         producer_groups.append({
             "producer": {
@@ -212,11 +253,24 @@ def multi_checkout(request):
         
         # Convert items to use IDs instead of objects
         for item in group["items"]:
+            # session_group["items"].append({
+            #     "product_id": item["product"].product_id,
+            #     "product_name": item["name"],
+            #     "quantity": item["quantity"],
+            #     "price": item["price"],
+            #     "unit": item["unit"],
+            #     "image": item["image"],
+            #     "organic_certified": item["organic_certified"],
+            # })
+
+            # Micaiah changed for surplus dicount 
             session_group["items"].append({
                 "product_id": item["product"].product_id,
                 "product_name": item["name"],
                 "quantity": item["quantity"],
-                "price": item["price"],
+                "price": item["price"],  # discounted price if surplus is active
+                "original_price": item.get("original_price"),
+                "has_surplus_discount": item.get("has_surplus_discount", False),
                 "unit": item["unit"],
                 "image": item["image"],
                 "organic_certified": item["organic_certified"],
@@ -273,12 +327,17 @@ def order_detail(request, order_id):
                     image_url = item.product.image.url
                 except:
                     image_url = None
-
+            original_price = getattr(item, "original_price_at_purchase", None) or item.price_at_purchase
             items.append({
                 'name': item.product.name,
                 'quantity': item.quantity,
-                'price': item.price_at_purchase,
-                'total': item.quantity * item.price_at_purchase,
+                # 'price': item.price_at_purchase,
+                # 'total': item.quantity * item.price_at_purchase,
+                'price': float(item.price_at_purchase),
+                'original_price': float(original_price),
+                'has_surplus_discount': item.price_at_purchase != original_price,
+                'total': float(item.quantity * item.price_at_purchase),
+                'original_total': float(item.quantity * original_price),
                 'image': image_url,
                 'producer': suborder.producer.business_name,
                 'product_id': item.product.product_id
@@ -314,8 +373,8 @@ def order_detail(request, order_id):
             'delivery_date': suborder.delivery_date,
             'status': suborder.status,
             'items': items,
-            'subtotal': suborder.subtotal,
-            'payout': suborder.payout_amount,
+            'subtotal': float(suborder.subtotal),
+            'payout': float(suborder.payout_amount),
             'status_history': status_history,
             'is_collection': is_collection,
             'producer_address': producer_address,
@@ -454,7 +513,7 @@ def order_history(request):
                 'is_delivery': is_delivery,
                 'delivery_date': suborder.delivery_date,
                 'item_count': suborder.items.count(),
-                'subtotal': suborder.subtotal,
+                'subtotal': float(suborder.subtotal),
             }
 
             producers_data.append(producer_info)
@@ -467,11 +526,24 @@ def order_history(request):
                 })
 
             # Preview items (first 2 per producer)
+            # for item in suborder.items.all()[:2]:
+            #     preview_items.append({
+            #         'name': item.product.name,
+            #         'quantity': item.quantity,
+            #         'price': item.price_at_purchase,
+            #         'producer': suborder.producer.business_name
+            #     })
+             
+            # Micaiah added for surplus discount
             for item in suborder.items.all()[:2]:
+                # original_price = item.original_price_at_purchase or item.price_at_purchase
+                original_price = getattr(item, "original_price_at_purchase", None) or item.price_at_purchase
                 preview_items.append({
                     'name': item.product.name,
                     'quantity': item.quantity,
-                    'price': item.price_at_purchase,
+                    'price': float(item.price_at_purchase),
+                    'original_price': float(original_price),
+                    'has_surplus_discount': item.price_at_purchase != original_price,
                     'producer': suborder.producer.business_name
                 })
 

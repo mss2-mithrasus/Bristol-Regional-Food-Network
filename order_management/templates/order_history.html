@@ -586,7 +586,7 @@
                     </span>
                     <span class="producer-status">{{ producer.status }}</span>
                     <span class="producer-items">{{ producer.item_count }} items</span>
-                    <span class="producer-amount">£{{ producer.subtotal|floatformat:2 }}</span>
+                    <span class="producer-amount">{{ producer.subtotal|floatformat:2 }}</span>
                 </div>
                 {% endfor %}
             </div>
@@ -600,7 +600,18 @@
                         <div class="preview-item-producer">{{ item.producer }}</div>
                     </div>
                     <div class="preview-item-quantity">x{{ item.quantity }}</div>
-                    <div class="preview-item-price">£{{ item.price|floatformat:2 }}</div>
+                    <div class="preview-item-price">
+                        {% if item.has_surplus_discount %}
+                            <span style="text-decoration: line-through; color:#888;">
+                                £{{ item.original_price|floatformat:2 }}
+                            </span>
+                            <span style="color:#28a745; font-weight:600;">
+                                £{{ item.price|floatformat:2 }}
+                            </span>
+                        {% else %}
+                            £{{ item.price|floatformat:2 }}
+                        {% endif %}
+                    </div>
                 </div>
                 {% endfor %}
                 

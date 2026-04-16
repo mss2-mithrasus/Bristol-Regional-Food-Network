@@ -24,7 +24,7 @@ from django.db.models import Sum, Count
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from order_management.models import Order, SubOrder
+from order_management.models import Order, SubOrder, OrderItem
 from payments.models import PaymentTransaction
 from django.views.decorators.http import require_GET
 from decimal import Decimal, ROUND_HALF_UP
@@ -250,6 +250,16 @@ def FinancialReports(request):
         payment_status=PaymentTransaction.PaymentStatus.SUCCEEDED
     ).values_list("order_id", flat=True)
 
+    # orders_qs = (
+    #     Order.objects
+    #     .filter(
+    #         created_at__date__gte=start_date,
+    #         created_at__date__lte=end_date,
+    #         order_id__in=paid_order_ids,
+    #     )
+    #     .select_related("customer")
+    #     .prefetch_related("suborders__producer")
+    # )
     orders_qs = (
         Order.objects
         .filter(
@@ -258,7 +268,7 @@ def FinancialReports(request):
             order_id__in=paid_order_ids,
         )
         .select_related("customer")
-        .prefetch_related("suborders__producer")
+        .prefetch_related("suborders__producer", "suborders__items__product")
     )
 
     aggregates = orders_qs.aggregate(
@@ -276,7 +286,6 @@ def FinancialReports(request):
     )["total_payout"] or Decimal("0.00")
 
     orders_data = []
-
     for order in orders_qs:
         producer_rows = []
         for s in order.suborders.all():
@@ -290,12 +299,56 @@ def FinancialReports(request):
                 Decimal("0.01"), rounding=ROUND_HALF_UP
             )
 
+            item_rows = []
+
+            for item in s.items.all():
+                original_price = getattr(item, "original_price_at_purchase", None) or item.price_at_purchase
+                discounted_price = item.price_at_purchase
+
+                original_line_total = (Decimal(str(original_price)) * item.quantity).quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                )
+                discounted_line_total = (Decimal(str(discounted_price)) * item.quantity).quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                )
+
+                item_rows.append({
+                    "product_name": item.product.name,
+                    "quantity": item.quantity,
+                    "original_unit_price": str(original_price),
+                    "discounted_unit_price": str(discounted_price),
+                    "original_line_total": str(original_line_total),
+                    "discounted_line_total": str(discounted_line_total),
+                    "has_surplus_discount": Decimal(str(original_price)) != Decimal(str(discounted_price)),
+                })
+
             producer_rows.append({
                 "producer": str(s.producer),
                 "subtotal": str(subtotal),
                 "commission": str(commission),
                 "payout": str(payout),
+                "items": item_rows,
             })
+
+    # for order in orders_qs:
+    #     producer_rows = []
+    #     for s in order.suborders.all():
+    #         subtotal = Decimal(str(s.subtotal))
+
+    #         commission = (subtotal * Decimal("0.05")).quantize(
+    #             Decimal("0.01"), rounding=ROUND_HALF_UP
+    #         )
+
+    #         payout = (subtotal * Decimal("0.95")).quantize(
+    #             Decimal("0.01"), rounding=ROUND_HALF_UP
+    #         )
+
+    #         producer_rows.append({
+    #             "producer": str(s.producer),
+    #             "subtotal": str(subtotal),
+    #             "commission": str(commission),
+    #             "payout": str(payout),
+    #         })
         order_payout = sum(
             (s.payout_amount for s in order.suborders.all()),
             Decimal("0.00")

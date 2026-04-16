@@ -32,4 +32,7 @@ urlpatterns = [
     path('notifications/api/unread-count/', notification_views.get_producer_unread_count, name='api_producer_unread_count'),
     path('api/low-stock-alerts/', views.get_low_stock_alerts, name='low_stock_alerts'),
     path('api/low-stock-alerts/<int:alert_id>/resolve/', views.resolve_low_stock_alert, name='resolve_low_stock_alert'),
+    path("api/products/<int:product_id>/surplus/create/", views.ProducerCreateSurplusDealAPI.as_view(), name="api_create_surplus"),
+    path("api/surplus/", views.ProducerSurplusDealsAPI.as_view(), name="api_list_surplus"),
+    path("api/surplus/<int:surplus_id>/remove/", views.ProducerRemoveSurplusDealAPI.as_view(), name="api_remove_surplus"),
 ]

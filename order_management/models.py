@@ -145,8 +145,16 @@ class OrderItem(models.Model):
     )
 
     quantity = models.PositiveIntegerField()
+    #price_at_purchase = models.DecimalField(max_digits=10, decimal_places=2)
     price_at_purchase = models.DecimalField(max_digits=10, decimal_places=2)
 
+    # stores the normal/original price before any surplus discount
+    original_price_at_purchase = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
     class Meta:
         managed = True
         db_table = "order_item"

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import ProductCategory, ProductAllergen, Product, Allergen, SeasonalAvailability
-
+from producers.utils import get_active_surplus_deal, is_product_valid_for_fulfilment
 
 # these serializers will convert the models into JSON and JSON to the model
 
@@ -76,7 +76,15 @@ class ProductSerializer(serializers.ModelSerializer):
         many=True,
         read_only=True
     )
-    
+    # Micaiah added - 13-04-2026 - Surplus discount 
+    #active_surplus = serializers.SerializerMethodField()
+    has_surplus_discount = serializers.SerializerMethodField()
+    original_price = serializers.SerializerMethodField()
+    discounted_price = serializers.SerializerMethodField()
+    surplus_note = serializers.SerializerMethodField()
+    discount_percentage = serializers.SerializerMethodField()
+    surplus_expiry_date = serializers.SerializerMethodField()
+    # End 
     class Meta:
         model = Product
         fields = [
@@ -86,6 +94,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "price",
             "unit",
             "availability_status",
+            "is_expired",
             "producer_name",
             "category",
             "image",
@@ -94,13 +103,50 @@ class ProductSerializer(serializers.ModelSerializer):
             "organic_certified",
             "seasonal_availability",
             "low_stock_threshold", 
+            "best_before_date",
+            "has_surplus_discount",
+            "original_price",
+            "discounted_price",
+            "surplus_note",
+            "discount_percentage",
+            "surplus_expiry_date",
             
         ]
         
     def get_producer_name(self, obj):
-       
-        
         return obj.producer.business_name
+    
+    # Micaiah added - 13-04-2026 - Surplus discount
+    def _get_active_deal(self, obj):
+        if not is_product_valid_for_fulfilment(obj):
+            return None
+        return get_active_surplus_deal(obj)
+
+    def get_has_surplus_discount(self, obj):
+        return self._get_active_deal(obj) is not None
+
+    def get_original_price(self, obj):
+        return obj.price
+
+    def get_discounted_price(self, obj):
+        deal = self._get_active_deal(obj)
+        if not deal:
+            return obj.price
+        return round(float(obj.price) * (100 - deal.discount_percentage) / 100, 2)
+
+    def get_surplus_note(self, obj):
+        deal = self._get_active_deal(obj)
+        return deal.note if deal else ""
+
+    # def get_surplus_discount_percentage(self, obj):
+    #     deal = self._get_active_deal(obj)
+    #     return deal.discount_percentage if deal else None
+    def get_discount_percentage(self, obj):
+        deal = self._get_active_deal(obj)
+        return deal.discount_percentage if deal else None
+    def get_surplus_expiry_date(self, obj):
+        deal = self._get_active_deal(obj)
+        return deal.expiry_date if deal else None
        
     
 

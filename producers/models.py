@@ -1,32 +1,83 @@
 
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 
 # SURPLUS DISCOUNT
+# class SurplusDiscount(models.Model):
+#     surplus_id = models.AutoField(primary_key=True)
+
+#     product = models.ForeignKey(
+#         "product.Product",
+#         on_delete=models.CASCADE,null=True, blank=True,
+#         db_column="product_id",
+#         related_name="surplus_discounts",
+#     )
+
+#     discount_percentage = models.DecimalField(max_digits=5, decimal_places=2)
+#     expiry_date = models.DateField()
+
+#     status = models.CharField(
+#         max_length=20,
+#         choices=[("active", "active"), ("expired", "expired")],
+#         default="active",
+#     )
+
+#     date_discount_created = models.DateTimeField(auto_now_add=True)
+
+#     class Meta:
+#         managed = True
+#         db_table = "surplus_discount"
+
+# Micaiah added - 13-04-2026 - Fixed Surplus Discount
+# SURPLUS DISCOUNT
+
 class SurplusDiscount(models.Model):
     surplus_id = models.AutoField(primary_key=True)
 
     product = models.ForeignKey(
         "product.Product",
-        on_delete=models.CASCADE,null=True, blank=True,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         db_column="product_id",
         related_name="surplus_discounts",
     )
 
-    discount_percentage = models.DecimalField(max_digits=5, decimal_places=2)
-    expiry_date = models.DateField()
+    discount_percentage = models.PositiveSmallIntegerField()
+    note = models.TextField(blank=True)
+
+    expiry_date = models.DateTimeField()
 
     status = models.CharField(
         max_length=20,
-        choices=[("active", "active"), ("expired", "expired")],
+        choices=[
+            ("active", "active"),
+            ("expired", "expired"),
+            ("sold_out", "sold_out"),
+            ("cancelled", "cancelled"),
+        ],
         default="active",
     )
 
     date_discount_created = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         managed = True
         db_table = "surplus_discount"
+
+    def __str__(self):
+        return f"{self.product.name if self.product else 'Unknown'} - {self.discount_percentage}% off"
+
+    @property
+    def is_active_now(self):
+        return (
+            self.status == "active"
+            and self.expiry_date > timezone.now()
+        )
+
+
 
 # INVENTORY (Stock Change History)
 class Inventory(models.Model):

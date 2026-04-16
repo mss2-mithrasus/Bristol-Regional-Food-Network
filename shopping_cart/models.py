@@ -6,6 +6,8 @@ from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
 from product.models import Product
+from decimal import Decimal, ROUND_HALF_UP
+from producers.models import SurplusDiscount
 
 class Cart(models.Model):
     """Shopping cart for each customer"""
@@ -34,6 +36,7 @@ class Cart(models.Model):
     def subtotal(self):
         """Calculate cart subtotal"""
         return sum(item.subtotal for item in self.items.all())
+    
     
     def get_items_grouped_by_producer(self):
         """Group cart items by producer for checkout"""
@@ -77,10 +80,52 @@ class CartItem(models.Model):
     def __str__(self):
         return f"{self.quantity} x {self.product.name}"
     
+    # @property
+    # def subtotal(self):
+    #     """Calculate item subtotal"""
+    #     return self.quantity * self.product.price
+    
+    # Micaiah added for surplus discount 
+    # If the product has an active surplus deal, use the discounted price.
+    # Otherwise, use the normal product price.
+    def get_unit_price(self):
+        # Looks if the status us active for surplus discount
+        active_surplus = (
+            SurplusDiscount.objects
+            .filter(
+                product=self.product,
+                status="active",
+                expiry_date__gte=timezone.now()  
+            )
+            .order_by("-date_discount_created")
+            .first()
+        )
+
+        # If there is an active surplus deal, calculate the discounted price
+        if active_surplus:
+            discount_multiplier = Decimal("1.00") - (
+                Decimal(active_surplus.discount_percentage) / Decimal("100")
+            )
+            # Return discounted price rounded to 2 decimal places
+            return (self.product.price * discount_multiplier).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP
+            )
+
+        # If there is no active surplus deal, return the normal product price
+        return self.product.price
+
+
+    @property
+    def unit_price(self):
+        return self.get_unit_price()
+
+
     @property
     def subtotal(self):
-        """Calculate item subtotal"""
-        return self.quantity * self.product.price
+        # Calculates subtotal using the correct unit price
+        return self.quantity * self.get_unit_price()
+    
     @property
     def is_reservation_active(self):
         """Check if reservation is still valid"""

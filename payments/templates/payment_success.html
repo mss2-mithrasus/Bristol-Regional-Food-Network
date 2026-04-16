@@ -54,7 +54,19 @@
                 <div class="item-producer">{{ item.producer }}</div>
             </div>
             <div class="item-quantity">x{{ item.quantity }}</div>
-            <div class="item-price">£{{ item.price }}</div>
+            <div class="item-price">
+                {% if item.has_surplus_discount %}
+                    <span style="text-decoration: line-through; color:#777;">
+                        £{{ item.original_price|floatformat:2 }}
+                    </span>
+                    <strong style="color:#c62828;">
+                        £{{ item.price|floatformat:2 }}
+                    </strong>
+                {% else %}
+                    £{{ item.price|floatformat:2 }}
+                {% endif %}
+            </div>
+        
         </div>
         {% endfor %}
         

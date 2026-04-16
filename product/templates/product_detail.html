@@ -112,11 +112,58 @@
 
             // inserting product name, description and producer name into page
             document.querySelector(".product-name").textContent = "Product: " + product.name;
+            // Micaiah added surplus discount
+            const descriptionEl = document.querySelector(".product-description");
 
-            document.querySelector(".product-description").textContent = "Product description: " + product.description;
+            descriptionEl.innerHTML = `Product description: ${product.description || ""}`;
 
-            document.querySelector(".product-price").textContent = "Price: £" + product.price;
+            if (product.best_before_date) {
+                descriptionEl.innerHTML += `
+                    <br><strong>Best before:</strong>
+                    ${new Date(product.best_before_date + "T00:00:00").toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                    })}
+                `;
+            }
 
+            if (product.surplus_note) {
+                descriptionEl.innerHTML += `<br><strong>Discount Reason:</strong> ${product.surplus_note}`;
+            }
+
+            if (product.surplus_expiry_date) {
+                descriptionEl.innerHTML += `
+                    <br><strong>Surplus Deal Ends:</strong>
+                    ${new Date(product.surplus_expiry_date).toLocaleString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })}
+                `;
+            }
+
+            // document.querySelector(".product-price").textContent = "Price: £" + product.price;
+            // Micaiah added surplus discount 
+            if (product.has_surplus_discount) {
+                document.querySelector(".product-price").innerHTML = `
+                    Price:
+                    <span style="text-decoration: line-through; color:#777;">
+                        £${Number(product.original_price).toFixed(2)}
+                    </span>
+                    <strong style="color:#c62828;">
+                        £${Number(product.discounted_price).toFixed(2)}
+                    </strong>
+                    <span style="background:#ffe5e5; color:#c62828; padding:4px 8px; border-radius:10px; font-size:12px; font-weight:bold; margin-left:8px;">
+                        ${product.discount_percentage}% OFF
+                    </span>
+                `;
+            } else {
+                document.querySelector(".product-price").textContent =
+                    "Price: £" + Number(product.price).toFixed(2);
+            }
             document.querySelector(".product-producer").textContent = "Producer: " + product.producer_name;
 
             const image = document.querySelector(".product-detail-img");

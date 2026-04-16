@@ -53,8 +53,9 @@
                 <button class="approve_btn" onclick="loadFinancialReport()">Generate Report</button>
                 <button class="download_btn" onclick="downloadCSV()">Download CSV</button>
                 <button class="download_btn" onclick="window.print()">Print / Save as PDF</button>
-            </section>
 
+                <div id="dateValidationError" class="empty-message" style="margin-top:10px; color:#c62828;"></div>
+            </section>
             <section class="admin_section">
                 <h2>Summary</h2>
                 <div id="financialSummary" class="pill-row"></div>
@@ -107,7 +108,7 @@
         </div>
 
         <h3>Producers</h3>
-        <div id="adProducers"></div>
+        <div id="adProducers" style="display:flex; flex-direction:column; gap:16px;"></div>
 
     </div>
 </div>
@@ -142,22 +143,57 @@ async function loadDateLimits() {
 
     if (!startInput.value) startInput.value = meta.min_date;
     if (!endInput.value) endInput.value = meta.max_date;
-
+    endInput.min = startInput.value;
     startInput.addEventListener("change", () => {
-        if (startInput.value > endInput.value) {
-            endInput.value = startInput.value;
+        const errorBox = document.getElementById("dateValidationError");
+        errorBox.textContent = "";
+
+        // End date cannot be earlier than start date
+        endInput.min = startInput.value;
+
+        // If current end date is before the new start date, clear it
+        if (endInput.value && endInput.value < startInput.value) {
+            endInput.value = "";
         }
     });
 
     endInput.addEventListener("change", () => {
-        if (endInput.value < startInput.value) {
-            startInput.value = endInput.value;
+        const errorBox = document.getElementById("dateValidationError");
+        errorBox.textContent = "";
+
+        if (endInput.value && startInput.value && endInput.value < startInput.value) {
+            errorBox.textContent = "End date cannot be earlier than start date.";
+            endInput.value = "";
         }
     });
+}
+// Date validation 
+function validateFinancialDates() {
+    const startInput = document.getElementById("startDate");
+    const endInput = document.getElementById("endDate");
+    const errorBox = document.getElementById("dateValidationError");
+
+    const start = startInput.value;
+    const end = endInput.value;
+
+    errorBox.textContent = "";
+
+    if (!start || !end) {
+        errorBox.textContent = "Please select both a start date and an end date.";
+        return false;
+    }
+
+    if (start > end) {
+        errorBox.textContent = "Start date cannot be later than end date.";
+        return false;
+    }
+
+    return true;
 }
 
 // Financial report
 async function loadFinancialReport() {
+    if (!validateFinancialDates()) return;
     const start = document.getElementById("startDate").value;
     const end = document.getElementById("endDate").value;
 
@@ -220,12 +256,71 @@ function attachAuditButtons() {
             prodBox.innerHTML = "";
 
             o.producers.forEach(p => {
+                let itemsHtml = "";
+
+                if (p.items && p.items.length > 0) {
+                    itemsHtml = `
+                        <div style="margin-top:12px; display:flex; flex-direction:column; gap:10px;">
+                            ${p.items.map(item => `
+                                <div style="border:1px solid #e5e7eb; border-radius:10px; padding:12px; background:#fafafa;">
+                                    <p style="margin:0 0 8px 0;"><strong>${item.product_name}</strong> × ${item.quantity}</p>
+
+                                    ${
+                                        item.has_surplus_discount
+                                            ? `
+                                                <div style="display:grid; grid-template-columns: repeat(2, minmax(140px, 1fr)); gap:8px; font-size:14px;">
+                                                    <div>
+                                                        <span style="color:#666;">Original Price:</span><br>
+                                                        <span style="text-decoration:line-through; color:#777;">
+                                                            ${money(item.original_unit_price)}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <span style="color:#666;">Discounted Price:</span><br>
+                                                        <span style="color:#c62828; font-weight:600;">
+                                                            ${money(item.discounted_unit_price)}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <span style="color:#666;">Original Total:</span><br>
+                                                        <span style="text-decoration:line-through; color:#777;">
+                                                            ${money(item.original_line_total)}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <span style="color:#666;">Discounted Total:</span><br>
+                                                        <span style="color:#c62828; font-weight:600;">
+                                                            ${money(item.discounted_line_total)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            `
+                                            : `
+                                                <div style="display:grid; grid-template-columns: repeat(2, minmax(140px, 1fr)); gap:8px; font-size:14px;">
+                                                    <div>
+                                                        <span style="color:#666;">Price:</span><br>
+                                                        <span>${money(item.original_unit_price)}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span style="color:#666;">Total:</span><br>
+                                                        <span>${money(item.original_line_total)}</span>
+                                                    </div>
+                                                </div>
+                                            `
+                                    }
+                                </div>
+                            `).join("")}
+                        </div>
+                    `;
+                }
+
                 prodBox.innerHTML += `
                     <div class="admin_card">
                         <p><strong>${p.producer}</strong></p>
                         <p>Total: ${money(p.subtotal)}</p>
                         <p>Commission: ${money(p.commission)}</p>
                         <p>Payout: ${money(p.payout)}</p>
+                        ${itemsHtml}
                     </div>
                 `;
             });
@@ -240,12 +335,18 @@ function attachAuditButtons() {
 }
 
 function downloadCSV() {
+    if (!validateFinancialDates()) return;
+
     const start = document.getElementById("startDate").value;
     const end = document.getElementById("endDate").value;
     window.location.href = `/admin-dashboard/financial-reports/export-csv/?start=${start}&end=${end}`;
 }
 
-window.onload = loadDateLimits;
+// window.onload = loadDateLimits;
+window.onload = async () => {
+    await loadDateLimits();
+    loadFinancialReport();
+};
 </script>
 
 {% endblock %}

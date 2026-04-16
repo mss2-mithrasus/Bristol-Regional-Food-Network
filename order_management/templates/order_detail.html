@@ -306,8 +306,33 @@
                     <span class="item-name">{{ item.name }}</span>
                 </div>
                 <div class="item-quantity">{{ item.quantity }}</div>
-                <div class="item-price">£{{ item.price|floatformat:2 }}</div>
-                <div class="item-total">£{{ item.total|floatformat:2 }}</div>
+                <!-- <div class="item-price">£{{ item.price|floatformat:2 }}</div>
+                <div class="item-total">£{{ item.total|floatformat:2 }}</div> -->
+                <div class="item-price">
+                    {% if item.has_surplus_discount %}
+                        <span style="text-decoration: line-through; color:#888;">
+                            £{{ item.original_price|floatformat:2 }}
+                        </span>
+                        <span style="color:#28a745; font-weight:600;">
+                            £{{ item.price|floatformat:2 }}
+                        </span>
+                    {% else %}
+                        £{{ item.price|floatformat:2 }}
+                    {% endif %}
+                </div>
+
+                <div class="item-total">
+                    {% if item.has_surplus_discount %}
+                        <span style="text-decoration: line-through; color:#888;">
+                            £{{ item.original_total|floatformat:2 }}
+                        </span>
+                        <span style="color:#28a745; font-weight:600;">
+                            £{{ item.total|floatformat:2 }}
+                        </span>
+                    {% else %}
+                        £{{ item.total|floatformat:2 }}
+                    {% endif %}
+                </div>
             </div>
             {% endfor %}
             

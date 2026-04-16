@@ -208,8 +208,45 @@
         </form>
     </div>
 </main>
+<div id="successPopup" class="remove-item" style="display:none;">
+    <div class="remove-box">
+        <p id="successMessage">Registration successful.</p>
+        <div class="removal-actions">
+            <button id="successPopupOkBtn" type="button">OK</button>
+        </div>
+    </div>
+</div>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+    let successOkCallback = null;
+
+    function showSuccessPopup(message, onOk = null) {
+        document.getElementById("successMessage").textContent = message;
+        document.getElementById("successPopup").style.display = "flex";
+        successOkCallback = onOk;
+    }
+
+    function closeSuccessPopup() {
+        document.getElementById("successPopup").style.display = "none";
+        successOkCallback = null;
+    }
+    
+    document.getElementById("successPopupOkBtn").addEventListener("click", function () {
+        const callback = successOkCallback;
+        closeSuccessPopup();
+
+        if (typeof callback === "function") {
+            callback();
+        }
+    });
+
+    window.addEventListener("click", function(event) {
+        const successPopup = document.getElementById("successPopup");
+
+        if (event.target === successPopup) {
+            closeSuccessPopup();
+        }
+    });
     //adding postcode validation - lano
 
     // checking postcode against postcode.io api
@@ -616,19 +653,22 @@ document.addEventListener("DOMContentLoaded", function () {
         // If successful
         if (response.ok) {
 
-            // Determine if this is a business account requiring admin approval
             const isBusiness =
                 payload.role === "producer" ||
                 payload.account_type === "community" ||
                 payload.account_type === "restaurant";
 
             if (isBusiness) {
-                alert("Registration successful! Your account is awaiting admin approval. You will be able to log in once approved.");
+                showSuccessPopup(
+                    "Registration successful! Your account is awaiting admin approval. You will be able to log in once approved.",
+                    () => { window.location.href = "{% url 'login' %}"; }
+                );
             } else {
-                alert("Registration successful! You can now log in.");
+                showSuccessPopup(
+                    "Registration successful! You can now log in.",
+                    () => { window.location.href = "{% url 'login' %}"; }
+                );
             }
-
-            window.location.href = "/login/";
         }
 
         // Displays error message

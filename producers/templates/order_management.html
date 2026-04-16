@@ -209,8 +209,15 @@ function renderOrders(orders){
 
   orders.forEach(o=>{
 
+        // const itemsSummary = o.items.map(i =>
+        //     `${i.product_name} x${i.quantity}`
+        // ).join(", ");
+
+        // Micaiah changed for surplus discount
         const itemsSummary = o.items.map(i =>
-            `${i.product_name} x${i.quantity}`
+            i.has_surplus_discount
+                ? `${i.product_name} x${i.quantity} (discounted)`
+                : `${i.product_name} x${i.quantity}`
         ).join(", ");
 
         const deliveryType = o.delivery_date ? "Delivery" : "Collection";
@@ -237,8 +244,7 @@ function renderOrders(orders){
         <div>${o.delivery_date || "-"}</div>
         <div>${deliveryType}</div>
         <div class="order-items">${itemsSummary}</div>
-        <div><strong>£${o.total_value}</strong></div>
-
+        <div><strong>£${Number(o.total_value || 0).toFixed(2)}</strong></div>
         <div>
             <select class="status-select" data-id="${o.order_id}">
                 <option ${o.status==="Pending"?"selected":""}>Pending</option>
@@ -275,8 +281,22 @@ document.addEventListener("click",function(e){
     document.getElementById("dOrderDate").value=row.dataset.orderDate||"";
     document.getElementById("dDeliveryDate").value=row.dataset.deliveryDate||"";
     document.getElementById("dSpecialInstruction").value=row.dataset.specialInstruction || "";
-    document.getElementById("dTotalAmount").textContent="£"+(row.dataset.total||"0.00");
+    // document.getElementById("dTotalAmount").textContent="£"+(row.dataset.total||"0.00");
+    // Micaiah changed for surplus discount 
+    let modalTotal = 0;
 
+    try {
+        const parsedItems = JSON.parse(row.dataset.items || "[]");
+        modalTotal = parsedItems.reduce((sum, it) => {
+            return sum + Number(it.line_total || ((it.quantity || 0) * (it.price_at_purchase || 0)));
+        }, 0);
+    } catch (e) {
+        modalTotal = Number(row.dataset.total || 0);
+    }
+
+    document.getElementById("dTotalAmount").textContent = "£" + modalTotal.toFixed(2);
+    // Change end 
+    
     const itemsWrap=document.getElementById("itemsRows");
     itemsWrap.innerHTML="";
 
@@ -290,16 +310,59 @@ document.addEventListener("click",function(e){
         r.className="prod-table row";
         r.style.gridTemplateColumns="2fr 0.7fr 0.9fr 0.9fr";
 
-        r.innerHTML=`
+        // r.innerHTML=`
+        // <div style="display:flex;align-items:center;gap:8px;">
+        //     ${it.image ? `<img src="${it.image}" style="width:40px;height:40px;border-radius:6px;">` : ""}
+        //     ${it.product_name||""}
+        // </div>
+        // <div>${it.quantity||0}</div>
+        // <div>£${Number(it.price_at_purchase||0).toFixed(2)}</div>
+        // <div><strong>£${Number((it.quantity||0)*(it.price_at_purchase||0)).toFixed(2)}</strong></div>
+        // `;
+        
+        //Micaiah changed for surplus discount
+        const hasDiscount = !!it.has_surplus_discount;
+        const discountedPrice = Number(it.price_at_purchase || 0);
+        const originalPrice = Number(it.original_price_at_purchase || discountedPrice);
+        const discountedTotal = Number(it.line_total || ((it.quantity || 0) * discountedPrice));
+        const originalTotal = Number(it.original_line_total || ((it.quantity || 0) * originalPrice));
+
+        r.innerHTML = `
         <div style="display:flex;align-items:center;gap:8px;">
             ${it.image ? `<img src="${it.image}" style="width:40px;height:40px;border-radius:6px;">` : ""}
-            ${it.product_name||""}
+            ${it.product_name || ""}
         </div>
-        <div>${it.quantity||0}</div>
-        <div>£${Number(it.price_at_purchase||0).toFixed(2)}</div>
-        <div><strong>£${Number((it.quantity||0)*(it.price_at_purchase||0)).toFixed(2)}</strong></div>
+        <div>${it.quantity || 0}</div>
+        <div>
+            ${
+                hasDiscount
+                ? `
+                    <div style="text-decoration:line-through; color:#777; font-size:12px;">
+                        £${originalPrice.toFixed(2)}
+                    </div>
+                    <div style="color:#c62828; font-weight:700;">
+                        £${discountedPrice.toFixed(2)}
+                    </div>
+                `
+                : `£${discountedPrice.toFixed(2)}`
+            }
+        </div>
+        <div>
+            ${
+                hasDiscount
+                ? `
+                    <div style="text-decoration:line-through; color:#777; font-size:12px;">
+                        £${originalTotal.toFixed(2)}
+                    </div>
+                    <div style="color:#c62828; font-weight:700;">
+                        £${discountedTotal.toFixed(2)}
+                    </div>
+                `
+                : `<strong>£${discountedTotal.toFixed(2)}</strong>`
+            }
+        </div>
         `;
-
+        // Change end 
         itemsWrap.appendChild(r);
     });
 

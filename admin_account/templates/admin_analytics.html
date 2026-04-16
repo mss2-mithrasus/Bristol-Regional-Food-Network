@@ -61,6 +61,8 @@
 
                 <button class="approve_btn" onclick="loadAnalytics()">Apply Filters</button>
                 <button class="download_btn" onclick="window.print()">Print / Save as PDF</button>
+
+                <div id="analyticsDateValidationError" class="empty-message" style="margin-top:10px; color:#c62828;"></div>
             </section>
 
             <!-- PIE CHARTS -->
@@ -133,16 +135,40 @@ function getColor(name) {
     };
     return colors[name] || "rgba(100, 100, 100, 0.7)";
 }
-
-async function loadAnalytics() {
+// Date validation
+function validateAnalyticsDates() {
     const startInput = document.getElementById("analyticsStart");
     const endInput = document.getElementById("analyticsEnd");
-    const producer = document.getElementById("analyticsProducer").value;
+    const errorBox = document.getElementById("analyticsDateValidationError");
+
+    const start = startInput.value;
+    const end = endInput.value;
+
+    errorBox.textContent = "";
+
+    if (!start || !end) {
+        errorBox.textContent = "Please select both a start date and an end date.";
+        return false;
+    }
+
+    if (start > end) {
+        errorBox.textContent = "End date cannot be earlier than start date.";
+        return false;
+    }
+
+    return true;
+}
+async function loadAnalyticsDateLimits() {
+    const startInput = document.getElementById("analyticsStart");
+    const endInput = document.getElementById("analyticsEnd");
+    const errorBox = document.getElementById("analyticsDateValidationError");
 
     const metaRes = await fetch("/admin-dashboard/analytics/meta/", {
         headers: { "Authorization": "Bearer " + getToken() }
     });
     const meta = await metaRes.json();
+
+    if (!meta.min_date || !meta.max_date) return;
 
     startInput.min = meta.min_date;
     startInput.max = meta.max_date;
@@ -151,6 +177,33 @@ async function loadAnalytics() {
 
     if (!startInput.value) startInput.value = meta.min_date;
     if (!endInput.value) endInput.value = meta.max_date;
+
+    endInput.min = startInput.value;
+
+    startInput.addEventListener("change", () => {
+        errorBox.textContent = "";
+        endInput.min = startInput.value;
+
+        if (endInput.value && endInput.value < startInput.value) {
+            endInput.value = "";
+        }
+    });
+
+    endInput.addEventListener("change", () => {
+        errorBox.textContent = "";
+
+        if (endInput.value && startInput.value && endInput.value < startInput.value) {
+            errorBox.textContent = "End date cannot be earlier than start date.";
+            endInput.value = "";
+        }
+    });
+}
+async function loadAnalytics() {
+    if (!validateAnalyticsDates()) return;
+
+    const startInput = document.getElementById("analyticsStart");
+    const endInput = document.getElementById("analyticsEnd");
+    const producer = document.getElementById("analyticsProducer").value;
 
     const res = await fetch(
         `/admin-dashboard/analytics/data/?start=${startInput.value}&end=${endInput.value}&producer=${producer}`,
@@ -313,7 +366,10 @@ function renderCharts(data) {
 
 }
 
-window.onload = loadAnalytics;
+window.onload = async () => {
+    await loadAnalyticsDateLimits();
+    loadAnalytics();
+};
 document.getElementById("analyticsProducer").addEventListener("change", loadAnalytics);
 </script>
 
