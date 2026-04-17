@@ -9,6 +9,23 @@ from product.models import Product
 from decimal import Decimal, ROUND_HALF_UP
 from producers.models import SurplusDiscount
 
+def get_bulk_discount_percentage(account_type, producer_subtotal):
+    """
+    Returns bulk discount % for community/restaurant accounts
+    based on total spend per producer
+    """
+    if account_type not in ["community", "restaurant"]:
+        return Decimal("0")
+    
+    if producer_subtotal >= Decimal("100"):
+        return Decimal("10")
+    elif producer_subtotal >= Decimal("50"):
+        return Decimal("8")
+    elif producer_subtotal >= Decimal("20"):
+        return Decimal("5")
+    else:
+        return Decimal("0")
+    
 class Cart(models.Model):
     """Shopping cart for each customer"""
     
@@ -60,6 +77,19 @@ class Cart(models.Model):
             items_by_producer[producer]['subtotal'] += item.subtotal
         
         return items_by_producer
+    
+    def get_producer_subtotals(self):
+        """
+        Returns dict of producer_id -> subtotal
+        Used for bulk discount tier calculation
+        """
+        subtotals = {}
+        for item in self.items.select_related('product__producer').all():
+            producer_id = item.product.producer.id
+            if producer_id not in subtotals:
+                subtotals[producer_id] = Decimal("0")
+            subtotals[producer_id] += item.subtotal
+        return subtotals
 
 
 class CartItem(models.Model):
@@ -115,7 +145,24 @@ class CartItem(models.Model):
         # If there is no active surplus deal, return the normal product price
         return self.product.price
 
-
+    def get_bulk_discount(self, account_type, producer_subtotal):
+        """
+        Returns the bulk discounted unit price if applicable.
+        Bulk discount applies AFTER surplus discount.
+        """
+        base_price = self.get_unit_price()  
+        
+        discount_pct = get_bulk_discount_percentage(account_type, producer_subtotal)
+        
+        if discount_pct == 0:
+            return base_price, Decimal("0")
+        
+        discount_multiplier = Decimal("1.00") - (discount_pct / Decimal("100"))
+        discounted_price = (base_price * discount_multiplier).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+        
+        return discounted_price, discount_pct
     @property
     def unit_price(self):
         return self.get_unit_price()

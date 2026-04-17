@@ -670,3 +670,47 @@
         flex: 0 0 70px;
     }
 }
+/*Bulk Order Banner (checkout page) */
+.bulk-checkout-banner {
+    background: #e8f5e9;
+    border-left: 4px solid #2e7d32;
+    padding: 14px 20px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 2px 8px rgba(46,125,50,0.08);
+}
+
+.bulk-checkout-banner i {
+    color: #2e7d32;
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.bulk-checkout-banner strong {
+    color: #2e7d32;
+    font-size: 16px;
+    display: block;
+    margin-bottom: 3px;
+}
+
+.bulk-checkout-banner p {
+    margin: 0;
+    font-size: 13px;
+    color: #555;
+}
+
+/* Bulk Discount Row in Summary  */
+.summary-row.bulk-discount {
+    color: #2e7d32;
+    font-weight: 600;
+    font-size: 13px;
+    border-bottom: 1px dashed #a5d6a7;
+}
+
+.summary-row.original-price {
+    color: #777;
+    font-size: 13px;
+}

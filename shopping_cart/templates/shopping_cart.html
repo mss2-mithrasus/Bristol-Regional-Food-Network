@@ -31,7 +31,20 @@
 {% block content %}
 <div class="cart-container">
     <h1 class="cart-title">Your Shopping Cart</h1>
-    
+    <!--felna added - bulk order banner -->
+    {% if is_bulk_account %}
+    <div class="bulk-order-banner">
+        <i class="fa-solid fa-{% if account_type == 'community' %}building{% else %}utensils{% endif %}"></i>
+        <div>
+            <strong>
+                {% if account_type == "community" %} Bulk Order — Community Group
+                {% else %} Bulk Order — Restaurant{% endif %}
+            </strong>
+            <p>Bulk discounts applied automatically based on your spend per producer.</p>
+        </div>
+    </div>
+    {% endif %}
+    <!--felna ended-->
     {% if cart_items and cart_items|length > 0 %}
     <!-- Cart Header -->
     <div class="cart-header">
@@ -105,13 +118,33 @@
         </div>
         {% endfor %}
         
-        <!-- Producer Subtotal -->
+        <!--felna changed - Producer Subtotal -->
         <div class="producer-subtotal">
-            <span>Producer Subtotal:</span>
-            <span class="producer-total">£{{ producer.subtotal|floatformat:2 }}</span>
-        </div>
+            {% if producer.bulk_discount_pct %}
+            <div class="subtotal-row">
+                <span>Original Subtotal:</span>
+                <span>£{{ producer.subtotal|floatformat:2 }}</span>
+            </div>
+            <div class="subtotal-row discount">
+                <span> Bulk Discount ({{ producer.bulk_discount_pct }}% off):</span>
+                <span>-£{{ producer.bulk_discount_amount|floatformat:2 }}</span>
+            </div>
+            <div class="subtotal-row final">
+                <span>Producer Subtotal:</span>
+                <span class="producer-total">£{{ producer.discounted_subtotal|floatformat:2 }}</span>
+            </div>
+        {% else %}
+            <div class="subtotal-row final">
+                <span>Producer Subtotal:</span>
+                <span class="producer-total">£{{ producer.subtotal|floatformat:2 }}</span>
+            </div>
+        {% endif %}
+            
     </div>
     {% endfor %}
+    <!--change ended-->
+    
+    
     
     <!-- Cart Footer with Totals -->
     <div class="cart-footer">
@@ -125,7 +158,14 @@
                 <span>Network Fee (included):</span>
                 <span class="fee-amount" id="cart-fee">£{{ network_fee|floatformat:2 }}</span>
             </div>
-            
+            <!--felna added-->
+            {% if total_bulk_savings and total_bulk_savings > 0 %}
+            <div class="total-row savings">
+                <span> Total Bulk Savings:</span>
+                <span>-£{{ total_bulk_savings|floatformat:2 }}</span>
+            </div>
+            {% endif %}
+            <!--change ended-->
             <div class="total-row grand-total">
                 <span>Total to pay:</span>
                 <span class="grand-total-amount" id="cart-total">£{{ total|floatformat:2 }}</span>

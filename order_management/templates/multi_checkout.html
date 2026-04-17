@@ -8,7 +8,19 @@
 {% block content %}
 <div class="checkout-wrapper">
     <h2 class="page-title">Checkout Page</h2>
-
+    <!--felna added for bulk order banner -->
+    {% if is_bulk_account %}
+    <div class="bulk-order-banner">
+        <i class="fa-solid fa-building" style="color:#2e7d32; font-size:22px;"></i>
+        <div>
+            <strong >
+                {% if account_type == "community" %} Bulk Order — Community Group
+                {% else %} Bulk Order — Restaurant{% endif %}
+            </strong>
+            <p >Bulk discounts have been applied to your order totals.</p>
+        </div>
+    </div>
+    {% endif %}
     {% if producer_groups %}
 
     <!-- PAYMENT FORM (wrap entire checkout) -->
@@ -95,6 +107,17 @@
                             <span class="summary-label">Platform fee 5%:</span>
                             <span class="summary-value">£{{ group.commission_formatted }}</span>
                         </div>
+                        <!--felna added for bulk discount display -->
+                        {% if group.bulk_discount_pct %}
+                        <div class="summary-row original-price">
+                            <span class="summary-label">Original Subtotal:</span>
+                            <span class="summary-value">£{{ group.subtotal_formatted }}</span>
+                        </div>
+                        <div class="summary-row bulk-discount" >
+                            <span class="summary-label"> Bulk Discount ({{ group.bulk_discount_pct }}% off):</span>
+                            <span class="summary-value">-£{{ group.bulk_discount_amount }}</span>
+                        </div>
+                        {% endif %}
                         <div class="summary-row total">
                             <span class="summary-label">Total:</span>
                             <span class="summary-value">£{{ group.total_formatted }}</span>
