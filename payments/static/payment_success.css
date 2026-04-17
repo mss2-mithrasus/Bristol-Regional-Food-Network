@@ -406,3 +406,25 @@
         right: 20px;
     }
 }
+/* Producer contact on confirmation */
+.item-producer-contact {
+    font-size: 11px;
+    color: #406083;
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.item-producer-contact i {
+    font-size: 10px;
+    color: #406083;
+}
+
+/* Print: hide contact details */
+@media print {
+    .item-producer-contact {
+        display: none;
+    }
+}

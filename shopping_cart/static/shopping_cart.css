@@ -620,3 +620,83 @@
 .shop-now-btn i {
     margin-right: 8px;
 }
+/* ── Bulk Order Banner ── */
+.bulk-order-banner {
+    background: #e8f5e9;
+    border-left: 4px solid #2e7d32;
+    padding: 14px 20px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 2px 8px rgba(46,125,50,0.08);
+}
+
+.bulk-order-banner i {
+    color: #2e7d32;
+    font-size: 22px;
+}
+
+.bulk-order-banner strong {
+    color: #2e7d32;
+    font-size: 16px;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.bulk-order-banner p {
+    margin: 0;
+    font-size: 13px;
+    color: #555;
+}
+
+/* ── Bulk Discount inside Producer Subtotal ── */
+.producer-subtotal {
+    background: #f8f9fa;
+    padding: 15px 20px;
+    border-top: 1px dashed #ddd;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.subtotal-row {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 320px;
+    font-size: 14px;
+    color: #777;
+}
+
+.subtotal-row.discount {
+    color: #2e7d32;
+    font-weight: 600;
+}
+
+.subtotal-row.final {
+    color: #406083;
+    font-weight: 700;
+    font-size: 17px;
+    border-top: 1px solid #ddd;
+    padding-top: 6px;
+    margin-top: 2px;
+}
+
+/* ── Total Savings Row in Footer ── */
+.total-row.savings {
+    color: #2e7d32;
+    font-weight: 700;
+    background: #f0faf0;
+    padding: 12px 14px;
+    border-radius: 6px;
+    border: 1px dashed #a5d6a7;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+}

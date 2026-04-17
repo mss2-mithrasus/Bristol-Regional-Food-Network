@@ -18,6 +18,8 @@ from django.db.models import Sum
 from django.db import transaction
 from producers.utils import is_product_valid_for_fulfilment, get_earliest_fulfilment_date
 from producers.utils import expire_surplus_deals, deactivate_expired_products
+from decimal import Decimal
+from shopping_cart.models import get_bulk_discount_percentage
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +70,11 @@ def multi_checkout(request):
     # Get items grouped by producer using the model method (same as cart_view)
     cart.refresh_from_db()
     items_by_producer_dict = cart.get_items_grouped_by_producer()
+    # felna added - Get account type for bulk discount
+    try:
+        account_type = user.customeraccount.account_type
+    except Exception:
+        account_type = "normal"
     print(f" Producers in cart: {len(items_by_producer_dict)}")
     
     # If producer names are "Unknown Producer", try to get them from items
@@ -90,6 +97,14 @@ def multi_checkout(request):
     for producer, data in items_by_producer_dict.items():
         # Customer pays this price (already includes commission)
         customer_price = float(data['subtotal'])
+
+        # felna added - Apply bulk discount if applicable
+        bulk_discount_pct = get_bulk_discount_percentage(
+            account_type, Decimal(str(customer_price))
+        )
+        bulk_discount_amount = round(float(bulk_discount_pct) * customer_price / 100, 2)
+        discounted_price = round(customer_price - bulk_discount_amount, 2)
+        # change ended
 
         # Calculate commission (5% of customer price)
         producer_commission = round(customer_price * 0.05, 2)
@@ -192,14 +207,18 @@ def multi_checkout(request):
             "min_delivery_date": min_delivery_date,
             "subtotal": customer_price,
             "subtotal_formatted": f"{customer_price:.2f}",
+            "bulk_discount_pct": int(bulk_discount_pct),
+            "bulk_discount_amount": bulk_discount_amount,
+            "discounted_subtotal": discounted_price,
+            "discounted_subtotal_formatted": f"{discounted_price:.2f}",
             "commission": producer_commission,
             "commission_formatted": f"{producer_commission:.2f}",
-            "total": customer_price,
-            "total_formatted": f"{customer_price:.2f}",
+            "total": discounted_price,
+            "total_formatted": f"{discounted_price:.2f}",
             "producer_payout": producer_payout,
         })
 
-        overall_subtotal += customer_price
+        overall_subtotal += discounted_price
 
     overall_total = sum(group['total'] for group in producer_groups)
     overall_total_formatted = f"{overall_total:.2f}"
@@ -246,6 +265,9 @@ def multi_checkout(request):
             "producer_address": group["producer_address"],
             "min_delivery_date": str(group["min_delivery_date"]),
             "subtotal": group["subtotal"],
+            "bulk_discount_pct": group["bulk_discount_pct"],
+            "bulk_discount_amount": group["bulk_discount_amount"],
+            "discounted_subtotal": group["discounted_subtotal"],
             "commission": group["commission"],
             "total": group["total"],
             "items": []
@@ -290,6 +312,9 @@ def multi_checkout(request):
         "user_address": user_address,
         "total_quantity": total_quantity,
         "summary_items": [],
+        # felna added for bulk discount:
+        "is_bulk_account": account_type in ["community", "restaurant"],
+        "account_type": account_type,
     }
     
     print(f" Checkout prepared: {len(producer_groups)} producers, Total: £{overall_total}, Items: {total_quantity}")

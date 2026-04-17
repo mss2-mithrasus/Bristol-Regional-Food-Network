@@ -20,7 +20,20 @@ from producers.utils import (
     expire_surplus_deals,
 )
 stripe.api_key = settings.STRIPE_SECRET_KEY
-
+#felna added 
+def get_display_name(user):
+    try:
+        acc = user.customeraccount
+        if acc.account_type == "community":
+            return acc.communitygroup.organisation_name
+        elif acc.account_type == "restaurant":
+            return acc.restaurant.organisation_name
+        elif acc.person:
+            return f"{acc.person.first_name} {acc.person.last_name}"
+    except Exception:
+        pass
+    return user.email
+#change ended
 def create_payment_intent(request):
     if request.method == 'POST':
         try:
@@ -103,7 +116,9 @@ def payment_success(request):
                     'has_surplus_discount': item.price_at_purchase != original_price,
                     'unit': getattr(item.product, 'unit', ''),
                     'image': item.product.image.url if item.product.image else None,
-                    'producer': suborder.producer.business_name
+                    'producer': suborder.producer.business_name,
+                    'producer_email': suborder.producer.user.email,
+                    'producer_phone': suborder.producer.contact_person.phone if suborder.producer.contact_person else '',
                 })
 
         has_delivery = any(sub.delivery_date for sub in order.suborders.all())
@@ -113,7 +128,7 @@ def payment_success(request):
             'total': float(order.total_amount),
             'items': all_items,
             'order_date': order.created_at,
-            'customer_name': request.user.get_full_name() or request.user.email,
+            'customer_name': get_display_name(request.user),
             'delivery_address': order.delivery_address if has_delivery else '',
             'delivery_postcode': order.delivery_postcode if has_delivery else '',
             'show_address': has_delivery,
@@ -183,8 +198,8 @@ def payment_success(request):
                     special_instruction = producer_data.get(
                         f'producer_{pid}_special_instruction', ''
                     )
-
-                    customer_pays = Decimal(str(group.get('subtotal') or "0"))
+                    
+                    customer_pays = Decimal(str(group.get('discounted_subtotal') or group.get('subtotal') or "0"))
 
                     commission_amount = (customer_pays * Decimal("0.05")).quantize(
                         Decimal("0.01"),
@@ -246,7 +261,10 @@ def payment_success(request):
                             'has_surplus_discount': float(price_at_purchase) != float(original_price_at_purchase),
                             'unit': item_data.get('unit', ''),
                             'image': item_data.get('image', None),
-                            'producer': producer.business_name
+                            'producer': producer.business_name,
+                            'producer_email': producer.user.email,
+                            'producer_phone': producer.contact_person.phone if producer.contact_person else '',
+                        
                         })
 
                 PaymentTransaction.objects.create(
@@ -283,7 +301,7 @@ def payment_success(request):
             'total': float(order.total_amount),
             'items': all_items,
             'order_date': order.created_at,
-            'customer_name': request.user.get_full_name() or request.user.email,
+            'customer_name': get_display_name(request.user),
             'delivery_address': order.delivery_address if has_delivery else '',
             'delivery_postcode': order.delivery_postcode if has_delivery else '',
             'show_address': has_delivery,

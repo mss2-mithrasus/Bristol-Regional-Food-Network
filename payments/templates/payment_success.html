@@ -2,7 +2,10 @@
 {% load static %}
 
 {% block head %}
+{{ block.super }}
 <link rel="stylesheet" href="{% static 'payment_success.css' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
 {% endblock %}
 
 {% block content %}
@@ -52,6 +55,17 @@
                     {% endif %}
                 </div>
                 <div class="item-producer">{{ item.producer }}</div>
+                <!--felna added -->
+                {% if item.producer_email %}
+                <div class="item-producer-contact">
+                    <i class="fa-solid fa-envelope"></i> {{ item.producer_email }}
+                    {% if item.producer_phone %}
+                    &nbsp;|&nbsp;
+                    <i class="fa-solid fa-phone"></i> {{ item.producer_phone }}
+                    {% endif %}
+                </div>
+                {% endif %}
+                <!--change ended-->
             </div>
             <div class="item-quantity">x{{ item.quantity }}</div>
             <div class="item-price">
