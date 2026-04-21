@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'recurring.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="recurring-container">
+    <div class="recurring-header">
+        <h2>Your Recurring Orders</h2>
+    </div>
+    {% if templates %}
+        {% for template in templates %}
+        <div class="recurring-card">
+            <div class="recurring-card-body">
+                <div class="recurring-card-title">
+                    {{ template.name }}
+                    <span class="recurring-badge {% if template.is_active %}active{% else %}inactive{% endif %}">
+                        {% if template.is_active %}Active{% else %}Paused{% endif %}
+                    </span>
+                </div>
+                <div class="recurring-details">
+                    <div class="recurring-detail-item">
+                        <span class="recurring-detail-label">Recurrence</span>
+                        <span class="recurring-detail-value">{{ template.get_recurrence_display }}</span>
+                    </div>
+                    <div class="recurring-detail-item">
+                        <span class="recurring-detail-label">Delivery weekday</span>
+                        <span class="recurring-detail-value">{{ template.get_delivery_weekday_display }}</span>
+                    </div>
+                    <div class="recurring-detail-item">
+                        <span class="recurring-detail-label">Start date</span>
+                        <span class="recurring-detail-value">{{ template.start_date }}</span>
+                    </div>
+                    <div class="recurring-detail-item">
+                        <span class="recurring-detail-label">End date</span>
+                        <span class="recurring-detail-value">{{ template.end_date|default:"No end date" }}</span>
+                    </div>
+                </div>
+                <div class="recurring-actions">
+                    <a href="{% url 'recurring_detail' template.template_id %}" class="btn-outline-primary">View Details</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <h3>No recurring orders yet</h3>
+            <p>Create one during checkout by checking "Make this a recurring order".</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

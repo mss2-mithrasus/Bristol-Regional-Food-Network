@@ -96,7 +96,14 @@
         <div class="action-buttons">
             <a href="/customer/home/"  class="btn btn-primary">Continue Shopping</a>
             <a href="{% url 'order_history' %}" class="btn btn-secondary">View All Orders</a>
+            <!-- Add recurring button if this order is a recurring instance -->
+            {% if user.customeraccount.account_type == 'restaurant' %}
+            <a href="{% url 'recurring_list' %}" class="btn btn-secondary">
+                <i class="fa-solid fa-calendar-week"></i> Manage Recurring Orders
+            </a>
+            {% endif %}
         </div>
+        
         
         <div class="receipt-note">
             This receipt is also available in your <a href="{% url 'order_history' %}" class="receipt-link">Order History</a>

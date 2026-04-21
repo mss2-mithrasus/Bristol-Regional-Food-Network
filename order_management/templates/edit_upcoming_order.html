@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'recurring.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="recurring-container">
+    <div class="recurring-header">
+        <h2>Edit Upcoming Order</h2>
+    </div>
+    <div class="recurring-card">
+        <div class="recurring-card-body">
+            <p><strong>Scheduled for:</strong> {{ instance.scheduled_date }}</p>
+            <p><strong>From template:</strong> {{ instance.template.name }}</p>
+            <p style="color: #c62828; background: #ffebee; padding: 8px; border-radius: 6px;">
+                <i class="fa-solid fa-triangle-exclamation"></i> Changes will apply only to this specific delivery, not the recurring template.
+            </p>
+            <form method="post" class="edit-form">
+                {% csrf_token %}
+                {% for item in items %}
+                <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                    <label style="min-width: 200px;">{{ item.name }} ({{ item.producer }}) – £{{ item.price }} each</label>
+                    <input type="number" name="item_{{ item.id }}" value="{{ item.quantity }}" min="0">
+                </div>
+                {% endfor %}
+                <div class="recurring-actions" style="margin-top: 20px;">
+                    <button type="submit" class="btn-outline-primary"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+                    <a href="{% url 'recurring_detail' instance.template.template_id %}" class="btn-outline-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

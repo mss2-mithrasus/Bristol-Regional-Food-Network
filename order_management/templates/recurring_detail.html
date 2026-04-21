@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'recurring.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="recurring-container">
+    <div class="recurring-header">
+        <h2>{{ template.name }}</h2>
+    </div>
+    <div class="recurring-card">
+        <div class="recurring-card-body">
+            <div class="recurring-details">
+                <div class="recurring-detail-item">
+                    <span class="recurring-detail-label">Recurrence</span>
+                    <span class="recurring-detail-value">{{ template.get_recurrence_display }}</span>
+                </div>
+                <div class="recurring-detail-item">
+                    <span class="recurring-detail-label">Delivery weekday</span>
+                    <span class="recurring-detail-value">{{ template.get_delivery_weekday_display }}</span>
+                </div>
+                <div class="recurring-detail-item">
+                    <span class="recurring-detail-label">Start date</span>
+                    <span class="recurring-detail-value">{{ template.start_date }}</span>
+                </div>
+                <div class="recurring-detail-item">
+                    <span class="recurring-detail-label">End date</span>
+                    <span class="recurring-detail-value">{{ template.end_date|default:"No end date" }}</span>
+                </div>
+                <div class="recurring-detail-item">
+                    <span class="recurring-detail-label">Status</span>
+                    <span class="recurring-detail-value">
+                        <span class="recurring-badge {% if template.is_active %}active{% else %}inactive{% endif %}">
+                            {% if template.is_active %}Active{% else %}Paused{% endif %}
+                        </span>
+                    </span>
+                </div>
+            </div>
+            <div class="recurring-actions">
+                <a href="{% url 'toggle_recurring' template.template_id %}" class="btn-outline-warning">
+                    {% if template.is_active %}Pause{% else %}Resume{% endif %}
+                </a>
+                <a href="{% url 'recurring_list' %}" class="btn-outline-secondary">Back to list</a>
+            </div>
+        </div>
+    </div>
+
+    <h3 style="margin: 30px 0 15px 0;">Generated Orders</h3>
+    {% if instances %}
+        {% for data in instances %}
+        <div class="recurring-instance-card">
+            <div class="instance-header">
+                <span class="instance-date"><i class="fa-regular fa-calendar"></i> Scheduled for {{ data.delivery_date }}</span>
+                <span class="instance-status {% if data.instance.status == 'generated' and data.delivery_date >= now.date %}generated{% endif %}">
+                    {{ data.instance.get_status_display }}
+                </span>
+            </div>
+            <div class="recurring-details" style="margin-top: 10px;">
+                <div class="recurring-detail-item">
+                    <span class="recurring-detail-label">Order #</span>
+                    <span class="recurring-detail-value">{{ data.order.order_id }}</span>
+                </div>
+                <div class="recurring-detail-item">
+                    <span class="recurring-detail-label">Total</span>
+                    <span class="recurring-detail-value">£{{ data.order.total_amount }}</span>
+                </div>
+            </div>
+            <ul class="instance-items">
+                {% for item in data.items %}
+                <li>{{ item.quantity }} x {{ item.name }} ({{ item.producer }}) – £{{ item.price }}</li>
+                {% endfor %}
+            </ul>
+            {% if data.instance.status == 'generated' and data.delivery_date >= now.date %}
+            <div class="recurring-actions" style="margin-top: 15px;">
+                <a href="{% url 'edit_upcoming_order' data.instance.instance_id %}" class="btn-outline-primary"> <i class="fa-solid fa-pencil"></i>  Edit this order</a>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <p>No orders generated yet. Run <code>python manage.py generate_recurring_orders</code> or wait for scheduled generation.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

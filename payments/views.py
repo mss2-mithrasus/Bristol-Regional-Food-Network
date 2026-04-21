@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 import json
 from .models import PaymentTransaction, Commission
-from order_management.models import Order, SubOrder, OrderItem
+from order_management.models import Order, SubOrder, OrderItem, RecurringTemplate, RecurringOrderInstance  # Assuming these models are defined in order_management/models.py
 from shopping_cart.models import Cart
 from user_accounts.models import ProducerAccount
 from product.models import Product
@@ -291,6 +291,42 @@ def payment_success(request):
             notify_producers_new_order(order)
         except Exception as e:
             print("Notification error:", e)
+
+
+        # ----- RECURRING ORDER TEMPLATE (Restaurant only) -----
+        form_data = checkout_data.get('form_data', {})
+        is_recurring = form_data.get('recurring') == 'true'
+        if is_recurring and request.user.customeraccount.account_type == 'restaurant':
+            recurrence = form_data.get('recurrence')
+            delivery_weekday = int(form_data.get('delivery_weekday', 0))
+            start_date = form_data.get('start_date')
+            end_date = form_data.get('end_date') or None
+
+            # Get the custom name from the form input
+            recurring_name = form_data.get('recurring_name', '').strip()
+            if not recurring_name:
+                recurring_name = f"Recurring order from {timezone.now().date()}"
+
+            # Build items list from the order we just created
+            items_list = []
+            for suborder in order.suborders.all():
+                for item in suborder.items.all():
+                    items_list.append({
+                        'product_id': item.product.product_id,
+                        'quantity': item.quantity
+                    })
+
+            # Create the template
+            RecurringTemplate.objects.create(
+                customer=request.user.customeraccount,
+                name=recurring_name,    # now this variable is defined
+                recurrence=recurrence,
+                delivery_weekday=delivery_weekday,
+                start_date=start_date,
+                end_date=end_date,
+                is_active=True,
+                items=items_list
+            )
 
         cart.items.all().delete()
         for key in ['checkout_data', 'user_address', 'producer_groups']:
