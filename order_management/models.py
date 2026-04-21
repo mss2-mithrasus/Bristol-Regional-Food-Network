@@ -163,38 +163,61 @@ class OrderItem(models.Model):
         return f"OrderItem #{self.order_item_id}"
     
 # ============================================================
-# RECURRING ORDER
+# RECURRING ORDER TEMPLATE (restaurant sets this up)
 # ============================================================
-class RecurringOrder(models.Model):
-    class RecurrenceSchedule(models.TextChoices):
-        DAILY = 'daily', 'Daily'
-        WEEKLY = 'weekly', 'Weekly'
-        BIWEEKLY = 'biweekly', 'Every 2 Weeks'
-        MONTHLY = 'monthly', 'Monthly'
-        QUARTERLY = 'quarterly', 'Quarterly'
-        YEARLY = 'yearly', 'Yearly'
-
-    recurring_order_id = models.AutoField(primary_key=True)
-
+class RecurringTemplate(models.Model):
+    RECURRENCE_CHOICES = [
+        ('weekly', 'Weekly'),
+        ('fortnightly', 'Fortnightly'),
+        ('monthly', 'Monthly'),
+    ]
+    template_id = models.AutoField(primary_key=True)
     customer = models.ForeignKey(
-        "user_accounts.CustomerAccount",
+        'user_accounts.CustomerAccount',
         on_delete=models.CASCADE,
         db_column="customer_id",
-        related_name="recurring_orders",
+        related_name="recurring_templates",
     )
-
-    recurrence_schedule = models.CharField(
-        max_length=20,
-        choices=RecurrenceSchedule.choices,
-    )
-
-    next_order_date = models.DateField()
-
-    active_status = models.BooleanField(default=True)
+    name = models.CharField(max_length=255, blank=True, help_text="Optional name for this recurring order")
+    recurrence = models.CharField(max_length=20, choices=RECURRENCE_CHOICES, default='weekly')
+    delivery_weekday = models.IntegerField(help_text="0=Monday, 1=Tuesday, ..., 6=Sunday")
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    items = models.JSONField()  # list of {product_id, quantity}
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def get_delivery_weekday_display(self):
+        weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        return weekdays[self.delivery_weekday]
 
     class Meta:
-        managed = True
-        db_table = "recurring_order"
+        db_table = "recurring_template"
 
     def __str__(self):
-        return f"RecurringOrder #{self.recurring_order_id}"
+        return f"RecurringTemplate #{self.template_id} - {self.customer.user.email}"
+
+
+# ============================================================
+# RECURRING ORDER INSTANCE (links generated orders to template)
+# ============================================================
+class RecurringOrderInstance(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('generated', 'Generated'),
+        ('skipped', 'Skipped'),
+        ('cancelled', 'Cancelled'),
+    ]
+    instance_id = models.AutoField(primary_key=True)
+    template = models.ForeignKey(RecurringTemplate, on_delete=models.CASCADE, related_name="instances")
+    order = models.OneToOneField('Order', on_delete=models.CASCADE, related_name="recurring_instance")
+    scheduled_date = models.DateField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "recurring_order_instance"
+        unique_together = [('template', 'scheduled_date')]
+
+    def __str__(self):
+        return f"Instance #{self.instance_id} for template {self.template.template_id}"

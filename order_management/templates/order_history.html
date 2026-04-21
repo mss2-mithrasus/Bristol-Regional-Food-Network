@@ -539,6 +539,7 @@
                 <label>From</label>
                 <input type="date" name="date_from" value="{{ date_from|default:'' }}" class="filter-input">
             </div>
+            
             <div class="filter-group">
                 <label>To</label>
                 <input type="date" name="date_to" value="{{ date_to|default:'' }}" class="filter-input">
@@ -556,6 +557,15 @@
             </div>
             <button type="submit" class="filter-btn">Apply Filters</button>
         </form>
+        <!-- Add recurring button if this order is a recurring instance -->
+                     
+        {% if user.customeraccount.account_type == 'restaurant' %}
+        <div style="margin-bottom: 20px;">
+            <a href="{% url 'recurring_list' %}" class="view-btn" style="background: #406083; display: inline-block;">
+                <i class="fa-solid fa-calendar-week"></i> Manage Recurring Orders
+            </a>
+        </div>
+        {% endif %}
     </div>
     
     {% if orders %}
@@ -706,6 +716,8 @@
                     <button onclick="reorder('{{ order.order_id }}')" class="reorder-btn">
                         <i class="fa-solid fa-cart-plus"></i> Reorder
                     </button>
+                    
+                    
                 </div>
             </div>
         </div>

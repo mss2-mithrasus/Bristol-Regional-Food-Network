@@ -9,7 +9,8 @@ import logging
 import random
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from .models import Order, SubOrder, OrderItem
+from .models import RecurringTemplate, RecurringOrderInstance, Order, SubOrder, OrderItem
+#from .models import Order, SubOrder, OrderItem
 from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 import json
@@ -320,6 +321,104 @@ def multi_checkout(request):
     print(f" Checkout prepared: {len(producer_groups)} producers, Total: £{overall_total}, Items: {total_quantity}")
     
     return render(request, "multi_checkout.html", context)
+
+
+# recurring order views for restaurant to manage their recurring templates and instances
+@login_required
+def recurring_list(request):
+    """List all recurring templates for the logged-in restaurant"""
+    templates = RecurringTemplate.objects.filter(
+        customer=request.user.customeraccount
+    ).order_by('-created_at')
+    return render(request, 'recurring_list.html', {'templates': templates})
+
+@login_required
+def recurring_detail(request, template_id):
+    """Show details of a recurring template and its generated instances"""
+    template = get_object_or_404(
+        RecurringTemplate,
+        pk=template_id,
+        customer=request.user.customeraccount
+    )
+    instances = RecurringOrderInstance.objects.filter(template=template).select_related('order')
+    # For each instance, get the suborders and items for display
+    instance_data = []
+    for inst in instances:
+        suborders = inst.order.suborders.all()
+        items = []
+        for sub in suborders:
+            for item in sub.items.all():
+                items.append({
+                    'name': item.product.name,
+                    'quantity': item.quantity,
+                    'price': item.price_at_purchase,
+                    'producer': sub.producer.business_name,
+                })
+        instance_data.append({
+            'instance': inst,
+            'order': inst.order,
+            'items': items,
+            'delivery_date': inst.scheduled_date,
+        })
+    return render(request, 'recurring_detail.html', {
+        'template': template,
+        'instances': instance_data,
+        'now': timezone.now(),
+    })
+
+@login_required
+def toggle_recurring(request, template_id):
+    """Activate or deactivate a recurring template"""
+    template = get_object_or_404(
+        RecurringTemplate,
+        pk=template_id,
+        customer=request.user.customeraccount
+    )
+    template.is_active = not template.is_active
+    template.save()
+    status = "activated" if template.is_active else "paused"
+    messages.success(request, f"Recurring order {status}.")
+    return redirect('recurring_detail', template_id=template.template_id)
+    #return redirect('recurring_detail', template_id=template.id)
+
+@login_required
+def edit_upcoming_order(request, instance_id):
+    """Edit quantities of a specific upcoming order instance (does not affect template)"""
+    instance = get_object_or_404(
+        RecurringOrderInstance,
+        pk=instance_id,
+        template__customer=request.user.customeraccount,
+        status='generated'
+    )
+    order = instance.order
+    if request.method == 'POST':
+        # Update quantities for order items
+        for suborder in order.suborders.all():
+            for item in suborder.items.all():
+                new_qty = request.POST.get(f'item_{item.order_item_id}')
+                if new_qty and int(new_qty) != item.quantity:
+                    item.quantity = int(new_qty)
+                    item.save()
+        messages.success(request, "Order updated. Changes apply only to this delivery.")
+        return redirect('recurring_detail', template_id=instance.template.template_id)  # Use template_id, not id
+        #return redirect('recurring_detail', template_id=instance.template.id)
+    # Prepare items with current quantities
+    items = []
+    for sub in order.suborders.all():
+        for item in sub.items.all():
+            items.append({
+                'id': item.order_item_id,
+                #'id': item.id,
+                'name': item.product.name,
+                'quantity': item.quantity,
+                'price': item.price_at_purchase,
+                'producer': sub.producer.business_name,
+            })
+    return render(request, 'edit_upcoming_order.html', {
+        'instance': instance,
+        'order': order,
+        'items': items,
+    })
 
 @login_required
 def order_detail(request, order_id):

@@ -1,0 +1,2 @@
+0 2 * * * cd /app && python manage.py generate_recurring_orders >> /var/log/recurring_orders.log 2>&1
+# Empty line at end is required
