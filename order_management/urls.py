@@ -14,4 +14,8 @@ urlpatterns = [
     path('recurring/<int:template_id>/', views.recurring_detail, name='recurring_detail'),
     path('recurring/<int:template_id>/toggle/', views.toggle_recurring, name='toggle_recurring'),
     path('recurring/instance/<int:instance_id>/edit/', views.edit_upcoming_order, name='edit_upcoming_order'), # This line
+    
+    # review url
+    path('review/', views.send_review, name="send_review"),
+    path('delete-review/<int:review_id>/', views.delete_review, name='delete-review'),
 ]

@@ -5,6 +5,7 @@ from django.utils import timezone
 from datetime import timedelta
 from user_accounts.models import CustomerAccount, Person, Address, ProducerAccount
 from shopping_cart.models import Cart, CartItem
+from product.models import ReviewProduct
 import logging
 import random
 from django.contrib.auth.decorators import login_required
@@ -663,12 +664,16 @@ def order_history(request):
                 # original_price = item.original_price_at_purchase or item.price_at_purchase
                 original_price = getattr(item, "original_price_at_purchase", None) or item.price_at_purchase
                 preview_items.append({
+                    'order_item_id': item.order_item_id,
                     'name': item.product.name,
                     'quantity': item.quantity,
                     'price': float(item.price_at_purchase),
                     'original_price': float(original_price),
                     'has_surplus_discount': item.price_at_purchase != original_price,
-                    'producer': suborder.producer.business_name
+                    'producer': suborder.producer.business_name,
+                    # review
+                    'suborder_status': suborder.status,
+                    'review_exists': hasattr(item, 'review'),
                 })
 
         total_items = sum(p['item_count'] for p in producers_data)
@@ -967,3 +972,56 @@ def update_checkout_address(request):
     print("Method not allowed")
     print("=" * 50)
     return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405) #need to use this 
+
+
+@login_required
+def send_review(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request"}, status=400)
+    
+    try: 
+        data = json.loads(request.body)
+        order_item_id = data.get("order_item_id")
+        rating = data.get("rating")
+        text = data.get("text")
+        anon = data.get("anon", False)
+        
+        customer = request.user.customeraccount
+        
+        
+        
+        order_item = OrderItem.objects.get(order_item_id=order_item_id)
+        
+        if order_item.suborder.status != "Delivered":
+            return JsonResponse({"error": "Order has not been delivered"}, status=400)
+        
+        
+        if hasattr(order_item,"review"):
+            return JsonResponse({"error": "Item has already been reviewed"}, status=400)
+        
+        ReviewProduct.objects.create(
+            order_item=order_item,
+            product=order_item.product,
+            customer=customer,
+            rating=int(rating),
+            text=text,
+            anon=anon
+            
+        )
+        
+        return JsonResponse({"success": True})
+    
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+    
+    
+@login_required
+def delete_review(request, review_id):
+    review = ReviewProduct.objects.get(
+        review_id=review_id,
+        customer=request.user.customeraccount
+    )
+    
+    review.delete()
+    
+    return JsonResponse({"success": True})

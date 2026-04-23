@@ -5,7 +5,7 @@ from cloudinary_storage.storage import MediaCloudinaryStorage
 
 class ProductCategory(models.Model):
     category_id = models.AutoField(primary_key=True)
-    category_name = models.CharField(max_length=255)
+    category_name = models.CharField(max_length=255) 
     
     class Meta:
         
@@ -96,3 +96,41 @@ class ProductAllergen(models.Model):
         
     def __str__(self):
         return f"{self.product} - {self.allergen}"
+    
+    
+    
+class ReviewProduct(models.Model):
+        review_id = models.AutoField(primary_key=True)
+        
+        order_item = models.OneToOneField(
+            "order_management.OrderItem",
+            on_delete=models.CASCADE,
+            related_name="review"
+        )
+        
+        product = models.ForeignKey(
+            Product,
+            on_delete=models.CASCADE,
+            related_name="reviews"
+        )
+        
+        
+        customer = models.ForeignKey(
+            "user_accounts.CustomerAccount",
+            on_delete=models.CASCADE
+        )
+        
+        rating = models.IntegerField()
+        text = models.TextField()
+        created_at = models.DateField(auto_now_add=True)
+        anon = models.BooleanField(default=False)
+        
+        class Meta:
+            db_table = "reviews"
+            
+        def __str__(self):
+            return f"{self.product} - {self.rating}"
+        
+        
+        
+        
