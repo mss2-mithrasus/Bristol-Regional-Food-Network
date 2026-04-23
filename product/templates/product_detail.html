@@ -15,17 +15,20 @@
 {% block content%}
  <!--<img src="/static/images/organic.png" class="organic-badge" style="display:;">-->
 
-
 <div class="product-detail-container">
     <div class="product-image-container">
         <img  class="product-detail-img" src="" alt="product image">
     </div>
+
+     
        
     
     <div class="product-info-container">
         <div class="product-box product-details-box">
+
         
             <h3 class="product-name"></h3>
+            <div class="product-rating"></div>
             <h4 class="product-price"></h4>
             <h4 class="product-producer"></h4>
             <h4 class="product-description"></h4>
@@ -61,14 +64,25 @@
 
         </div>
 
+
+       
+
+        </div>
+            
+
     </div>
 
 </div>
+
+<div class="reviews-box">
+            <h2>Customer Reviews</h2>
+            <div class="reviews-list"></div>
 {%endblock%}
 
 {% block scripts%}
 
 <script>
+
 
     //function for auth token
     function getToken(){
@@ -76,6 +90,8 @@
         return localStorage.getItem("access") || sessionStorage.getItem("access");
 
     }
+
+    
 
     // variable to store product_id
     const productId = "{{product_id}}";
@@ -109,6 +125,59 @@
             const data = await response.json();
             const product = data.product;
             const allergens = data.allergens || [];
+            const reviews = data.reviews || [];
+
+            const productReviews = document.querySelector(".reviews-list");
+            productReviews.innerHTML = "";
+
+            if (reviews.length === 0){
+                productReviews.innerHTML = "<p>There are no reviews for this product yet</p>";
+
+            } else {
+                reviews.forEach(r => {
+                    const div = document.createElement("div");
+                    div.classList.add("review-item");
+
+                    div.innerHTML = `
+                     
+                        
+                    <div class="review-header">
+                    <span class="review-name">${r.customer}</span>
+
+                    <button class="delete-review"
+                    onclick="deleteReview(${r.review_id})">
+                    <i class="fa-solid fa-trash-can"></i>
+                    </button>
+ 
+
+                    <span class="verified-badge">
+                        <i class="fa-solid fa-bag-shopping"></i>
+                        </span>
+                        
+                       
+
+                    </div>
+
+                    <div class="stars">
+                    Rating: ${'<i class="fa-solid fa-star"></i>'.repeat(r.rating)}
+                    </div>
+
+                    <p class="review-text">${r.text}</p>
+                    <div class="review-date">
+                    Date of review: ${new Date(r.date).toLocaleDateString()}
+                    </div>
+                    `;
+                    productReviews.appendChild(div);
+                })
+            }
+
+            const ratingBox = document.querySelector(".product-rating");
+
+            if (product.average_rating){
+                ratingBox.innerHTML = `
+                ${Number(product.average_rating).toFixed(1)}
+                <i class="fa-solid fa-star"></i>`
+            }
 
             // inserting product name, description and producer name into page
             document.querySelector(".product-name").textContent = "Product: " + product.name;
@@ -201,6 +270,7 @@
                 
                  
             }
+            
 
             
 
@@ -240,10 +310,79 @@
             console.error("error loading product details", error);
         }
     }
+
+let reviewDelete = null;
+
+function deleteReview(reviewId){
+
+    reviewDelete = reviewId;
+    document.getElementById("deleteReviewPopup").style.display = "flex";
+}
+
+function closeDeletePopup(){
+
+    document.getElementById("deleteReviewPopup").style.display = "none";
+
+}
+
+function closeSuccessPopup(){
+    document.getElementById("successPopup").style.display = "none";
+    location.reload();
+}
+
+
+
+function confirmDeleteReview(){
+
+    fetch(`/orders/delete-review/${reviewDelete}/`)
+        .then( response =>  response.json())
+        .then(data => {
+            closeDeletePopup();
+            document.getElementById("successPopup").style.display = "flex";
+        })
+
+      
+           
+
+        .catch(error => {
+            console.error("delete failed:", error)
+        });
+
+     
+}
+
     // run ProductDetail function on page load
     document.addEventListener("DOMContentLoaded", ProductDetails);
 
 
+
+
 </script>
+
+<div id="deleteReviewPopup" class="remove-item">
+    <div class="remove-box">
+        <h3>Delete Your Review?</h3>
+        
+        <div class="removal-actions">
+            <button onclick="confirmDeleteReview()">Delete</button>
+            <button onclick="closeDeletePopup()">Cancel</button>
+
+        </div>
+    </div>
+</div>
+
+<div id="successPopup" class="remove-item">
+    <div class="remove-box">
+        
+        
+        <div class="removal-actions">
+            <button onclick="closeSuccessPopup()">Review Deleted</button>
+           
+
+        </div>
+    </div>
+</div>
+
+
 
 {% endblock%}

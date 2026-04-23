@@ -84,11 +84,14 @@
             </div>
             
             <!-- Micaiah changed so if there is an active surplus deal it displays the discount price  -->
-            <div class="item-price">£{{ item.unit_price|floatformat:2 }}</div>
             <div class="item-price">
                 {% if item.unit_price != item.product.price %}
-                    <span style="text-decoration: line-through; color:#777;">£{{ item.product.price|floatformat:2 }}</span>
-                    <strong style="color:#c62828;"> £{{ item.unit_price|floatformat:2 }}</strong>
+                    <span style="text-decoration: line-through; color:#777;">
+                        £{{ item.product.price|floatformat:2 }}
+                    </span>
+                    <strong style="color:#c62828;">
+                        £{{ item.unit_price|floatformat:2 }}
+                    </strong>
                 {% else %}
                     £{{ item.unit_price|floatformat:2 }}
                 {% endif %}

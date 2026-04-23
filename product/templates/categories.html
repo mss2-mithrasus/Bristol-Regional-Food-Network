@@ -316,7 +316,8 @@
                         <i class="fa-regular fa-bell"></i> Notify when available
                     </button>
 
-                    <a href="/customer/home/product/${product.product_id}/">
+                    <a href="/customer/home/product/${product.product_id}/"
+                        onclick="productViewed(${product.product_id})">
                         <button class="product-details">View Product Details</button>
                     </a>
                 
@@ -373,6 +374,11 @@
                 addToCartBtn.addEventListener('click', function(e) {
                     e.preventDefault();
                     const productId = card.dataset.productId;
+                    const viewed = sessionStorage.getItem(`viewed_${productId}`);
+                    if (!viewed){
+                        showNotification("Please read allergen info before adding to cart", "error");
+                        return;
+                    }
                     if (!productId) {
                         showNotification('Error: Product ID not found', 'error');
                         return;
@@ -616,6 +622,7 @@
                 }
             });
 
+            /*
             card.querySelector('.minus')?.addEventListener('click', function(e) {
                 e.preventDefault();
                 const display = card.querySelector('.quantity-display');
@@ -629,7 +636,9 @@
                     }
                 }
             });
+        */
 
+            
             card.querySelector('.add-cart')?.addEventListener('click', function(e) {
                 e.preventDefault();
                 const productId = card.dataset.productId;
@@ -642,6 +651,8 @@
                 addToCart(productId, quantity, this);
             });
         });
+        
+        
 
         // Update notify buttons based on real-time availability
         document.querySelectorAll('.product-card').forEach(async card => {
@@ -649,6 +660,8 @@
             if (productId) await updateNotifyButton(card, productId);
         });
     });
+
+
 
     function logoutUser() {
         localStorage.clear();

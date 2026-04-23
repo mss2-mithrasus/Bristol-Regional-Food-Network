@@ -622,6 +622,23 @@
                             £{{ item.price|floatformat:2 }}
                         {% endif %}
                     </div>
+
+                    <!-- reviews -->
+
+                    {% if item.suborder_status == "Delivered" %}
+                        {% if not item.review_exists %}
+                            <button class="review-button"
+                                onclick="openReviewBox('{{item.order_item_id}}')">
+                            Rate Product
+                            </button>
+
+                            {% else %}
+                                <span class='reviewed'>Reviewed</span>
+                            {%endif%}
+                    {% endif %}
+
+
+
                 </div>
                 {% endfor %}
                 
@@ -753,6 +770,48 @@
     {% endif %}
 </div>
 
+<!-- Review Modal  -->
+
+<div id="reviewModal" class="modal">
+    <div class="review-info">
+        <form id="reviewBox">
+            {%csrf_token%}
+            <input type = "hidden" id="reviewOrderItemId">
+
+            <label>Rating</label>
+            <select id="reviewRating" required>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+            </select>
+            <label>Review</label>
+            <textarea id="reviewText" rows="4" required></textarea>
+
+            <label style="margin-top:10px;">
+                <input type="checkbox" id="anon">
+                Hide your name in the review
+            </label>
+
+            <div class= "review-actions">
+                <button type="submit" class="submit-review">
+                    Submit Review
+                </button>
+
+                <button type="button"
+                    class="close-button"
+                    onclick="closeReviewBox()">
+                    Close
+                </button>
+
+            </div>
+        </form>
+        
+    </div>
+</div>
+
+
 <!-- Reorder Modal  -->
 <div id="reorderModal" class="modal">
     <div class="modal-content">
@@ -769,6 +828,7 @@
         </div>
     </div>
 </div>
+
 
 <!-- Reorder Modal Script -->
 <script>
@@ -799,6 +859,56 @@ function updateCartBadgeAfterReorder(totalItems) {
         }
     }
 }
+
+// Review script
+
+function openReviewBox(orderItemId) {
+    console.log("opeinging review for:", orderItemId);
+    document.getElementById('reviewOrderItemId').value = orderItemId;
+    document.getElementById('reviewModal').style.display = 'block';
+}
+
+function closeReviewBox(){
+    document.getElementById('reviewModal').style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+    const reviewForm = document.getElementById('reviewBox');
+
+    if (reviewForm) {
+
+        reviewForm.addEventListener('submit', function(e){
+            e.preventDefault();
+        
+
+            fetch("{% url 'send_review' %}", {
+                    method: "POST",
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    },
+
+                    body: JSON.stringify({
+                        order_item_id: document.getElementById('reviewOrderItemId').value,
+                        rating: document.getElementById('reviewRating').value,
+                        text: document.getElementById('reviewText').value,
+                        anon: document.getElementById('anon').checked
+                    })
+                })
+            .then(response => response.json())
+            .then(data => {
+                    if (data.success) {
+                        
+                        closeReviewBox();
+                        document.getElementById("successPopup").style.display = "flex";
+                       
+                    } else {
+                        alert(data.error)
+                    }
+                }); 
+            });
+        }
+    });
 
 // Function to go to cart with cache busting
 function goToCartWithForce() {
@@ -922,5 +1032,31 @@ window.onclick = function(event) {
         closeModal();
     }
 }
+
+
+function closeSuccessPopup(){
+    document.getElementById("successPopup").style.display = "none";
+    location.reload();
+}
+
 </script>
+
+
+
+
+
+<div id="successPopup" class="remove-item">
+    <div class="remove-box">
+        <p>Your review has been submitted successfully</p>
+        
+        
+        <div class="removal-actions">
+            <button onclick="closeSuccessPopup()">Ok</button>
+           
+
+        </div>
+    </div>
+</div>
+
+
 {% endblock %}

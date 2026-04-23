@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Product, ProductCategory, ProductAllergen
+from .models import Product, ProductCategory, ProductAllergen, ReviewProduct
 from .serializers import ProductSerializer, ProductCategorySerializer, ProductAllergenSerializer
 from rest_framework.permissions import AllowAny
 from rest_framework import generics
@@ -22,6 +22,7 @@ from producers.utils import (
     is_product_valid_for_fulfilment,
 )
 from django.utils import timezone
+from django.db.models import Avg
 # api to return all product categories for the frontend page
 
 class CustomerAPIView(APIView):
@@ -246,7 +247,15 @@ class ProductDetailAPIView(APIView):
 
         serializer = ProductSerializer(product)
         product_dict = serializer.data
+    
+        
         product_dict['available_stock'] = available_stock
+        
+        average_rating = ReviewProduct.objects.filter(product=product).aggregate(
+            avg=Avg('rating')
+        )['avg']
+        
+        product_dict['average_rating'] = round(average_rating, 1) if average_rating else None
         # Surplus deal
         # active_deal = SurplusDiscount.objects.filter(
         #     product=product,
@@ -287,6 +296,24 @@ class ProductDetailAPIView(APIView):
         print("producer postcode:", producer_postcode)
 
         farm_miles = food_miles(customer_postcode, producer_postcode)
+        
+        reviews = ReviewProduct.objects.filter(
+            product=product
+            
+            
+        ).select_related("customer")
+        
+        reviews_data = [
+            {
+            "review_id": r.review_id,
+            "rating": r.rating,
+            "text": r.text,
+            "date": r.created_at,
+            "customer": "Anonymous" if r.anon else r.customer.user.person.first_name
+        }
+            for r in reviews
+            
+            ]
 
 
 
@@ -295,7 +322,8 @@ class ProductDetailAPIView(APIView):
             {
                 "product": product_dict,
                 "farm_miles": farm_miles,
-                "allergens": allergens_serializer.data
+                "allergens": allergens_serializer.data,
+                "reviews": reviews_data
             },
             status=status.HTTP_200_OK
         )
