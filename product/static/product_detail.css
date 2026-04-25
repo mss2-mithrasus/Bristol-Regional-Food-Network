@@ -336,3 +336,25 @@
 }
 
 
+.review-filter select{
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+
+.review-filter select:hover{
+    border-color: #636161;
+}
+
+
+.review-filter select:focus{
+    outline: none;
+    border-color: #4a90e2;
+    box-shadow:  0 0 0 2px rgba(73, 140, 226, 0.2);
+}
+

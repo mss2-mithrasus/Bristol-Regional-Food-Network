@@ -230,6 +230,7 @@ class ProductDetailAPIView(APIView):
     permission_classes = [IsAuthenticated, IsCustomer]
 
     def get(self, request, product_id):
+        request.session[f"viewed_{product_id}"] = True
         deactivate_expired_products()
         expire_surplus_deals()
         # getting product based on primary key
@@ -251,7 +252,7 @@ class ProductDetailAPIView(APIView):
         
         product_dict['available_stock'] = available_stock
         
-        average_rating = ReviewProduct.objects.filter(product=product).aggregate(
+        average_rating = ReviewProduct.objects.filter(product=product, review_verified=True).aggregate(
             avg=Avg('rating')
         )['avg']
         
@@ -297,8 +298,12 @@ class ProductDetailAPIView(APIView):
 
         farm_miles = food_miles(customer_postcode, producer_postcode)
         
+        
+        
+        
         reviews = ReviewProduct.objects.filter(
-            product=product
+            product=product,
+            review_verified=True
             
             
         ).select_related("customer")

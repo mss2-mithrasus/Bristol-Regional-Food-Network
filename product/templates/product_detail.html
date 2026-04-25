@@ -20,11 +20,14 @@
         <img  class="product-detail-img" src="" alt="product image">
     </div>
 
-     
+      
        
     
     <div class="product-info-container">
-        <div class="product-box product-details-box">
+        <div class="product-box product-details-box"
+        id="productDetailCard"
+        data-product-id=""
+        data-max-stock="0">
 
         
             <h3 class="product-name"></h3>
@@ -34,12 +37,8 @@
             <h4 class="product-description"></h4>
 
             <div class="button-group">
-                        <div class="quantity">
-                            <button class="minus">-</button>
-                            <span class="quantity-display">1</span>
-                            <button class="plus">+</button>
-                        </div>
-                        <button class="add-cart">Add to Cart</button>
+                        
+                        
                     </div> 
 
 
@@ -76,12 +75,26 @@
 
 <div class="reviews-box">
             <h2>Customer Reviews</h2>
+            <div class="review-filter">
+                <label for="filterReviews">Filter reviews:</label>
+                <select id="filterReviews">
+                    <option value="recent">Most Recent</option>
+                    <option value="highest">Highest Rating</option>
+                    <option value="lowest">Lowest Rating </option>
+
+                </select>
+            </div>
             <div class="reviews-list"></div>
 {%endblock%}
 
 {% block scripts%}
 
 <script>
+    
+
+    
+
+    let allReviews = [];
 
 
     //function for auth token
@@ -102,6 +115,9 @@
         "{{ allergen.allergen_id}}" : "{{allergen.name}}"
         {%endfor%}
     };
+    
+
+
 
     // function to fetch product details from api
     async function ProductDetails(){
@@ -121,56 +137,18 @@
                 console.error("error loading product");
                 return;
             }
+
+            
             // covert the response to json
             const data = await response.json();
             const product = data.product;
             const allergens = data.allergens || [];
-            const reviews = data.reviews || [];
+            allReviews = data.reviews || [];
+            allReviews.sort((a,b) => new Date(b.date)- new Date(a.date));
+           
 
-            const productReviews = document.querySelector(".reviews-list");
-            productReviews.innerHTML = "";
-
-            if (reviews.length === 0){
-                productReviews.innerHTML = "<p>There are no reviews for this product yet</p>";
-
-            } else {
-                reviews.forEach(r => {
-                    const div = document.createElement("div");
-                    div.classList.add("review-item");
-
-                    div.innerHTML = `
-                     
-                        
-                    <div class="review-header">
-                    <span class="review-name">${r.customer}</span>
-
-                    <button class="delete-review"
-                    onclick="deleteReview(${r.review_id})">
-                    <i class="fa-solid fa-trash-can"></i>
-                    </button>
- 
-
-                    <span class="verified-badge">
-                        <i class="fa-solid fa-bag-shopping"></i>
-                        </span>
-                        
-                       
-
-                    </div>
-
-                    <div class="stars">
-                    Rating: ${'<i class="fa-solid fa-star"></i>'.repeat(r.rating)}
-                    </div>
-
-                    <p class="review-text">${r.text}</p>
-                    <div class="review-date">
-                    Date of review: ${new Date(r.date).toLocaleDateString()}
-                    </div>
-                    `;
-                    productReviews.appendChild(div);
-                })
-            }
-
+            displayReviews(allReviews);
+                
             const ratingBox = document.querySelector(".product-rating");
 
             if (product.average_rating){
@@ -311,6 +289,61 @@
         }
     }
 
+
+function displayReviews(reviews){
+
+    const productReviews = document.querySelector(".reviews-list");
+    productReviews.innerHTML = "";
+
+    if (reviews.length === 0){
+        productReviews.innerHTML = "<p>There are no reviews for this product yet</p>"
+        return;
+
+    }
+
+
+    reviews.forEach(r => {
+                    const div = document.createElement("div");
+                    div.classList.add("review-item");
+
+                    div.innerHTML = `
+                     
+                        
+                    <div class="review-header">
+                    <span class="review-name">${r.customer}</span>
+
+                    <button class="delete-review"
+                    onclick="deleteReview(${r.review_id})">
+                    <i class="fa-solid fa-trash-can"></i>
+                    </button>
+ 
+
+                    <span class="verified-badge">
+                        <i class="fa-solid fa-bag-shopping"></i>
+                        </span>
+                        
+                       
+
+                    </div>
+
+                    <div class="stars">
+                    Rating: ${'<i class="fa-solid fa-star"></i>'.repeat(r.rating)}
+                    </div>
+
+                    <p class="review-text">${r.text}</p>
+                    <div class="review-date">
+                    Date of review: ${new Date(r.date).toLocaleDateString()}
+                    </div>
+                    `;
+                    productReviews.appendChild(div);
+                })
+            }
+
+    
+
+
+
+
 let reviewDelete = null;
 
 function deleteReview(reviewId){
@@ -334,7 +367,13 @@ function closeSuccessPopup(){
 
 function confirmDeleteReview(){
 
-    fetch(`/orders/delete-review/${reviewDelete}/`)
+    fetch(`/orders/delete-review/${reviewDelete}/`, {
+        method: "POST",
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
         .then( response =>  response.json())
         .then(data => {
             closeDeletePopup();
@@ -355,6 +394,30 @@ function confirmDeleteReview(){
     document.addEventListener("DOMContentLoaded", ProductDetails);
 
 
+document.addEventListener("DOMContentLoaded", function(){
+
+
+    document.getElementById("filterReviews").addEventListener("change", function (){
+        let sorted = [...allReviews];
+
+        if (this.value === "recent"){
+            sorted.sort((a,b) => new Date(b.date) - new Date(a.date));
+        }
+
+        if (this.value === "highest"){
+            sorted.sort((a,b) => b.rating - a.rating);
+        }
+
+        if (this.value === "lowest"){
+            sorted.sort((a,b) => a.rating - b.rating);
+        }
+
+        displayReviews(sorted);
+
+});
+
+
+});
 
 
 </script>

@@ -6,6 +6,9 @@ from django.views import View
 from django.db.models import Sum, Count, F
 from django.db.models.functions import TruncDate
 from user_accounts.permissions import IsAdmin
+from product.models import ReviewProduct
+from django.shortcuts import get_object_or_404
+from rest_framework.permissions import IsAuthenticated
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -531,3 +534,57 @@ def AnalyticsData(request):
         "commission_time": list(commission_time),
         "producers": producers,
     })
+
+
+class PendingReviewsView(APIView):
+    permission_classes = [IsAdmin]
+    
+    def get(self, request):
+        reviews = ReviewProduct.objects.filter(review_verified=False).select_related(
+            "product",
+            "customer__user"
+        )
+        
+        results = []
+        
+        for r in reviews:
+            results.append({
+            "review_id": r.review_id,
+            "product": r.product.name,
+            "rating": r.rating,
+            "text": r.text,
+            "date": r.created_at,
+            "customer": "Anonymous" if r.anon else r.customer.user.person.first_name,
+            })
+            
+        return Response(results)
+    
+    
+class ApproveReviewView(APIView):
+    permission_classes = [IsAdmin]
+    
+    def post(self,request, review_id):
+        
+        
+        review = get_object_or_404(ReviewProduct, review_id=review_id)
+        
+        review.review_verified = True
+        review.save()
+        
+        return Response({"message": "Review approved"})
+    
+    
+class RejectReviewView(APIView):
+    permission_classes = [IsAdmin]
+    
+    def post (self,request, review_id):
+        
+        
+        review = get_object_or_404(
+            ReviewProduct,
+            review_id=review_id
+        )
+        
+        review.delete()
+        
+        return Response({"message": "Review rejected"})

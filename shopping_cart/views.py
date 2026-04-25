@@ -242,6 +242,17 @@ def add_to_cart(request):
     product_id = serializer.validated_data['product_id']
     requested_quantity = serializer.validated_data['quantity']
     
+    viewed = request.session.get(f"viewed_{product_id}")
+    
+    if not viewed:
+        return Response(
+            {
+                'success': False,
+                'error': 'Please view product details for allergen information before adding to cart'
+            },
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
     # try:
     #     product = Product.objects.select_for_update().get(
     #         product_id=product_id, 
