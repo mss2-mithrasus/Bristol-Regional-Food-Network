@@ -374,11 +374,8 @@
                 addToCartBtn.addEventListener('click', function(e) {
                     e.preventDefault();
                     const productId = card.dataset.productId;
-                    const viewed = sessionStorage.getItem(`viewed_${productId}`);
-                    if (!viewed){
-                        showNotification("Please read allergen info before adding to cart", "error");
-                        return;
-                    }
+                    
+                    
                     if (!productId) {
                         showNotification('Error: Product ID not found', 'error');
                         return;

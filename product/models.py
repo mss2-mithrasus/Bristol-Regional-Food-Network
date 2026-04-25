@@ -124,6 +124,7 @@ class ReviewProduct(models.Model):
         text = models.TextField()
         created_at = models.DateField(auto_now_add=True)
         anon = models.BooleanField(default=False)
+        review_verified = models.BooleanField(default=False)
         
         class Meta:
             db_table = "reviews"

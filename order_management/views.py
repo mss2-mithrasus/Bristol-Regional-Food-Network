@@ -985,6 +985,7 @@ def send_review(request):
         rating = data.get("rating")
         text = data.get("text")
         anon = data.get("anon", False)
+        review_verified=False
         
         customer = request.user.customeraccount
         
@@ -1005,7 +1006,8 @@ def send_review(request):
             customer=customer,
             rating=int(rating),
             text=text,
-            anon=anon
+            anon=anon, 
+            review_verified=False
             
         )
         
@@ -1021,6 +1023,11 @@ def delete_review(request, review_id):
         review_id=review_id,
         customer=request.user.customeraccount
     )
+    
+    if not review:
+        return JsonResponse(
+            {"error": "Review not found"}, status=404
+        )
     
     review.delete()
     

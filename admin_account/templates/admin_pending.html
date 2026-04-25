@@ -56,6 +56,14 @@
                 <div id="producerContainer"></div>
             </section>
 
+            <section class="admin_section">
+                <h2>Pending Reviews</h2>
+                <div id="reviewContainer"></div>
+            </section>
+
+
+
+
         </div>
 
     </main>
@@ -81,6 +89,46 @@ async function loadPendingAccounts() {
     renderList(restaurants, "restaurantContainer", "customer");
     renderList(producers, "producerContainer", "producer");
 }
+
+
+async function loadPendingReviews(){
+
+    const response = await fetch("/admin-dashboard/reviews/pending/", {
+        headers: { "Authorization": "Bearer " + getToken() }
+    });
+
+    const reviews = await response.json();
+
+    const container = document.getElementById("reviewContainer");
+    container.innerHTML = "";
+
+    reviews.forEach(r => {
+        container.innerHTML += `
+
+        <div class="admin_card">
+            <p>Product:${r.product}</p>
+            <p>Customer:${r.customer}</p>
+            <p>Rating:${r.rating}</p>
+            <p>${r.text}</p>
+
+            <button class="approve_btn" onclick="approveReview(${r.review_id})">
+            Approve
+            </button>
+
+            <button class="reject_btn" onclick="rejectReview(${r.review_id})">
+            Reject
+            </button>
+
+
+            </div>
+        
+        `
+    })
+
+}
+
+
+
 
 function renderList(list, containerId, role) {
     const container = document.getElementById(containerId);
@@ -129,7 +177,42 @@ async function rejectAccount(id) {
     loadPendingAccounts();
 }
 
-window.onload = loadPendingAccounts;
+async function approveReview(reviewId){
+    await fetch(`/admin-dashboard/reviews/${reviewId}/approve/`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + getToken()
+        },
+        
+    });
+    loadPendingReviews();
+
+}
+
+async function rejectReview(reviewId){
+    await fetch(`/admin-dashboard/reviews/${reviewId}/reject/`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + getToken()
+        },
+        
+    });
+    loadPendingReviews();
+
+}
+
+
+
+window.onload =  () => {
+    loadPendingAccounts();
+    loadPendingReviews();
+
+}
+
+
+
 </script>
 
 {% endblock %}
