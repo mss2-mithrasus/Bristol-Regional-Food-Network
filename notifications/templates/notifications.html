@@ -144,10 +144,17 @@
                 const orderMatch = notif.title.match(/Order #(\d+)/);
                 if (orderMatch && orderMatch[1]) {
                     orderId = orderMatch[1];
-                    // Go to order history page
                     linkUrl = `/orders/detail/${orderId}/`;
                 } else {
                     linkUrl = '/orders/history/';
+                }
+            } else if (notif.notification_type === 'surplus_available') {
+                // Surplus notifications go to product detail page
+                const productMatch = notif.message.match(/(\w+) is now available/);
+                if (productMatch && productMatch[1]) {
+                    linkUrl = '/customer/home/';
+                } else {
+                    linkUrl = '/customer/home/';
                 }
             }
             
@@ -178,6 +185,7 @@
             'stock_available': 'fa-box-open',
             'price_drop': 'fa-tag',
             'order_update': 'fa-truck',
+            'surplus_available': 'fa-tag',
             'general': 'fa-bell'
         };
         return icons[type] || 'fa-bell';
