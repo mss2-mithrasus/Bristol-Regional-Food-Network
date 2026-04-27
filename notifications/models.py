@@ -38,6 +38,7 @@ class Notification(models.Model):
         ('stock_available', 'Stock Available'),
         ('price_drop', 'Price Drop'),
         ('order_update', 'Order Update'),
+        ('surplus_available', 'Surplus Deal Available'), #added
         ('general', 'General'),
     ]
     

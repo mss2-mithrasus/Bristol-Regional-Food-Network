@@ -1057,6 +1057,7 @@ class ProducerCreateSurplusDealAPI(APIView):
                 },
                 status=400
             )
+            
         existing_active = SurplusDiscount.objects.filter(
             product=product,
             status="active",
@@ -1075,6 +1076,11 @@ class ProducerCreateSurplusDealAPI(APIView):
         serializer = SurplusDiscountSerializer(data=payload)
         if serializer.is_valid():
             deal = serializer.save(status="active")
+            
+            # Send notifications to customers (mithra added)
+            from notifications.utils import notify_customers_surplus_deal
+            notify_customers_surplus_deal(product, deal.discount_percentage)
+            
             return Response(SurplusDiscountSerializer(deal).data, status=201)
 
         return Response(serializer.errors, status=400)
