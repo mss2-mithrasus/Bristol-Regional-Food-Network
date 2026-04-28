@@ -329,9 +329,18 @@
     margin: 0 8px;
 }
 
-.preview-item-price {
+/* .preview-item-price {
     font-weight: 600;
     color: #28a745;
+} */
+.preview-item-price {
+    font-weight: 600;
+    color: #333;
+}
+
+.preview-item-total {
+    font-weight: 700;
+    color: #406083;
 }
 
 .more-items-badge {
@@ -603,24 +612,31 @@
             
             <!-- Preview Items -->
             <div class="preview-grid">
-                {% for item in order.items|slice:":4" %}
+                {% for item in order.items %}
                 <div class="preview-item">
                     <div class="preview-item-details">
                         <div class="preview-item-name">{{ item.name }}</div>
                         <div class="preview-item-producer">{{ item.producer }}</div>
                     </div>
-                    <div class="preview-item-quantity">x{{ item.quantity }}</div>
+                    <div class="preview-item-quantity">
+                        Qty: {{ item.quantity }}
+                    </div>
+
                     <div class="preview-item-price">
+                        Price:
                         {% if item.has_surplus_discount %}
                             <span style="text-decoration: line-through; color:#888;">
                                 £{{ item.original_price|floatformat:2 }}
                             </span>
-                            <span style="color:#28a745; font-weight:600;">
+                            <span style="color:#333; font-weight:600;">
                                 £{{ item.price|floatformat:2 }}
                             </span>
                         {% else %}
                             £{{ item.price|floatformat:2 }}
                         {% endif %}
+                    </div>
+                    <div class="preview-item-total">
+                        Total: £{{ item.total|floatformat:2 }}
                     </div>
 
                     <!-- reviews -->

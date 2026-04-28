@@ -37,43 +37,58 @@
 
             <div class="producer-content">
                 <!-- Products Section -->
-                <div class="products-section">
-                    <h4>Your Items</h4>
-                    <ul class="product-list">
-                        {% for item in group.items %}
-                        <li class="product-row">
-                            <div class="product-image">
-                                {% if item.image %}
+                <div class="checkout-table">
+
+                    <!-- Header -->
+                    <div class="checkout-header">
+                        <div>Product</div>
+                        <div>Price</div>
+                        <div>Quantity</div>
+                        <div>Total</div>
+                    </div>
+
+                    {% for item in group.items %}
+                    <div class="checkout-row">
+
+                        <!-- Product -->
+                        <div class="checkout-product">
+                            {% if item.image %}
                                 <img src="{{ item.image }}" alt="{{ item.name }}">
-                                {% else %}
+                            {% else %}
                                 <img src="{% static 'images/default-product.png' %}" alt="{{ item.name }}">
+                            {% endif %}
+
+                            <div class="checkout-product-info">
+                                <span class="name">{{ item.name }}</span>
+                                {% if item.unit %}
+                                    <span class="unit">{{ item.unit }}</span>
                                 {% endif %}
                             </div>
-                            <div class="product-info">
-                                <span class="p-name">{{ item.name }}</span>
-                                {% if item.unit %}<span class="p-unit">{{ item.unit }}</span>{% endif %}
-                                {% if item.organic_certified %}
-                                <img src="{% static 'images/organic.png' %}" alt="Organic" class="organic">
-                                {% endif %}
-                            </div>
-                            <span class="p-qty">x{{ item.quantity }}</span>
-                            <!-- <span class="p-price">£{{ item.price_formatted }}</span> -->
-                            <!-- Micaiah added for surplus discount -->
-                            <span class="p-price">
-                                {% if item.has_surplus_discount %}
-                                    <span style="text-decoration: line-through; color:#777;">
-                                        £{{ item.original_price|floatformat:2 }}
-                                    </span>
-                                    <strong style="color:#c62828;">
-                                        £{{ item.price_formatted }}
-                                    </strong>
-                                {% else %}
-                                    £{{ item.price_formatted }}
-                                {% endif %}
-                            </span>
-                        </li>
-                        {% endfor %}
-                    </ul>
+                        </div>
+
+                        <!-- Unit Price -->
+                        <div class="checkout-price">
+                            {% if item.has_surplus_discount %}
+                                <span class="old">£{{ item.original_price|floatformat:2 }}</span>
+                                <strong class="new">£{{ item.price_formatted }}</strong>
+                            {% else %}
+                                £{{ item.price_formatted }}
+                            {% endif %}
+                        </div>
+
+                        <!-- Quantity -->
+                        <div class="checkout-qty">
+                            x{{ item.quantity }}
+                        </div>
+
+                        <!-- Total -->
+                        <div class="checkout-total">
+                            £{{ item.item_total_formatted }}
+                        </div>
+
+                    </div>
+                    {% endfor %}
+
                 </div>
 
                 <!-- Producer Summary -->
@@ -86,16 +101,7 @@
                             <!-- <span class="summary-value">£{{ item.price_formatted }}</span> -->
                             <!-- Micaiah changed for surplus discount  -->
                             <span class="summary-value">
-                                {% if item.has_surplus_discount %}
-                                    <span style="text-decoration: line-through; color:#777;">
-                                        £{{ item.original_price|floatformat:2 }}
-                                    </span>
-                                    <strong style="color:#c62828;">
-                                        £{{ item.price_formatted }}
-                                    </strong>
-                                {% else %}
-                                    £{{ item.price_formatted }}
-                                {% endif %}
+                                £{{ item.item_total_formatted }}
                             </span>
                         </div>
                         {% endfor %}

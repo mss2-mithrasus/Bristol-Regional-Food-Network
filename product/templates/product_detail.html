@@ -35,32 +35,33 @@
             <h4 class="product-price"></h4>
             <h4 class="product-producer"></h4>
             <h4 class="product-description"></h4>
+            
+            <!-- Micaiah added add to cart logic -->
+            <div class="button-group" id="detailButtonGroup">
+                <div class="quantity">
+                    <button class="minus" type="button">-</button>
+                    <span class="quantity-display">1</span>
+                    <button class="plus" type="button">+</button>
+                </div>
 
-            <div class="button-group">
-                        
-                        
-                    </div> 
+                <button class="add-cart" type="button">Add to Cart</button>
+            </div>
 
-
-                    <button class="notify-btn"
-                            data-product-id="${product.product_id }"
-                            onclick="showStockAlert(event, ${product.product_id}, '${product.name}')"
-                            style="display: none;">
-                        <i class="fa-regular fa-bell"></i> Notify when available
-                    </button>
+            <button class="notify-btn" style="display:none;">
+                <i class="fa-regular fa-bell"></i> Notify when available
+            </button>
 
 
         </div>
 
         <div class="product-box farm-miles-box">
-            <h4 class="farm-miles"></h4>
+            <h4 class="farm-miles">Farm Miles</h4>
         </div>
 
 
         <div class="product-box allergens-box">
             <h3>Allergens</h3>
             <ul class="allergens-list"></ul>
-
         </div>
 
 
@@ -85,6 +86,34 @@
                 </select>
             </div>
             <div class="reviews-list"></div>
+
+<!-- Stock alert -->
+<div id="stockAlertModal" class="modal" style="display: none;">
+    <div class="modal-content stock-alert-content">
+        <div class="modal-header">
+            <h2>Get Notified</h2>
+            <span class="close-modal" onclick="closeStockAlertModal()">&times;</span>
+        </div>
+
+        <div class="modal-body">
+            <p id="modal-product-name"></p>
+
+            <div class="quantity-selector">
+                <label for="alert-quantity">Quantity:</label>
+                <div class="quantity-input-group">
+                    <button type="button" class="quantity-btn" onclick="decrementAlertQuantity()">-</button>
+                    <input type="number" id="alert-quantity" value="1" min="1" max="99">
+                    <button type="button" class="quantity-btn" onclick="incrementAlertQuantity()">+</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeStockAlertModal()">Cancel</button>
+            <button class="btn-confirm" onclick="confirmStockAlert()">Notify Me</button>
+        </div>
+    </div>
+</div>
 {%endblock%}
 
 {% block scripts%}
@@ -142,6 +171,39 @@
             // covert the response to json
             const data = await response.json();
             const product = data.product;
+            const card = document.getElementById("productDetailCard");
+            card.dataset.productId = product.product_id;
+            card.dataset.maxStock = product.stock_quantity || 0;
+
+            const availableStock = Number(product.available_stock ?? product.stock_quantity ?? 0);
+            const canBuy = product.can_buy === true;
+
+            const buttonGroup = document.getElementById("detailButtonGroup");
+            const addCartBtn = document.querySelector(".add-cart");
+            const notifyBtn = document.querySelector(".notify-btn");
+
+            if (!canBuy) {
+                card.classList.add("unavailable-product");
+                addCartBtn.disabled = true;
+                addCartBtn.textContent = "Unavailable";
+
+                if (availableStock <= 0) {
+                    notifyBtn.style.display = "block";
+                } else {
+                    notifyBtn.style.display = "none";
+                }
+
+                if (product.unavailable_reason) {
+                    buttonGroup.insertAdjacentHTML(
+                        "beforebegin",
+                        `<p class="status-out-of-stock">${product.unavailable_reason}</p>`
+                    );
+                }
+            } else {
+                addCartBtn.disabled = false;
+                addCartBtn.textContent = "Add to Cart";
+                notifyBtn.style.display = "none";
+            }
             const allergens = data.allergens || [];
             allReviews = data.reviews || [];
             allReviews.sort((a,b) => new Date(b.date)- new Date(a.date));
@@ -158,37 +220,51 @@
             }
 
             // inserting product name, description and producer name into page
-            document.querySelector(".product-name").textContent = "Product: " + product.name;
+            //document.querySelector(".product-name").textContent = "Product: " + product.name;
+            document.querySelector(".product-name").textContent = product.name;
             // Micaiah added surplus discount
             const descriptionEl = document.querySelector(".product-description");
 
-            descriptionEl.innerHTML = `Product description: ${product.description || ""}`;
-
+            //descriptionEl.innerHTML = `Product description: ${product.description || ""}`;
+            // Micaiah changed layout
+            descriptionEl.innerHTML = `
+                <span class="section-label">Description</span>
+                <p>${product.description || "No description available."}</p>
+            `;
             if (product.best_before_date) {
                 descriptionEl.innerHTML += `
-                    <br><strong>Best before:</strong>
-                    ${new Date(product.best_before_date + "T00:00:00").toLocaleDateString('en-GB', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric'
-                    })}
+                    <div class="product-meta-row">
+                        <span>Best before</span>
+                        <strong>${new Date(product.best_before_date + "T00:00:00").toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric'
+                        })}</strong>
+                    </div>
                 `;
             }
 
             if (product.surplus_note) {
-                descriptionEl.innerHTML += `<br><strong>Discount Reason:</strong> ${product.surplus_note}`;
+                descriptionEl.innerHTML += `
+                    <div class="product-meta-row">
+                        <span>Why reduced?</span>
+                        <strong>${product.surplus_note}</strong>
+                    </div>
+                `;
             }
 
             if (product.surplus_expiry_date) {
                 descriptionEl.innerHTML += `
-                    <br><strong>Surplus Deal Ends:</strong>
-                    ${new Date(product.surplus_expiry_date).toLocaleString('en-GB', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    })}
+                    <div class="product-meta-row deal-ending">
+                        <span>Deal ends</span>
+                        <strong>${new Date(product.surplus_expiry_date).toLocaleString('en-GB', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        })}</strong>
+                    </div>
                 `;
             }
 
@@ -196,23 +272,22 @@
             // Micaiah added surplus discount 
             if (product.has_surplus_discount) {
                 document.querySelector(".product-price").innerHTML = `
-                    Price:
-                    <span style="text-decoration: line-through; color:#777;">
-                        £${Number(product.original_price).toFixed(2)}
-                    </span>
-                    <strong style="color:#c62828;">
-                        £${Number(product.discounted_price).toFixed(2)}
-                    </strong>
-                    <span style="background:#ffe5e5; color:#c62828; padding:4px 8px; border-radius:10px; font-size:12px; font-weight:bold; margin-left:8px;">
-                        ${product.discount_percentage}% OFF
-                    </span>
+                    <div class="price-line">
+                        <span class="old-price">£${Number(product.original_price).toFixed(2)}</span>
+                        <span class="current-price">£${Number(product.discounted_price).toFixed(2)}</span>
+                        <span class="discount-badge">${product.discount_percentage}% off</span>
+                    </div>
                 `;
             } else {
-                document.querySelector(".product-price").textContent =
-                    "Price: £" + Number(product.price).toFixed(2);
+                document.querySelector(".product-price").innerHTML = `
+                    <span class="current-price">£${Number(product.price).toFixed(2)}</span>
+                `;
             }
-            document.querySelector(".product-producer").textContent = "Producer: " + product.producer_name;
-
+            //document.querySelector(".product-producer").textContent = "Producer: " + product.producer_name;
+            // Micaiah fixed layout 
+            document.querySelector(".product-producer").innerHTML = `
+                Sold by <strong>${product.producer_name}</strong>
+            `;
             const image = document.querySelector(".product-detail-img");
 
             // if theres an image display it too
@@ -278,7 +353,46 @@
                 });
 
             }
+            
 
+            const plusBtn = document.querySelector(".plus");
+            const minusBtn = document.querySelector(".minus");
+            const quantityDisplay = document.querySelector(".quantity-display");
+
+            plusBtn.onclick = function(e) {
+                e.preventDefault();
+
+                const currentQty = parseInt(quantityDisplay.textContent);
+                const maxStock = Number(product.available_stock ?? product.stock_quantity ?? 0);
+
+                if (currentQty < maxStock) {
+                    quantityDisplay.textContent = currentQty + 1;
+                } else {
+                    showNotification(`Only ${maxStock} items available in stock`, "error");
+                }
+            };
+
+            minusBtn.onclick = function(e) {
+                e.preventDefault();
+
+                const currentQty = parseInt(quantityDisplay.textContent);
+
+                if (currentQty > 1) {
+                    quantityDisplay.textContent = currentQty - 1;
+                }
+            };
+
+            addCartBtn.onclick = function(e) {
+                e.preventDefault();
+
+                const quantity = parseInt(quantityDisplay.textContent);
+                addToCart(product.product_id, quantity, addCartBtn);
+            };
+
+            notifyBtn.onclick = function(e) {
+                e.preventDefault();
+                showStockAlert(e, product.product_id, product.name);
+            };
             
 
             console.log(product)
@@ -418,6 +532,175 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
 });
+
+function showNotification(message, type) {
+    const existing = document.querySelector('.notification');
+    if (existing) existing.remove();
+
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <span>${message}</span>
+        <button onclick="this.parentElement.remove()">×</button>
+    `;
+
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 3000);
+}
+
+function updateCartBadge(count) {
+    const badge = document.getElementById('cart-badge');
+    if (badge) {
+        if (count > 0) {
+            badge.textContent = count;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+}
+
+function addToCart(productId, quantity = 1, button) {
+    const token = getToken();
+
+    if (!token) {
+        window.location.href = "/login/";
+        return;
+    }
+
+    if (button) {
+        button.textContent = "Adding...";
+        button.disabled = true;
+    }
+
+    fetch("/cart/api/add/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify({
+            product_id: parseInt(productId),
+            quantity: quantity
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, "success");
+            updateCartBadge(data.cart_total_items);
+
+            const display = document.querySelector(".quantity-display");
+            if (display) display.textContent = "1";
+        } else {
+            showNotification(data.error || "Could not add to cart", "error");
+        }
+    })
+    .catch(() => {
+        showNotification("Something went wrong", "error");
+    })
+    .finally(() => {
+        if (button) {
+            button.textContent = "Add to Cart";
+            button.disabled = false;
+        }
+    });
+}
+let currentProductId = null;
+let currentProductName = "";
+
+function showStockAlert(event, productId, productName) {
+    event.preventDefault();
+
+    currentProductId = productId;
+    currentProductName = productName;
+
+    const quantityDisplay = document.querySelector(".quantity-display");
+    const desiredQty = quantityDisplay ? parseInt(quantityDisplay.textContent) : 1;
+
+    const card = document.getElementById("productDetailCard");
+    const maxStock = parseInt(card?.dataset.maxStock) || 99;
+
+    const input = document.getElementById("alert-quantity");
+    input.max = maxStock;
+    input.dataset.maxStock = maxStock;
+    input.value = Math.min(desiredQty, maxStock);
+
+    document.getElementById("modal-product-name").innerHTML =
+        `How many ${productName} would you like to be notified about?<br>
+        <small style="color:#666;">Current total stock: ${maxStock}</small>`;
+
+    document.getElementById("stockAlertModal").style.display = "flex";
+}
+
+function closeStockAlertModal() {
+    document.getElementById("stockAlertModal").style.display = "none";
+}
+
+function incrementAlertQuantity() {
+    const input = document.getElementById("alert-quantity");
+    const maxStock = parseInt(input.dataset.maxStock) || 99;
+    let value = parseInt(input.value) || 1;
+
+    if (value < maxStock) {
+        input.value = value + 1;
+    }
+}
+
+function decrementAlertQuantity() {
+    const input = document.getElementById("alert-quantity");
+    let value = parseInt(input.value) || 1;
+
+    if (value > 1) {
+        input.value = value - 1;
+    }
+}
+
+function confirmStockAlert() {
+    const quantity = parseInt(document.getElementById("alert-quantity").value);
+
+    closeStockAlertModal();
+
+    if (isNaN(quantity) || quantity < 1) {
+        showNotification("Please enter a valid quantity", "error");
+        return;
+    }
+
+    createStockAlert(currentProductId, quantity, currentProductName);
+}
+async function createStockAlert(productId, quantity, productName) {
+    const token = getToken();
+
+    if (!token) {
+        window.location.href = "/login/";
+        return;
+    }
+
+    try {
+        const response = await fetch("/notifications/api/alerts/create/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + token
+            },
+            body: JSON.stringify({
+                product_id: productId,
+                quantity: quantity
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(`You'll be notified when ${productName} is available`, "success");
+        } else {
+            showNotification(data.error || "Could not create alert", "error");
+        }
+    } catch (error) {
+        showNotification("Something went wrong", "error");
+    }
+}
+
 
 
 </script>

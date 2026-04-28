@@ -152,7 +152,7 @@
                 // Surplus notifications go to product detail page
                 const productMatch = notif.message.match(/(\w+) is now available/);
                 if (productMatch && productMatch[1]) {
-                    linkUrl = '/customer/home/';
+                    linkUrl = '/customer/home/surplus-deals/';
                 } else {
                     linkUrl = '/customer/home/';
                 }

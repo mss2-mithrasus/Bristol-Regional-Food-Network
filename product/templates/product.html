@@ -281,7 +281,11 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
 
         }
 
+        //const query = getQuery("q");
+        // Micaiah changed to fix redirect issue 
         const query = getQuery("q");
+        //const selectedCategory = getQuery("category");
+        const selectedFilter = getQuery("filter");
 
         fetch("/customer/home/api/customer/", {
 
@@ -292,10 +296,24 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
         .then(data => {
              getCategories(data.categories);
 
-        if (query){
+        // if (query){
+        //     document.querySelector(".search-bar").value = query;
+        //     loadProducts(query)
+        // }
+
+        // Micaaiah changed to fix redirect issue
+        if (query) {
             document.querySelector(".search-bar").value = query;
-            loadProducts(query)
+            if (selectedFilter) {
+                document.getElementById("organic-filter").value = selectedFilter;
+            }
+            loadProducts(query, selectedFilter || "");
         }
+
+        // if (selectedCategory) {
+        //     document.querySelector(".category-title").textContent = selectedCategory;
+        //     loadProducts("", selectedFilter || "", selectedCategory);
+        // }
 
     })
         .catch(err => console.error("error loading categories", err));
@@ -316,19 +334,24 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
             const card = document.createElement("a");
             card.className = "category-card";
             // category link
-            card.href = `/customer/home/category/${encodeURIComponent(category.category_name)}`;
-
+            //card.href = `/customer/home/category/${encodeURIComponent(category.category_name)}`;
+            card.href = `/customer/home/category/${encodeURIComponent(category.category_name)}/`;
             card.innerHTML = ` <img src="/static/${category.image}" alt="${category.category_name}">
             <p>${category.category_name}</p>`;
 
             // load products when category is clicked
+            // card.addEventListener("click", function(e){
+            //     e.preventDefault();
+            //     titleEL.textContent = category.category_name;
+            //     //loading products for that category
+            //     loadProducts("", "", category.category_name);
+            // });
+
+            // Micaiah changed to fix redirect issue
             card.addEventListener("click", function(e){
                 e.preventDefault();
-                titleEL.textContent = category.category_name;
-                //loading products for that category
-                loadProducts("", "", category.category_name);
+                window.location.href = `/customer/home/category/${encodeURIComponent(category.category_name)}/`;
             });
-
             data.appendChild(card); 
         })
 
@@ -439,10 +462,15 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
             const organic = product.organic_certified ?
               `<img src="/static/images/organic.png" class="organic-badge">` : "";
                         
-            const status = product.availability_status ? 
-             `<span class="status-available">Available</span>`
-            : `<span class="status-out-of-stock">Out of stock</span>`;
-            
+            // const status = product.availability_status ? 
+            //  `<span class="status-available">Available</span>`
+            // : `<span class="status-out-of-stock">Out of stock</span>`;
+            const availableStock = Number(product.available_stock ?? product.stock_quantity ?? 0);
+            //const canBuy = availableStock > 0 && product.is_valid_for_fulfilment;
+            const canBuy = product.can_buy === true;
+            const status = canBuy
+                ? `<span class="status-available">Available</span>`
+                : `<span class="status-out-of-stock">${product.unavailable_reason || "Unavailable"}</span>`;
             // Micaiah added surplus discount 
             const priceHtml = product.has_surplus_discount
                 ? `
@@ -504,7 +532,9 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
             card.className = "product-card" + (outOfSeason ? " out-of-season" : "");
             card.dataset.productId = product.product_id;
             card.dataset.maxStock = product.stock_quantity || 0;
-
+            if (!canBuy) {
+                card.classList.add("unavailable-product");
+            }
             card.innerHTML = ` <img src="${product.image? product.image : '/static/images/default-product.png'}">
 
             <div class="field-row">
@@ -528,26 +558,29 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
 
 
                     <div class="button-group">
-                        <div class="quantity">
-                            <button class="minus">-</button>
+                        <div class="quantity ${!canBuy ? "quantity-disabled" : ""}">
+                            <button class="minus" ${!canBuy ? "disabled" : ""}>-</button>
                             <span class="quantity-display">1</span>
-                            <button class="plus">+</button>
+                            <button class="plus" ${!canBuy ? "disabled" : ""}>+</button>
                         </div>
-                        <button class="add-cart">Add to Cart</button>
-                    </div> 
+                        <button class="add-cart" ${!canBuy ? "disabled" : ""}>
+                            ${canBuy ? "Add to Cart" : "Unavailable"}
+                        </button>
+                    </div>
 
 
                     <button class="notify-btn"
                             data-product-id="${product.product_id }"
                             onclick="showStockAlert(event, ${product.product_id}, '${product.name}')"
-                            style="display: none;">
+                            style="${availableStock <= 0 ? 'display:block;' : 'display:none;'}">
                         <i class="fa-regular fa-bell"></i> Notify when available
                     </button>
 
-                    <a href="product/${product.product_id}/">
-                        <button class="product-details">View Product Details</button>
+
+                    <a href="/customer/home/product/${product.product_id}/?next=${encodeURIComponent(window.location.pathname + window.location.search)}" class="product-details">
+                        View Product Details
                     </a>
-                </div>
+                
                     
                     
                     `;

@@ -108,11 +108,21 @@ def deactivate_expired_products():
 
     return count
 
+# def deactivate_surplus_if_not_fulfillable(product):
+#     """
+#     Cancel any active surplus deal if the product can no longer be fulfilled.
+#     """
+#     if not is_product_valid_for_fulfilment(product):
+#         SurplusDiscount.objects.filter(
+#             product=product,
+#             status="active"
+#         ).update(status="cancelled")
 def deactivate_surplus_if_not_fulfillable(product):
     """
-    Cancel any active surplus deal if the product can no longer be fulfilled.
+    Cancel surplus only if the product has stock but cannot be fulfilled.
+    Do not untick the product availability box.
     """
-    if not is_product_valid_for_fulfilment(product):
+    if product.stock_quantity > 0 and not is_product_valid_for_fulfilment(product):
         SurplusDiscount.objects.filter(
             product=product,
             status="active"

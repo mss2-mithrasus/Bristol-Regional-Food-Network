@@ -68,16 +68,23 @@ def block_if_product_not_fulfillable(product):
 
         # Not expired yet, but cannot be fulfilled in time
         if product.best_before_date < earliest_fulfilment_date:
-            if product.availability_status:
-                product.availability_status = False
-                product.save(update_fields=["availability_status"])
-
             SurplusDiscount.objects.filter(
                 product=product,
                 status="active"
             ).update(status="cancelled")
 
             return True
+        # if product.best_before_date < earliest_fulfilment_date:
+        #     if product.availability_status:
+        #         product.availability_status = False
+        #         product.save(update_fields=["availability_status"])
+
+        #     SurplusDiscount.objects.filter(
+        #         product=product,
+        #         status="active"
+        #     ).update(status="cancelled")
+
+        #     return True
 
     return False
 
@@ -126,15 +133,24 @@ def cart_view(request):
     
     # Get all cart items
     cart_items = cart.items.select_related('product__producer').all()
+    
     # Removed items from cart f they r expired after adding to the cart
-    expired_cart_items = []
-    for item in cart_items:
-        if block_if_product_not_fulfillable(item.product):
-            expired_cart_items.append(item)
+    invalid_cart_items = []
 
-    if expired_cart_items:
-        for item in expired_cart_items:
+    for item in cart_items:
+        product = item.product
+
+        if (
+            block_if_product_not_fulfillable(product)
+            or product.stock_quantity <= 0
+            or not product.availability_status
+        ):
+            invalid_cart_items.append(item)
+
+    if invalid_cart_items:
+        for item in invalid_cart_items:
             item.delete()
+
         cart_items = cart.items.select_related('product__producer').all()
     items_count = cart_items.count()
     
@@ -389,6 +405,15 @@ def update_cart_item(request, item_id):
             status=status.HTTP_404_NOT_FOUND
         )
     product = cart_item.product
+    if not product.availability_status:
+        cart_item.delete()
+        return Response(
+            {
+                'success': False,
+                'error': 'This product is no longer available and has been removed from your cart.'
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
     if block_if_product_not_fulfillable(product):
         earliest_fulfilment_date = get_earliest_fulfilment_date()
 
@@ -534,7 +559,8 @@ def get_cart_item_available_stock(request, item_id):
         )
         
         product = cart_item.product
-        if block_if_product_not_fulfillable(product):
+        if not product.availability_status or block_if_product_not_fulfillable(product):
+        #if block_if_product_not_fulfillable(product):
             return Response({
                 'success': True,
                 'item_id': item_id,
@@ -598,8 +624,8 @@ def check_product_availability(request, product_id):
     #     available = get_available_stock(product, exclude_user=request.user)
     try:
         product = Product.objects.get(product_id=product_id)
-
-        if block_if_product_not_fulfillable(product):
+        if not product.availability_status or block_if_product_not_fulfillable(product):
+        #if block_if_product_not_fulfillable(product):
             return Response({
                 'success': True,
                 'product_id': product_id,

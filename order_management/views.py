@@ -49,7 +49,9 @@ def multi_checkout(request):
         invalid_items = []
         for cart_item in cart.items.select_related('product').all():
             product = cart_item.product
-            if not is_product_valid_for_fulfilment(product):
+            # if not is_product_valid_for_fulfilment(product):
+            #     invalid_items.append(cart_item)
+            if not product.availability_status or not is_product_valid_for_fulfilment(product):
                 invalid_items.append(cart_item)
 
         if invalid_items:
@@ -182,6 +184,8 @@ def multi_checkout(request):
             # Micaiah changed for surplus discount
             unit_price = float(item.unit_price)
             original_price = float(product.price)
+            item_total = unit_price * item.quantity
+            original_item_total = original_price * item.quantity
 
             formatted_items.append({
                 'product': product,
@@ -190,11 +194,15 @@ def multi_checkout(request):
                 'quantity': item.quantity,
                 'price': unit_price,
                 'price_formatted': f"{unit_price:.2f}",
+                'item_total': item_total,
+                'item_total_formatted': f"{item_total:.2f}",
                 'unit': unit,
                 'image': image_url,
                 'organic_certified': organic,
                 'original_price': original_price,
                 'has_surplus_discount': unit_price != original_price,
+                'original_item_total': original_item_total,
+                'original_item_total_formatted': f"{original_item_total:.2f}",
             })
         if not formatted_items:
             continue
@@ -660,7 +668,8 @@ def order_history(request):
             #     })
              
             # Micaiah added for surplus discount
-            for item in suborder.items.all()[:2]:
+            #for item in suborder.items.all()[:2]:
+            for item in suborder.items.all():
                 # original_price = item.original_price_at_purchase or item.price_at_purchase
                 original_price = getattr(item, "original_price_at_purchase", None) or item.price_at_purchase
                 preview_items.append({
@@ -670,8 +679,9 @@ def order_history(request):
                     'price': float(item.price_at_purchase),
                     'original_price': float(original_price),
                     'has_surplus_discount': item.price_at_purchase != original_price,
+                    'total': float(item.quantity * item.price_at_purchase),
+                    'original_total': float(item.quantity * original_price),
                     'producer': suborder.producer.business_name,
-                    # review
                     'suborder_status': suborder.status,
                     'review_exists': hasattr(item, 'review'),
                 })
@@ -711,9 +721,9 @@ def order_history(request):
             'status': overall_status,
             'total': order.total_amount,
             'item_count': total_items,
-            'items': preview_items[:3],
+            'items': preview_items,
             'more_items': len(preview_items) > 3,
-            'preview_items': preview_items[:4],
+            'preview_items': preview_items,
             'friend_more_items': len(preview_items) > 4,
             'producers': producers_data,
             'total_producers': total_producers,

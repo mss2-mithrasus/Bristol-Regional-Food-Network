@@ -152,7 +152,10 @@ def payment_success(request):
                     invalid_products.append(item_data.get('product_name', 'Unknown product'))
                     continue
 
-                if not is_product_valid_for_fulfilment(product):
+                # if not is_product_valid_for_fulfilment(product):
+                #     if product.name not in invalid_products:
+                #         invalid_products.append(product.name)
+                if not product.availability_status or not is_product_valid_for_fulfilment(product):
                     if product.name not in invalid_products:
                         invalid_products.append(product.name)
         if invalid_products:
@@ -227,9 +230,12 @@ def payment_success(request):
                         )
                         qty = item_data['quantity']
 
+                        if not product.availability_status:
+                            raise Exception(f"{product.name} is no longer available.")
+
                         if not is_product_valid_for_fulfilment(product):
                             raise Exception(f"{product.name} is no longer available for fulfilment.")
-
+                        
                         if product.stock_quantity < qty:
                             raise Exception(f"Insufficient stock for {product.name}")
 

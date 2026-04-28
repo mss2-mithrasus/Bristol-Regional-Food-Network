@@ -23,6 +23,23 @@ from producers.utils import (
 )
 from django.utils import timezone
 from django.db.models import Avg
+
+def add_customer_availability_fields(product_dict, product, available_stock):
+    product_dict["available_stock"] = available_stock
+    product_dict["stock_quantity"] = product.stock_quantity
+
+    if available_stock <= 0:
+        product_dict["can_buy"] = False
+        product_dict["unavailable_reason"] = "Out of stock"
+    elif not is_product_valid_for_fulfilment(product):
+        product_dict["can_buy"] = False
+        product_dict["unavailable_reason"] = "Unavailable as fulfilment date after best before."
+    else:
+        product_dict["can_buy"] = True
+        product_dict["unavailable_reason"] = ""
+
+    return product_dict
+
 # api to return all product categories for the frontend page
 
 class CustomerAPIView(APIView):
@@ -61,14 +78,14 @@ class CategoryProductsAPIView(APIView):
         products = Product.objects.filter(
             category=category,
             availability_status=True,
-            stock_quantity__gt=0,
+            # stock_quantity__gt=0,
             is_expired=False
         )
         # Convert products to JSON with available stock calculation
         product_data = []
         for product in products:
-            if not is_product_valid_for_fulfilment(product):
-                continue
+            # if not is_product_valid_for_fulfilment(product):
+            #     continue
             # Calculate available stock for this user
             available_stock = get_available_stock(
                 product, 
@@ -103,9 +120,11 @@ class CategoryProductsAPIView(APIView):
             #     product_dict["surplus_note"] = ""
             #     product_dict["surplus_expiry_date"] = None
             # Add available_stock to the product data
-            product_dict['available_stock'] = available_stock
-            product_dict['stock_quantity'] = product.stock_quantity  # Keep original for reference
-            
+            product_dict = add_customer_availability_fields(
+                product_dict,
+                product,
+                available_stock
+            )
             product_data.append(product_dict)
         
         # return category name and products
@@ -135,7 +154,7 @@ class ProductSearchAPIView(APIView):
         #products = Product.objects.filter(availability_status=True)
         products = Product.objects.filter(
             availability_status=True,
-            stock_quantity__gt=0,
+            #stock_quantity__gt=0,
             is_expired=False
         )
         # get category
@@ -175,8 +194,8 @@ class ProductSearchAPIView(APIView):
         # Convert products to JSON with available stock calculation
         product_data = []
         for product in products:
-            if not is_product_valid_for_fulfilment(product):
-                continue
+            # if not is_product_valid_for_fulfilment(product):
+            #     continue
             # Calculate available stock for this user
             # If user is authenticated, exclude their own reservations
             # If user is not authenticated, show all available stock
@@ -189,35 +208,13 @@ class ProductSearchAPIView(APIView):
             serializer = ProductSerializer(product)
             product_dict = serializer.data
 
-            # Surplus deal
-            # active_deal = SurplusDiscount.objects.filter(
-            #     product=product,
-            #     status="active",
-            #     expiry_date__gt=timezone.now()
-            # ).first()
-
-            # if active_deal:
-            #     original_price = float(product.price)
-            #     discounted_price = round(original_price * (100 - active_deal.discount_percentage) / 100, 2)
-
-            #     product_dict["has_surplus_discount"] = True
-            #     product_dict["original_price"] = original_price
-            #     product_dict["discounted_price"] = discounted_price
-            #     product_dict["discount_percentage"] = active_deal.discount_percentage
-            #     product_dict["surplus_note"] = active_deal.note
-            #     product_dict["surplus_expiry_date"] = active_deal.expiry_date.isoformat()
-            # else:
-            #     product_dict["has_surplus_discount"] = False
-            #     product_dict["original_price"] = float(product.price)
-            #     product_dict["discounted_price"] = float(product.price)
-            #     product_dict["discount_percentage"] = None
-            #     product_dict["surplus_note"] = ""
-            #     product_dict["surplus_expiry_date"] = None
             
             # Add available_stock to the product data
-            product_dict['available_stock'] = available_stock
-            product_dict['stock_quantity'] = product.stock_quantity  # Keep original for reference
-            
+            product_dict = add_customer_availability_fields(
+                product_dict,
+                product,
+                available_stock
+            )
             product_data.append(product_dict)
         
         # return products
@@ -235,9 +232,14 @@ class ProductDetailAPIView(APIView):
         expire_surplus_deals()
         # getting product based on primary key
         product = get_object_or_404(Product, product_id=product_id)
-        if not is_product_valid_for_fulfilment(product):
+        # if not is_product_valid_for_fulfilment(product):
+        #     return Response(
+        #         {"error": "This product is no longer available for fulfilment."},
+        #         status=status.HTTP_404_NOT_FOUND
+        #     )
+        if not product.availability_status or product.is_expired:
             return Response(
-                {"error": "This product is no longer available for fulfilment."},
+                {"error": "This product is not available."},
                 status=status.HTTP_404_NOT_FOUND
             )
         # Calculate available stock for this product
@@ -250,8 +252,11 @@ class ProductDetailAPIView(APIView):
         product_dict = serializer.data
     
         
-        product_dict['available_stock'] = available_stock
-        
+        product_dict = add_customer_availability_fields(
+            product_dict,
+            product,
+            available_stock
+        )
         average_rating = ReviewProduct.objects.filter(product=product, review_verified=True).aggregate(
             avg=Avg('rating')
         )['avg']
