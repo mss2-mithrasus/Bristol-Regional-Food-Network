@@ -46,7 +46,8 @@
 
 
    const categoryName = window.location.pathname.split('/').filter(Boolean).pop();
-
+    document.querySelector(".category-title").textContent =
+    decodeURIComponent(categoryName);
     
     function getToken() {
         return localStorage.getItem("access") || sessionStorage.getItem("access");
@@ -211,10 +212,16 @@
             const organic = product.organic_certified ?
               `<img src="/static/images/organic.png" class="organic-badge">` : "";
                         
-            const status = product.availability_status ? 
-             `<span class="status-available">Available</span>`
-            : `<span class="status-out-of-stock">Out of stock</span>`;
+            // const status = product.availability_status ? 
+            //  `<span class="status-available">Available</span>`
+            // : `<span class="status-out-of-stock">Out of stock</span>`;
             
+            const availableStock = Number(product.available_stock ?? product.stock_quantity ?? 0);
+            const canBuy = product.can_buy === true;
+
+            const status = canBuy
+                ? `<span class="status-available">Available</span>`
+                : `<span class="status-out-of-stock">${product.unavailable_reason || "Unavailable"}</span>`;
             // Micaiah added surplus discount 
 
             const priceHtml = product.has_surplus_discount
@@ -277,7 +284,9 @@
             card.className = "product-card";
             card.dataset.productId = product.product_id;
             card.dataset.maxStock = product.stock_quantity || 0;
-
+            if (!canBuy) {
+                card.classList.add("unavailable-product");
+            }
             card.innerHTML = ` <img class="product-img" src="${product.image? product.image : '/static/images/default-product.png'}">
 
             <div class="field-row">
@@ -300,26 +309,28 @@
 
 
                     <div class="button-group">
-                        <div class="quantity">
-                            <button class="minus">-</button>
+                        <div class="quantity ${!canBuy ? "quantity-disabled" : ""}">
+                            <button class="minus" ${!canBuy ? "disabled" : ""}>-</button>
                             <span class="quantity-display">1</span>
-                            <button class="plus">+</button>
+                            <button class="plus" ${!canBuy ? "disabled" : ""}>+</button>
                         </div>
-                        <button class="add-cart">Add to Cart</button>
-                    </div> 
+                        <button class="add-cart" ${!canBuy ? "disabled" : ""}>
+                            ${canBuy ? "Add to Cart" : "Unavailable"}
+                        </button>
+                    </div>
 
 
                     <button class="notify-btn"
                             data-product-id="${product.product_id }"
                             onclick="showStockAlert(event, ${product.product_id}, '${product.name}')"
-                            style="display: none;">
+                            style="${availableStock <= 0 ? 'display:block;' : 'display:none;'}">
                         <i class="fa-regular fa-bell"></i> Notify when available
                     </button>
 
-                    <a href="/customer/home/product/${product.product_id}/"
-                        onclick="productViewed(${product.product_id})">
-                        <button class="product-details">View Product Details</button>
+                    <a href="/customer/home/product/${product.product_id}/?next=${encodeURIComponent(window.location.pathname + window.location.search)}" class="product-details">
+                        View Product Details
                     </a>
+
                 
                     
                     

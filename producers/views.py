@@ -289,7 +289,7 @@ class ProducerUpdateProductAPI(APIView):
         product.stock_quantity = new_stock
 
         today = timezone.now().date()
-        earliest_fulfilment_date = get_earliest_fulfilment_date()
+        #earliest_fulfilment_date = get_earliest_fulfilment_date()
 
         # Expiry logic
         if product.best_before_date and product.best_before_date < today:
@@ -298,12 +298,16 @@ class ProducerUpdateProductAPI(APIView):
             product.is_expired = False
 
         # Availability logic
-        if product.stock_quantity <= 0:
-            product.availability_status = False
-        elif product.best_before_date and product.best_before_date < earliest_fulfilment_date:
-            product.availability_status = False
-        else:
-            product.availability_status = True
+        # if product.stock_quantity <= 0:
+        #     product.availability_status = False
+        # elif product.best_before_date and product.best_before_date < earliest_fulfilment_date:
+        #     product.availability_status = False
+        # else:
+        #     product.availability_status = True
+        manual_available = request.data.get("availability_status")
+
+        if manual_available is not None:
+            product.availability_status = manual_available == "true"
 
         # Update low stock threshold if provided
         new_threshold = request.data.get("low_stock_threshold")

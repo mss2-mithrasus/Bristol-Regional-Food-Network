@@ -261,6 +261,12 @@
             });
             const data = await response.json();
             
+            // if (data.success) {
+            //     const input = document.getElementById(`qty-${itemId}`);
+            //     if (input) {
+            //         input.max = data.max_total_allowed;
+            //     }
+            // }
             if (data.success) {
                 const input = document.getElementById(`qty-${itemId}`);
                 if (input) {

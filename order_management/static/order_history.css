@@ -1005,4 +1005,10 @@
     padding: 4px;
 }
 
+.preview-item-total {
+    font-weight: 700;
+    color: #406083;
+    margin-left: 8px;
+}
+
 
