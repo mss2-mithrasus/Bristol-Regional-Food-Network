@@ -5,6 +5,20 @@
 <link rel="stylesheet" href="{% static 'recurring.css' %}">
 {% endblock %}
 
+{% if unresolved_alerts %}
+<div class="alert alert-warning">
+    <strong><i class="fa-solid fa-triangle-exclamation"></i> Stock Alerts!</strong>
+    <ul>
+        {% for alert in unresolved_alerts %}
+        <li>
+            Order scheduled for {{ alert.scheduled_date }} (Order #{{ alert.order.order_id }})
+            – Stock issue. <a href="{% url 'edit_upcoming_order' alert.instance_id %}">Edit order</a>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
 {% block content %}
 <div class="recurring-container">
     <div class="recurring-header">

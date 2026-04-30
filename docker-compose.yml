@@ -57,7 +57,7 @@ services:
   recurring-scheduler:
     build: .
     container_name: recurring_scheduler
-    command: python manage.py run_recurring_scheduler --interval 300
+    command: python manage.py run_recurring_scheduler --interval 30
     volumes:
       - .:/app
     env_file:
@@ -65,6 +65,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+    restart: always  
 
   db:
     image: mysql:8.0

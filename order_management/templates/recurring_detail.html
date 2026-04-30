@@ -5,6 +5,8 @@
 <link rel="stylesheet" href="{% static 'recurring.css' %}">
 {% endblock %}
 
+
+
 {% block content %}
 <div class="recurring-container">
     <div class="recurring-header">
@@ -57,6 +59,17 @@
                     {{ data.instance.get_status_display }}
                 </span>
             </div>
+
+            {# Stock alert banner for this instance #}
+            {% if data.instance.last_stock_alert_sent %}
+            <div class="alert alert-warning" style="margin: 10px; padding: 8px;">
+                <i class="fa-solid fa-triangle-exclamation"></i> 
+                <strong>Stock issue detected!</strong> 
+                Some items in this order are low or out of stock. 
+                <a href="{% url 'edit_upcoming_order' data.instance.instance_id %}">Edit order</a> to adjust quantities or switch producers.
+            </div>
+            {% endif %}
+            
             <div class="recurring-details" style="margin-top: 10px;">
                 <div class="recurring-detail-item">
                     <span class="recurring-detail-label">Order #</span>

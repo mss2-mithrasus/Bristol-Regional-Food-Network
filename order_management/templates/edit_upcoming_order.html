@@ -3,6 +3,16 @@
 
 {% block head %}
 <link rel="stylesheet" href="{% static 'recurring.css' %}">
+<style>
+    .alert-warning { background: #fff3cd; color:red; padding: 12px; border-radius: 6px; margin-bottom: 20px; }
+    .alert-warning i { margin-right: 8px; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
+    .table-warning { background-color: #fff3cd; }
+    .btn-outline-primary { background: #406083; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+    .btn-outline-secondary { background: #f8f9fa; color: #666; border: 1px solid #ddd; padding: 8px 16px; border-radius: 6px; text-decoration: none; display: inline-block; }
+    .recurring-actions { margin-top: 20px; display: flex; gap: 10px; }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -10,22 +20,79 @@
     <div class="recurring-header">
         <h2>Edit Upcoming Order</h2>
     </div>
+    {% if has_any_price_change %}
+        <div class="alert alert-warning alert-dismissible" style="position: relative;">
+            <button type="button" class="close-btn" onclick="this.parentElement.style.display='none';"
+                    style="position: absolute; right: 10px; top: 8px; background: none; border: none; font-size: 20px; cursor: pointer;">
+                &times;
+            </button>
+            <i class="fa-solid fa-exclamation-triangle"></i>
+            Some products have changed price since this order was generated. Check the "Price Alert" column.
+        </div>
+        {% endif %}
     <div class="recurring-card">
         <div class="recurring-card-body">
             <p><strong>Scheduled for:</strong> {{ instance.scheduled_date }}</p>
             <p><strong>From template:</strong> {{ instance.template.name }}</p>
-            <p style="color: #c62828; background: #ffebee; padding: 8px; border-radius: 6px;">
+            <p style="color: #406083; background: #ffebee; padding: 8px; border-radius: 6px;">
                 <i class="fa-solid fa-triangle-exclamation"></i> Changes will apply only to this specific delivery, not the recurring template.
             </p>
-            <form method="post" class="edit-form">
+
+            <form method="post">
                 {% csrf_token %}
-                {% for item in items %}
-                <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
-                    <label style="min-width: 200px;">{{ item.name }} ({{ item.producer }}) – £{{ item.price }} each</label>
-                    <input type="number" name="item_{{ item.id }}" value="{{ item.quantity }}" min="0">
+
+                {% if has_issues %}
+                <div class="alert-warning">
+                    <i class="fa-solid fa-exclamation-triangle"></i>
+                    <strong>Stock alert!</strong> Some items have insufficient stock. Reduce quantity or switch to another producer.
                 </div>
-                {% endfor %}
-                <div class="recurring-actions" style="margin-top: 20px;">
+                {% endif %}
+
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Price Alert</th>
+                            <th>Current Producer</th>
+                            <th>Original Producer (if switched)</th>
+                            <th>Ordered Qty</th>
+                            <th>Available Stock</th>
+                            <th>New Qty</th>
+                            <th>Switch Producer</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr{% if item.has_issue %} class="table-warning"{% endif %}>
+                            <td>{{ item.product_name }}</td>
+                            <td>
+                                {% if item.has_price_change %}
+                                    <span class="badge bg-warning text-dark">
+                                        Price changed from £{{ item.old_price }} to £{{ item.new_price }}
+                                    </span>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                                                        <td>{{ item.current_producer }}</td>
+                            <td>{% if item.original_producer != item.current_producer %}{{ item.original_producer }}{% else %}—{% endif %}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td>{{ item.available_stock }}</td>
+                            <td><input type="number" name="item_{{ item.order_item_id }}" value="{{ item.quantity }}" min="0" style="width:80px"></td>
+                            <td>
+                                <select name="switch_producer_{{ item.order_item_id }}">
+                                    <option value="no_switch">-- No switch --</option>
+                                    {% for alt in item.alternatives %}
+                                    <option value="{{ alt.product_id }}">{{ alt.producer__business_name }} (£{{ alt.price }} | stock: {{ alt.stock_quantity }})</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <div class="recurring-actions">
                     <button type="submit" class="btn-outline-primary"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
                     <a href="{% url 'recurring_detail' instance.template.template_id %}" class="btn-outline-secondary">Cancel</a>
                 </div>
@@ -33,4 +100,5 @@
         </div>
     </div>
 </div>
+
 {% endblock %}
