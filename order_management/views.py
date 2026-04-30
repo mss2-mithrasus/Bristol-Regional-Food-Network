@@ -22,6 +22,9 @@ from producers.utils import is_product_valid_for_fulfilment, get_earliest_fulfil
 from producers.utils import expire_surplus_deals, deactivate_expired_products
 from decimal import Decimal
 from shopping_cart.models import get_bulk_discount_percentage
+from product.models import Product   
+from shopping_cart.models import CartItem   
+from django.db.models import Sum   
 
 logger = logging.getLogger(__name__)
 
@@ -331,15 +334,24 @@ def multi_checkout(request):
     
     return render(request, "multi_checkout.html", context)
 
-
-# recurring order views for restaurant to manage their recurring templates and instances
+# recurring orders for restaurants
 @login_required
 def recurring_list(request):
-    """List all recurring templates for the logged-in restaurant"""
     templates = RecurringTemplate.objects.filter(
         customer=request.user.customeraccount
     ).order_by('-created_at')
-    return render(request, 'recurring_list.html', {'templates': templates})
+
+    unresolved_alerts = RecurringOrderInstance.objects.filter(
+        template__customer=request.user.customeraccount,
+        scheduled_date__gte=timezone.now().date(),
+        last_stock_alert_sent__isnull=False,
+        status='generated'
+    ).select_related('order', 'template').order_by('scheduled_date')
+
+    return render(request, 'recurring_list.html', {
+        'templates': templates,
+        'unresolved_alerts': unresolved_alerts,
+    })
 
 @login_required
 def recurring_detail(request, template_id):
@@ -392,7 +404,6 @@ def toggle_recurring(request, template_id):
 
 @login_required
 def edit_upcoming_order(request, instance_id):
-    """Edit quantities of a specific upcoming order instance (does not affect template)"""
     instance = get_object_or_404(
         RecurringOrderInstance,
         pk=instance_id,
@@ -400,34 +411,112 @@ def edit_upcoming_order(request, instance_id):
         status='generated'
     )
     order = instance.order
+
     if request.method == 'POST':
-        # Update quantities for order items
         for suborder in order.suborders.all():
             for item in suborder.items.all():
+                # Update quantity
                 new_qty = request.POST.get(f'item_{item.order_item_id}')
                 if new_qty and int(new_qty) != item.quantity:
                     item.quantity = int(new_qty)
                     item.save()
+
+                # Switch producer
+                switch_to = request.POST.get(f'switch_producer_{item.order_item_id}')
+                if switch_to and switch_to != 'no_switch':
+                    new_product = Product.objects.get(product_id=int(switch_to))
+                    # Capture old producer name before changing
+                    old_producer = item.product.producer.business_name
+                    item.product = new_product
+                    item.price_at_purchase = new_product.price
+                    item.original_price_at_purchase = new_product.price
+                    item.save()
+                    messages.success(request, f"Switched '{item.product.name}' from {old_producer} to {new_product.producer.business_name}.")
+
+            # Recalculate suborder subtotal
+            subtotal = sum(i.quantity * i.price_at_purchase for i in suborder.items.all())
+            suborder.subtotal = subtotal
+            suborder.payout_amount = subtotal - (subtotal * Decimal('0.05'))
+            suborder.save()
+
+        # Recalculate order totals
+        order.total_amount = sum(sub.subtotal for sub in order.suborders.all())
+        order.commission_amount = order.total_amount * Decimal('0.05')
+        order.save()
+
+        # Clear alert flag
+        instance.last_stock_alert_sent = None
+        instance.save(update_fields=['last_stock_alert_sent'])
+
         messages.success(request, "Order updated. Changes apply only to this delivery.")
-        return redirect('recurring_detail', template_id=instance.template.template_id)  # Use template_id, not id
-        #return redirect('recurring_detail', template_id=instance.template.id)
-    # Prepare items with current quantities
+        return redirect('recurring_detail', template_id=instance.template.template_id)
+
+    # GET – prepare items with stock info and alternatives
     items = []
-    for sub in order.suborders.all():
-        for item in sub.items.all():
+    for suborder in order.suborders.all():
+        for item in suborder.items.all():
+            product = item.product
+            reserved_by_others = CartItem.objects.filter(
+                product=product,
+                reserved_until__gt=timezone.now()
+            ).aggregate(total=Sum('quantity'))['total'] or 0
+            available_stock = product.stock_quantity - reserved_by_others
+
+            # Alternatives: other producers (excluding current product's producer)
+            alternatives = Product.objects.filter(
+                name=product.name,
+                availability_status=True,
+                stock_quantity__gte=item.quantity
+            ).exclude(producer=product.producer).select_related('producer').values(
+                'product_id', 'producer__business_name', 'price', 'stock_quantity'
+            )[:5]
+
+            # Optionally, include the original suborder producer as a switch‑back option
+            if suborder.producer != product.producer:
+                original_prod = Product.objects.filter(
+                    name=product.name,
+                    producer=suborder.producer,
+                    availability_status=True,
+                    stock_quantity__gte=item.quantity
+                ).first()
+                if original_prod:
+                    # Add to alternatives (avoid duplicate if already there)
+                    alt_ids = [a['product_id'] for a in alternatives]
+                    if original_prod.product_id not in alt_ids:
+                        alternatives = list(alternatives) + [{
+                            'product_id': original_prod.product_id,
+                            'producer__business_name': suborder.producer.business_name,
+                            'price': original_prod.price,
+                            'stock_quantity': original_prod.stock_quantity,
+                        }]
+
             items.append({
-                'id': item.order_item_id,
-                #'id': item.id,
-                'name': item.product.name,
+                'order_item_id': item.order_item_id,
+                'product_name': product.name,
+                'current_producer': product.producer.business_name,
+                'original_producer': suborder.producer.business_name,
                 'quantity': item.quantity,
                 'price': item.price_at_purchase,
-                'producer': sub.producer.business_name,
+                'available_stock': available_stock,
+                'has_issue': available_stock < item.quantity,
+                'alternatives': list(alternatives),
+                'has_price_change': product.price != item.price_at_purchase,
+                'old_price': item.price_at_purchase,
+                'new_price': product.price,
             })
-    return render(request, 'edit_upcoming_order.html', {
+
+    has_any_price_change = any(i['has_price_change'] for i in items)
+    if has_any_price_change:
+        messages.warning(request, "Some products have changed price since this order was generated. Check the 'Price Alert' column in the table below.")
+    context = {
         'instance': instance,
         'order': order,
         'items': items,
-    })
+        'has_issues': any(i['has_issue'] for i in items),
+        'has_any_price_change': has_any_price_change,   # ← add this line
+        'scheduled_date': instance.scheduled_date,
+    }
+    return render(request, 'edit_upcoming_order.html', context)
 
 @login_required
 def order_detail(request, order_id):

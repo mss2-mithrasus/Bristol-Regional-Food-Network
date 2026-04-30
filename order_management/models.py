@@ -82,6 +82,11 @@ class SubOrder(models.Model):
     )
 
     special_instruction = models.TextField(null=True, blank=True)
+    fulfillment_method = models.CharField(
+        max_length=10,
+        choices=[('delivery','Delivery'), ('collect','Collection')],
+        default='delivery'
+    )
 
     class Meta:
         managed = True
@@ -214,7 +219,7 @@ class RecurringOrderInstance(models.Model):
     scheduled_date = models.DateField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
-
+    last_stock_alert_sent = models.DateTimeField(null=True, blank=True)
     class Meta:
         db_table = "recurring_order_instance"
         unique_together = [('template', 'scheduled_date')]

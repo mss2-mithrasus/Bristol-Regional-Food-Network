@@ -20,7 +20,9 @@ class PaymentTransaction(models.Model):
         'order_management.Order',
         on_delete=models.CASCADE,
         related_name='payments',
-        db_column='order_id'
+        db_column='order_id',
+        null=True,           # allow null temporarily
+        blank=True
     )
     
     amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -28,8 +30,9 @@ class PaymentTransaction(models.Model):
     payment_method = models.CharField(max_length=50, choices=PaymentMethod.choices)
     payment_status = models.CharField(max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
     
-    stripe_payment_intent_id = models.CharField(max_length=255, blank=True, null=True)
-    
+    #stripe_payment_intent_id = models.CharField(max_length=255, blank=True, null=True)
+    # payments/models.py
+    stripe_payment_intent_id = models.CharField(max_length=255, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
