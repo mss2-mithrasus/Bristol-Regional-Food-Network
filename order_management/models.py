@@ -82,11 +82,7 @@ class SubOrder(models.Model):
     )
 
     special_instruction = models.TextField(null=True, blank=True)
-    fulfillment_method = models.CharField(
-        max_length=10,
-        choices=[('delivery','Delivery'), ('collect','Collection')],
-        default='delivery'
-    )
+    
 
     class Meta:
         managed = True
