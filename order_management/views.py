@@ -471,7 +471,7 @@ def edit_upcoming_order(request, instance_id):
                 'product_id', 'producer__business_name', 'price', 'stock_quantity'
             )[:5]
 
-            # Optionally, include the original suborder producer as a switch‑back option
+            # include the original suborder producer as a switch‑back option
             if suborder.producer != product.producer:
                 original_prod = Product.objects.filter(
                     name=product.name,
