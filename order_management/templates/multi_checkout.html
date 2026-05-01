@@ -17,7 +17,7 @@
                 {% if account_type == "community" %} Bulk Order — Community Group
                 {% else %} Bulk Order — Restaurant{% endif %}
             </strong>
-            <p >Bulk discounts have been applied to your order totals.</p>
+            <p >Bulk discounts apply automatically when you reach a producer's threshold quantity on a product.</p>
         </div>
     </div>
     {% endif %}
@@ -68,9 +68,15 @@
 
                         <!-- Unit Price -->
                         <div class="checkout-price">
-                            {% if item.has_surplus_discount %}
+                            {% if item.has_surplus_discount or item.bulk_applied %}
                                 <span class="old">£{{ item.original_price|floatformat:2 }}</span>
                                 <strong class="new">£{{ item.price_formatted }}</strong>
+                                {%if item.bulk_appiled%}
+                                    <div style="font-size:11px; color:#2e7d32; font-weight:600; margin-top:2px;">
+                                        Bulk {{ item.bulk_pct|floatformat:0 }}% off
+                                    </div>
+                                {% endif %}
+
                             {% else %}
                                 £{{ item.price_formatted }}
                             {% endif %}
@@ -114,14 +120,14 @@
                             <span class="summary-value">£{{ group.commission_formatted }}</span>
                         </div>
                         <!--felna added for bulk discount display -->
-                        {% if group.bulk_discount_pct %}
+                        {% if group.has_bulk_discount %}
                         <div class="summary-row original-price">
-                            <span class="summary-label">Original Subtotal:</span>
+                            <span class="summary-label">Subtotal (before bulk):</span>
                             <span class="summary-value">£{{ group.subtotal_formatted }}</span>
                         </div>
-                        <div class="summary-row bulk-discount" >
-                            <span class="summary-label"> Bulk Discount ({{ group.bulk_discount_pct }}% off):</span>
-                            <span class="summary-value">-£{{ group.bulk_discount_amount }}</span>
+                        <div class="summary-row bulk-discount">
+                            <span class="summary-label">Bulk Savings:</span>
+                            <span class="summary-value">-£{{ group.bulk_discount_amount_formatted }}</span>
                         </div>
                         {% endif %}
                         <div class="summary-row total">

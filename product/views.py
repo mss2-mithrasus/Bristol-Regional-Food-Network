@@ -324,7 +324,12 @@ class ProductDetailAPIView(APIView):
             for r in reviews
             
             ]
-
+        # felna - account type for bulk discount eligibility
+        try:
+            account_type = request.user.customeraccount.account_type
+        except Exception:
+            account_type = "normal"
+        #ended
 
 
         #return Response({"product": serializer.data, "farm_miles": farm_miles, "allergens": allergens_serializer.data}, status=status.HTTP_200_OK)
@@ -333,7 +338,11 @@ class ProductDetailAPIView(APIView):
                 "product": product_dict,
                 "farm_miles": farm_miles,
                 "allergens": allergens_serializer.data,
-                "reviews": reviews_data
+                "reviews": reviews_data,
+                # felna - bulk discount info for product page hint
+                "account_type": account_type,
+                "is_bulk_eligible": account_type in ["community", "restaurant"],
+                #ended
             },
             status=status.HTTP_200_OK
         )

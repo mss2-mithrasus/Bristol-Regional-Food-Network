@@ -9,22 +9,7 @@ from product.models import Product
 from decimal import Decimal, ROUND_HALF_UP
 from producers.models import SurplusDiscount
 
-def get_bulk_discount_percentage(account_type, producer_subtotal):
-    """
-    Returns bulk discount % for community/restaurant accounts
-    based on total spend per producer
-    """
-    if account_type not in ["community", "restaurant"]:
-        return Decimal("0")
-    
-    if producer_subtotal >= Decimal("100"):
-        return Decimal("10")
-    elif producer_subtotal >= Decimal("50"):
-        return Decimal("8")
-    elif producer_subtotal >= Decimal("20"):
-        return Decimal("5")
-    else:
-        return Decimal("0")
+
     
 class Cart(models.Model):
     """Shopping cart for each customer"""

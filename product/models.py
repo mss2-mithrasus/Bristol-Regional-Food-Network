@@ -48,7 +48,10 @@ class Product(models.Model):
     organic_certified = models.BooleanField(default=False)
     low_stock_threshold = models.PositiveIntegerField(default=10)
     image = models.ImageField(upload_to='product_images/', storage=MediaCloudinaryStorage(), null=True, blank=True)
-    
+    # felna added - for Bulk discounts
+    bulk_threshold_quantity = models.PositiveIntegerField(null=True,blank=True)
+    bulk_discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    #end felna addition - for Bulk discounts
     allergens = models.ManyToManyField(
         Allergen, through="ProductAllergen", blank=True, related_name="products"
     )
@@ -60,7 +63,17 @@ class Product(models.Model):
         
     def __str__(self):
         return self.name
-    
+    # felna added - for Bulk discounts
+    BULK_ELIGIBLE_ACCOUNT_TYPES = ("community", "restaurant")
+
+    def is_bulk_eligible_for(self, account_type):
+        """True if this customer + this product qualifies for bulk discount."""
+        return (
+            account_type in self.BULK_ELIGIBLE_ACCOUNT_TYPES
+            and self.bulk_threshold_quantity
+            and self.bulk_discount_percentage
+        )
+    # end felna addition - for Bulk discounts
 
 class SeasonalAvailability(models.Model):
     seasonal_id = models.AutoField(primary_key=True)
