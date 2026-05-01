@@ -20,8 +20,7 @@ from django.db.models import Sum
 from django.db import transaction
 from producers.utils import is_product_valid_for_fulfilment, get_earliest_fulfilment_date
 from producers.utils import expire_surplus_deals, deactivate_expired_products
-from decimal import Decimal
-from shopping_cart.models import get_bulk_discount_percentage
+from decimal import Decimal, ROUND_HALF_UP
 from product.models import Product   
 from shopping_cart.models import CartItem   
 from django.db.models import Sum   
@@ -102,22 +101,63 @@ def multi_checkout(request):
     total_quantity = 0  # Initialize total quantity counter
     
     for producer, data in items_by_producer_dict.items():
-        # Customer pays this price (already includes commission)
-        customer_price = float(data['subtotal'])
+        producer_subtotal_before_bulk = Decimal("0")     # surplus-applied, no bulk
+        producer_subtotal_after_bulk = Decimal("0")      # surplus + bulk
+        producer_bulk_savings = Decimal("0")
+        producer_has_bulk_discount = False
+        per_item_pricing = {}  # cart_item_id -> dict of computed prices
 
-        # felna added - Apply bulk discount if applicable
-        bulk_discount_pct = get_bulk_discount_percentage(
-            account_type, Decimal(str(customer_price))
-        )
-        bulk_discount_amount = round(float(bulk_discount_pct) * customer_price / 100, 2)
-        discounted_price = round(customer_price - bulk_discount_amount, 2)
-        # change ended
+        for item in data["items"]:
+            if not is_product_valid_for_fulfilment(item.product):
+                continue
 
-        # Calculate commission (5% of customer price)
+            surplus_unit_price = Decimal(str(item.unit_price))
+            surplus_line_total = (surplus_unit_price * item.quantity).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+
+            bulk_applies = (
+                item.product.is_bulk_eligible_for(account_type)
+                and item.quantity >= item.product.bulk_threshold_quantity
+            )
+
+            if bulk_applies:
+                bulk_pct = Decimal(str(item.product.bulk_discount_percentage))
+                final_unit_price = (
+                    surplus_unit_price * (Decimal("1") - bulk_pct / Decimal("100"))
+                ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                final_line_total = (final_unit_price * item.quantity).quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                )
+                line_savings = surplus_line_total - final_line_total
+                producer_has_bulk_discount = True
+            else:
+                bulk_pct = Decimal("0")
+                final_unit_price = surplus_unit_price
+                final_line_total = surplus_line_total
+                line_savings = Decimal("0")
+
+            producer_subtotal_before_bulk += surplus_line_total
+            producer_subtotal_after_bulk += final_line_total
+            producer_bulk_savings += line_savings
+
+            per_item_pricing[item.cart_item_id] = {
+                "surplus_unit_price": surplus_unit_price,
+                "final_unit_price": final_unit_price,
+                "final_line_total": final_line_total,
+                "bulk_applied": bulk_applies,
+                "bulk_pct": bulk_pct,
+            }
+
+        # Customer pays the after-bulk total
+        customer_price = float(producer_subtotal_after_bulk)
+
+        # Commission is 5% of what the customer actually pays
         producer_commission = round(customer_price * 0.05, 2)
 
-        # Producer gets customer price minus commission
+        # Producer payout is the rest
         producer_payout = customer_price - producer_commission
+        # end felna
 
         # GET PRODUCER ADDRESS
         producer_address = None
@@ -185,25 +225,37 @@ def multi_checkout(request):
             # })
             
             # Micaiah changed for surplus discount
-            unit_price = float(item.unit_price)
+            #unit_price = float(item.unit_price)
+            #original_price = float(product.price)
+            #item_total = unit_price * item.quantity
+            #original_item_total = original_price * item.quantity
+            # felna changed - use bulk-aware per-item pricing
+            pricing = per_item_pricing.get(item.cart_item_id, {})
+            final_unit_price = float(pricing.get("final_unit_price", item.unit_price))
+            surplus_unit_price = float(pricing.get("surplus_unit_price", item.unit_price))
+            item_total = float(pricing.get("final_line_total", final_unit_price * item.quantity))
             original_price = float(product.price)
-            item_total = unit_price * item.quantity
             original_item_total = original_price * item.quantity
+            bulk_applied = pricing.get("bulk_applied", False)
+            bulk_pct = float(pricing.get("bulk_pct", 0))
 
             formatted_items.append({
                 'product': product,
                 'product_id': product.product_id if hasattr(product, 'product_id') else product.id,
                 'name': product.name,
                 'quantity': item.quantity,
-                'price': unit_price,
-                'price_formatted': f"{unit_price:.2f}",
+                'price': final_unit_price,                # final price after surplus + bulk
+                'price_formatted': f"{final_unit_price:.2f}",
                 'item_total': item_total,
                 'item_total_formatted': f"{item_total:.2f}",
                 'unit': unit,
                 'image': image_url,
                 'organic_certified': organic,
-                'original_price': original_price,
-                'has_surplus_discount': unit_price != original_price,
+                'original_price': original_price,         # base product price (before any discount)
+                'surplus_unit_price': surplus_unit_price, # price after surplus only
+                'has_surplus_discount': surplus_unit_price != original_price,
+                'bulk_applied': bulk_applied,
+                'bulk_pct': bulk_pct,
                 'original_item_total': original_item_total,
                 'original_item_total_formatted': f"{original_item_total:.2f}",
             })
@@ -218,20 +270,23 @@ def multi_checkout(request):
             "producer_address": producer_address,
             "items": formatted_items,
             "min_delivery_date": min_delivery_date,
-            "subtotal": customer_price,
-            "subtotal_formatted": f"{customer_price:.2f}",
-            "bulk_discount_pct": int(bulk_discount_pct),
-            "bulk_discount_amount": bulk_discount_amount,
-            "discounted_subtotal": discounted_price,
-            "discounted_subtotal_formatted": f"{discounted_price:.2f}",
+            # subtotal before bulk (surplus already applied) — for "before/after" display
+            "subtotal": float(producer_subtotal_before_bulk),
+            "subtotal_formatted": f"{float(producer_subtotal_before_bulk):.2f}",
+            "has_bulk_discount": producer_has_bulk_discount,
+            "bulk_discount_amount": float(producer_bulk_savings),
+            "bulk_discount_amount_formatted": f"{float(producer_bulk_savings):.2f}",
+            # discounted = the actual customer total for this producer
+            "discounted_subtotal": customer_price,
+            "discounted_subtotal_formatted": f"{customer_price:.2f}",
             "commission": producer_commission,
             "commission_formatted": f"{producer_commission:.2f}",
-            "total": discounted_price,
-            "total_formatted": f"{discounted_price:.2f}",
+            "total": customer_price,
+            "total_formatted": f"{customer_price:.2f}",
             "producer_payout": producer_payout,
         })
 
-        overall_subtotal += discounted_price
+        overall_subtotal += customer_price
 
     overall_total = sum(group['total'] for group in producer_groups)
     overall_total_formatted = f"{overall_total:.2f}"
@@ -278,7 +333,7 @@ def multi_checkout(request):
             "producer_address": group["producer_address"],
             "min_delivery_date": str(group["min_delivery_date"]),
             "subtotal": group["subtotal"],
-            "bulk_discount_pct": group["bulk_discount_pct"],
+            "has_bulk_discount": group["has_bulk_discount"],
             "bulk_discount_amount": group["bulk_discount_amount"],
             "discounted_subtotal": group["discounted_subtotal"],
             "commission": group["commission"],
@@ -303,9 +358,12 @@ def multi_checkout(request):
                 "product_id": item["product"].product_id,
                 "product_name": item["name"],
                 "quantity": item["quantity"],
-                "price": item["price"],  # discounted price if surplus is active
-                "original_price": item.get("original_price"),
+                "price": item["price"],                            # final after surplus + bulk
+                "original_price": item.get("original_price"),      # base product price
+                "surplus_unit_price": item.get("surplus_unit_price"),
                 "has_surplus_discount": item.get("has_surplus_discount", False),
+                "bulk_applied": item.get("bulk_applied", False),
+                "bulk_pct": item.get("bulk_pct", 0),
                 "unit": item["unit"],
                 "image": item["image"],
                 "organic_certified": item["organic_certified"],

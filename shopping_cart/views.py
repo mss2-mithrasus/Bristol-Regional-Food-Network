@@ -12,7 +12,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import Sum, Q 
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from .models import Cart, CartItem
 from product.models import Product
@@ -191,40 +191,72 @@ def cart_view(request):
         account_type = request.user.customeraccount.account_type
     except Exception:
         account_type = "normal" # ended
+    total_bulk_savings = Decimal('0')
+
     for item in cart_items_list:
+        surplus_unit_price = Decimal(str(item.unit_price))
+        surplus_line_total = (surplus_unit_price * item.quantity).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+
+        bulk_applies = (
+            item.product.is_bulk_eligible_for(account_type)
+            and item.quantity >= item.product.bulk_threshold_quantity
+        )
+
+        if bulk_applies:
+            bulk_pct = Decimal(str(item.product.bulk_discount_percentage))
+            final_unit_price = (
+                surplus_unit_price * (Decimal("1") - bulk_pct / Decimal("100"))
+            ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            final_line_total = (final_unit_price * item.quantity).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+            line_bulk_savings = surplus_line_total - final_line_total
+        else:
+            bulk_pct = Decimal("0")
+            final_unit_price = surplus_unit_price
+            final_line_total = surplus_line_total
+            line_bulk_savings = Decimal("0")
+
+        # Attach computed values to the item so the template can read them
+        item.surplus_unit_price = surplus_unit_price
+        item.surplus_line_total = surplus_line_total
+        item.final_unit_price = final_unit_price
+        item.final_line_total = final_line_total
+        item.bulk_applied = bulk_applies
+        item.bulk_pct = bulk_pct
+        item.line_bulk_savings = line_bulk_savings
+
+        total_bulk_savings += line_bulk_savings
+
+        # Group by producer
         producer_name = item.producer_name
         if producer_name not in producer_dict:
             producer_dict[producer_name] = {
-                'name': producer_name,
-                'items': [],
-                'subtotal': 0
+                "name": producer_name,
+                "items": [],
+                "subtotal": Decimal("0"),             # before bulk (surplus already applied)
+                "discounted_subtotal": Decimal("0"),  # after bulk
+                "bulk_discount_amount": Decimal("0"),
+                "has_bulk_discount": False,
             }
-        
-        producer_dict[producer_name]['items'].append(item)
-        producer_dict[producer_name]['subtotal'] += item.subtotal
-    # felna apply bulk discount per producer group
-    from shopping_cart.models import get_bulk_discount_percentage
-    total_bulk_savings = Decimal('0')
 
-    for producer_name, group in producer_dict.items():
-        producer_subtotal = group['subtotal']
-        discount_pct = get_bulk_discount_percentage(account_type, producer_subtotal)
-        
-        if discount_pct > 0:
-            discount_amount = (producer_subtotal * discount_pct / Decimal('100')).quantize(Decimal('0.01'))
-            group['bulk_discount_pct'] = discount_pct
-            group['bulk_discount_amount'] = discount_amount
-            group['discounted_subtotal'] = producer_subtotal - discount_amount
-            total_bulk_savings += discount_amount
-        else:
-            group['bulk_discount_pct'] = 0
-            group['bulk_discount_amount'] = Decimal('0')
-            group['discounted_subtotal'] = producer_subtotal
+        producer_dict[producer_name]["items"].append(item)
+        producer_dict[producer_name]["subtotal"] += surplus_line_total
+        producer_dict[producer_name]["discounted_subtotal"] += final_line_total
+        producer_dict[producer_name]["bulk_discount_amount"] += line_bulk_savings
+        if bulk_applies:
+            producer_dict[producer_name]["has_bulk_discount"] = True
+
     producers = list(producer_dict.values())
-    # recalculate totals with bulk discount applied
-    subtotal = sum(g['discounted_subtotal'] for g in producers)
+
+    # Cart totals based on discounted (final) subtotals
+    subtotal = sum((g["discounted_subtotal"] for g in producers), Decimal("0"))
     subtotal_float = float(subtotal)
-    total = subtotal_float #felna ended
+    network_fee = round(subtotal_float * 0.05, 2)
+    total = subtotal_float
+    # end felna
     context = {
         'cart': cart,
         'cart_items': cart_items_list,

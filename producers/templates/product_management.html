@@ -64,7 +64,23 @@
         <input type="number" id="editLowStockThreshold" min="0" step="1" value="10" required>
         <small style="display: block; font-size: 12px; color: #666;">You'll be notified when stock falls below this number</small>
       </div>
+      <!-- felna added - bulk discount fields -->
+      <div class="form-group">
+        <label>Bulk Threshold (qty)</label>
+        <input type="number" id="editBulkThreshold" min="2" step="1">
+        <small style="display: block; font-size: 12px; color: #666;">
+          Minimum quantity to trigger the discount. Community groups and restaurants only. Leave empty for none.
+        </small>
+      </div>
 
+      <div class="form-group">
+        <label>Bulk Discount (%)</label>
+        <input type="number" id="editBulkDiscountPct" min="1" max="50" step="0.01">
+        <small style="display: block; font-size: 12px; color: #666;">
+          Discount applied when threshold is met. 1-50%. Both fields must be set together, or both empty.
+        </small>
+      </div>
+      <!-- end felna addition -->
       <div class="form-group">
         <label>Best Before Date</label>
         <input type="date" id="editBestBeforeDate">
@@ -401,6 +417,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                data-season-end="${p.season_end_date || ""}"
                data-low-stock-threshold="${lowStockThreshold}"
                data-best-before-date="${p.best_before_date || ""}"
+               data-bulk-threshold="${p.bulk_threshold_quantity || ""}"
+               data-bulk-pct="${p.bulk_discount_percentage || ""}"
                data-available-status="${p.availability_status ? "true" : "false"}">
               <div class="cell-name">
                 <span class="product-name-text">${name}</span>
@@ -490,6 +508,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("editSeasonStart").value = seasonStart;
         document.getElementById("editSeasonEnd").value = seasonEnd;
         document.getElementById("editIsYearRound").checked = isYearRound;
+        document.getElementById("editBulkThreshold").value = row.dataset.bulkThreshold || "";
+        document.getElementById("editBulkDiscountPct").value = row.dataset.bulkPct || "";
         toggleSeasonFields();
         autoUpdateAvailableCheckbox();
         editModal.style.display = "flex";
@@ -568,7 +588,34 @@ document.addEventListener("DOMContentLoaded", async () => {
       formData.append("is_year_round", document.getElementById("editIsYearRound").checked ? "true" : "false");
       // Some backends expect "true"/"false" strings in multipart
       formData.append("availability_status", available? "true" : "false");
+      // felna added - bulk discount fields (both together or both empty)
+      const bulkThresholdRaw = document.getElementById("editBulkThreshold").value.trim();
+      const bulkPctRaw = document.getElementById("editBulkDiscountPct").value.trim();
 
+      if ((bulkThresholdRaw === "") !== (bulkPctRaw === "")) {
+        editErrors.textContent = "Bulk threshold and bulk discount must both be set, or both empty.";
+        return;
+      }
+
+      if (bulkThresholdRaw !== "") {
+        const tq = parseInt(bulkThresholdRaw, 10);
+        const pct = parseFloat(bulkPctRaw);
+        if (isNaN(tq) || tq < 2) {
+          editErrors.textContent = "Bulk threshold must be at least 2.";
+          return;
+        }
+        if (isNaN(pct) || pct < 1 || pct > 50) {
+          editErrors.textContent = "Bulk discount must be between 1% and 50%.";
+          return;
+        }
+        formData.append("bulk_threshold_quantity", tq);
+        formData.append("bulk_discount_percentage", pct);
+      } else {
+        // Both empty — explicitly clear them on the backend
+        formData.append("bulk_threshold_quantity", "");
+        formData.append("bulk_discount_percentage", "");
+      }
+      // end felna addition
       //  Optional image
       const imageFile = document.getElementById("editImage")?.files?.[0];
       if (imageFile) {
