@@ -65,8 +65,7 @@ class Command(BaseCommand):
         return current
 
     def create_order_from_template(self, template, delivery_date):
-        # (unchanged – creates Order, SubOrder, OrderItem)
-        customer = template.customer
+        # (unchanged – creates Order, SubOrder, OrderItem)        customer = template.customer
         street = ''
         postcode = ''
         if hasattr(customer, 'address') and customer.address:
