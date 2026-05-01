@@ -290,7 +290,9 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label><i class="fa-regular fa-calendar-plus"></i> Start date (first delivery)</label>
-                        <input type="date" name="start_date" class="form-control">
+                        
+                        <input type="date" name="start_date" class="form-control" id="start-date-input">
+                        <span id="start-date-error" class="error-text" style="color:red; font-size:12px; display:none;"></span>
                     </div>
                     <div class="form-group">
                         <label><i class="fa-regular fa-calendar-xmark"></i> End date (optional)</label>
@@ -389,6 +391,25 @@ if (startDateInput) {
 
         const weekdaySelect = document.querySelector('select[name="delivery_weekday"]');
         function validateStartDateWeekday() {
+            const startDateInput = document.getElementById('start-date-input');
+            const errorSpan = document.getElementById('start-date-error');
+            if (startDateInput && startDateInput.value) {
+                const selectedDate = new Date(startDateInput.value);
+                const jsWeekday = selectedDate.getDay();
+                const selectedCustomWeekday = toCustomWeekday(jsWeekday);
+                const requiredCustomWeekday = parseInt(weekdaySelect.value);
+                if (selectedCustomWeekday !== requiredCustomWeekday) {
+                    errorSpan.textContent = `Start date must be a ${weekdaySelect.options[weekdaySelect.selectedIndex].text}.`;
+                    errorSpan.style.display = 'inline';
+                    startDateInput.value = '';
+                } else {
+                    errorSpan.style.display = 'none';
+                }
+            } else {
+                errorSpan.style.display = 'none';
+            }
+        }
+        /*function validateStartDateWeekday() {
             if (startDateInput.value) {
                 const selectedDate = new Date(startDateInput.value);
                 const jsWeekday = selectedDate.getDay();
@@ -399,7 +420,7 @@ if (startDateInput) {
                     startDateInput.value = '';
                 }
             }
-        }
+        }*/
         startDateInput.addEventListener('change', validateStartDateWeekday);
         weekdaySelect.addEventListener('change', () => {
             if (startDateInput.value) validateStartDateWeekday();

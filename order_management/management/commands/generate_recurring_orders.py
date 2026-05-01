@@ -1,72 +1,71 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from datetime import timedelta
-from order_management.models import RecurringTemplate, RecurringOrderInstance
-from order_management.models import Order, SubOrder, OrderItem
+from dateutil.relativedelta import relativedelta   # ADDED: for calendar‑aware months
+from order_management.models import RecurringTemplate, RecurringOrderInstance, Order, SubOrder, OrderItem
 from product.models import Product
 from decimal import Decimal
 
 class Command(BaseCommand):
-    help = 'Generate recurring orders for the next few cycles (4 weeks for weekly, etc.)'
+    help = 'Generate recurring orders for the next few cycles'
 
     def handle(self, *args, **options):
         today = timezone.now().date()
+        # NEW: only generate orders up to 6 months ahead (prevents infinite future orders)
+        horizon = today + relativedelta(months=6)
         templates = RecurringTemplate.objects.filter(is_active=True)
         created = 0
 
         for template in templates:
-            # Determine how many future deliveries to generate
-            if template.recurrence == 'weekly':
-                max_weeks = 4  # Show 4 weeks ahead
-            elif template.recurrence == 'fortnightly':
-                max_weeks = 2  # Show 2 deliveries (4 weeks total)
-            else:  # monthly
-                max_weeks = 1  # Show 1 delivery (4 weeks ahead)
-
-            # Compute the first delivery date on or after today
-            next_date = self.get_next_delivery_date(template, today)
-            if not next_date or (template.end_date and next_date > template.end_date):
+            # NEW: skip templates whose start date is already beyond horizon
+            if template.start_date > horizon:
                 continue
 
-            # Generate up to max_weeks deliveries (by adding recurrence intervals)
+            # Determine how many future deliveries to generate
+            # (weekly = 4 deliveries, fortnightly = 2, monthly = 1)
+            if template.recurrence == 'weekly':
+                max_deliveries = 4
+                delta = relativedelta(weeks=1)          # CHANGED: use relativedelta for consistency
+            elif template.recurrence == 'fortnightly':
+                max_deliveries = 2
+                delta = relativedelta(weeks=2)
+            else:  # monthly
+                max_deliveries = 2
+                # CHANGE: from timedelta(days=28) to relativedelta(months=1)
+                # This makes monthly orders follow calendar months (28-31 days) correctly.
+                delta = relativedelta(months=1)
+
+            # Compute the first delivery date on or after today
+            next_date = self.get_next_delivery_date(template, today, delta)
+            if not next_date or next_date > horizon:
+                continue
+
             current = next_date
-            count = 0
-            while count < max_weeks and (not template.end_date or current <= template.end_date):
-                # Check if an instance already exists for this date
-                if not RecurringOrderInstance.objects.filter(template=template, scheduled_date=current).exists():
-                    try:
-                        self.create_order_from_template(template, current)
-                        created += 1
-                    except Exception as e:
-                        self.stdout.write(self.style.ERROR(f"Failed for template {template.template_id} on {current}: {e}"))
-                # Move to next delivery date
-                if template.recurrence == 'weekly':
-                    current += timedelta(weeks=1)
-                elif template.recurrence == 'fortnightly':
-                    current += timedelta(weeks=2)
-                else:  # monthly
-                    current += timedelta(days=28)  # approximate 4 weeks
-                count += 1
+            deliveries_made = 0
+            while deliveries_made < max_deliveries and current <= horizon:
+                if not template.end_date or current <= template.end_date:
+                    # Use get_or_create? We keep simple existence check to avoid duplicates
+                    if not RecurringOrderInstance.objects.filter(template=template, scheduled_date=current).exists():
+                        try:
+                            self.create_order_from_template(template, current)
+                            created += 1
+                        except Exception as e:
+                            self.stdout.write(self.style.ERROR(f"Failed for template {template.template_id} on {current}: {e}"))
+                # Move to next delivery date using the same delta (now calendar‑aware for monthly)
+                current += delta
+                deliveries_made += 1
 
         self.stdout.write(self.style.SUCCESS(f"Generated {created} recurring orders"))
 
-    def get_next_delivery_date(self, template, reference_date):
-        if reference_date < template.start_date:
-            reference_date = template.start_date
-
-        if template.recurrence == 'weekly':
-            delta = timedelta(weeks=1)
-        elif template.recurrence == 'fortnightly':
-            delta = timedelta(weeks=2)
-        else:
-            delta = timedelta(days=28)
-
+    # CHANGED: get_next_delivery_date now accepts delta (the recurrence interval) as argument
+    def get_next_delivery_date(self, template, reference_date, delta):
         current = template.start_date
         while current < reference_date:
             current += delta
         return current
 
     def create_order_from_template(self, template, delivery_date):
+        # (unchanged – creates Order, SubOrder, OrderItem)
         customer = template.customer
         street = ''
         postcode = ''
