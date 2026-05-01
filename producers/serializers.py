@@ -140,6 +140,25 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = "__all__"
+    # felna added - bulk discount paired-field validation
+    def validate(self, attrs):
+        """Both bulk fields must be set together, or both empty."""
+        instance = self.instance
+        threshold = attrs.get(
+            "bulk_threshold_quantity",
+            instance.bulk_threshold_quantity if instance else None,
+        )
+        pct = attrs.get(
+            "bulk_discount_percentage",
+            instance.bulk_discount_percentage if instance else None,
+        )
+        if (threshold is None) != (pct is None):
+            raise serializers.ValidationError({
+                "bulk_threshold_quantity":
+                    "Bulk threshold and bulk discount percentage must be set together, or both left empty."
+            })
+        return attrs
+    # end felna addition
 # Micaiah added - 13-04-2026 - Surplus Serilizers
 class SurplusDiscountSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)

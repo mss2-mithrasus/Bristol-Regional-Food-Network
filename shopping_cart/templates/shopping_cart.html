@@ -83,17 +83,22 @@
                 </div>
             </div>
             
-            <!-- Micaiah changed so if there is an active surplus deal it displays the discount price  -->
+            <!-- Micaiah changed so if there is an active surplus deal it displays the discount price | felna - added bulk discount on top -->
             <div class="item-price">
-                {% if item.unit_price != item.product.price %}
+                {% if item.bulk_applied or item.unit_price != item.product.price %}
                     <span style="text-decoration: line-through; color:#777;">
                         £{{ item.product.price|floatformat:2 }}
                     </span>
                     <strong style="color:#c62828;">
-                        £{{ item.unit_price|floatformat:2 }}
+                        £{{ item.final_unit_price|floatformat:2 }}
                     </strong>
+                    {% if item.bulk_applied %}
+                        <div style="font-size:11px; color:#2e7d32; font-weight:600; margin-top:2px;">
+                            Bulk {{ item.bulk_pct|floatformat:0 }}% off
+                        </div>
+                    {% endif %}
                 {% else %}
-                    £{{ item.unit_price|floatformat:2 }}
+                    £{{ item.final_unit_price|floatformat:2 }}
                 {% endif %}
             </div>
             <!-- Change end  -->
@@ -110,7 +115,7 @@
             </div>
             
             <div class="item-total" id="total-{{ item.cart_item_id }}">
-                £{{ item.subtotal|floatformat:2 }}
+                £{{ item.final_line_total|floatformat:2 }}
             </div>
             
             <div class="item-action">
@@ -123,27 +128,26 @@
         
         <!--felna changed - Producer Subtotal -->
         <div class="producer-subtotal">
-            {% if producer.bulk_discount_pct %}
-            <div class="subtotal-row">
-                <span>Original Subtotal:</span>
-                <span>£{{ producer.subtotal|floatformat:2 }}</span>
-            </div>
-            <div class="subtotal-row discount">
-                <span> Bulk Discount ({{ producer.bulk_discount_pct }}% off):</span>
-                <span>-£{{ producer.bulk_discount_amount|floatformat:2 }}</span>
-            </div>
-            <div class="subtotal-row final">
-                <span>Producer Subtotal:</span>
-                <span class="producer-total">£{{ producer.discounted_subtotal|floatformat:2 }}</span>
-            </div>
-        {% else %}
-            <div class="subtotal-row final">
-                <span>Producer Subtotal:</span>
-                <span class="producer-total">£{{ producer.subtotal|floatformat:2 }}</span>
-            </div>
-        {% endif %}
-            
-    </div>
+            {% if producer.has_bulk_discount %}
+                <div class="subtotal-row">
+                    <span>Subtotal (before bulk):</span>
+                    <span>£{{ producer.subtotal|floatformat:2 }}</span>
+                </div>
+                <div class="subtotal-row discount">
+                    <span>Bulk Savings:</span>
+                    <span>-£{{ producer.bulk_discount_amount|floatformat:2 }}</span>
+                </div>
+                <div class="subtotal-row final">
+                    <span>Producer Subtotal:</span>
+                    <span class="producer-total">£{{ producer.discounted_subtotal|floatformat:2 }}</span>
+                </div>
+            {% else %}
+                <div class="subtotal-row final">
+                    <span>Producer Subtotal:</span>
+                    <span class="producer-total">£{{ producer.discounted_subtotal|floatformat:2 }}</span>
+                </div>
+            {% endif %}
+        </div>
     {% endfor %}
     <!--change ended-->
     
@@ -428,6 +432,8 @@
                 updateCartItemMax(itemId);
                 
                 showNotification('Cart updated', 'success');
+                // felna - reload to recompute bulk discount on server
+                setTimeout(() => window.location.reload(), 600);
             } else {
                 showNotification(data.error, 'error');
             }
@@ -512,6 +518,8 @@
                 updateCartItemMax(itemId);
                 
                 showNotification('Quantity updated', 'success');
+                // felna - reload to recompute bulk discount on server
+                setTimeout(() => window.location.reload(), 600);
             } else {
                 showNotification(data.error, 'error');
             }

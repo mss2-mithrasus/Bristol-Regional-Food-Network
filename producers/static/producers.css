@@ -350,8 +350,11 @@
   border-radius: 14px;
   text-align: center;
   max-width: 400px;
+  max-height: 90vh;
+  overflow-y: auto;
   width: 90%;
   animation: fadeInScale 0.25s ease;
+  
 }
 
 .modal-icon {
