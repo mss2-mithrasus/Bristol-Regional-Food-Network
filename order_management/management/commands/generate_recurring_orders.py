@@ -30,7 +30,7 @@ class Command(BaseCommand):
                 max_deliveries = 2
                 delta = relativedelta(weeks=2)
             else:  # monthly
-                max_deliveries = 1
+                max_deliveries = 2
                 # CHANGE: from timedelta(days=28) to relativedelta(months=1)
                 # This makes monthly orders follow calendar months (28-31 days) correctly.
                 delta = relativedelta(months=1)
@@ -65,7 +65,8 @@ class Command(BaseCommand):
         return current
 
     def create_order_from_template(self, template, delivery_date):
-        # (unchanged – creates Order, SubOrder, OrderItem)        customer = template.customer
+        # (unchanged – creates Order, SubOrder, OrderItem)
+        customer = template.customer
         street = ''
         postcode = ''
         if hasattr(customer, 'address') and customer.address:
