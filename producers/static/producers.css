@@ -418,7 +418,7 @@
     background:rgba(0,0,0,0.4);
     justify-content: center;
     align-items:center;
-    z-index:2000;
+    z-index:10000;
     animation: fadeBack 0.2s ease;
 }
 

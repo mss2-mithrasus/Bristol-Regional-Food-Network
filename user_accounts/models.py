@@ -129,13 +129,28 @@ class ProducerAccount(models.Model):
     contact_person = models.ForeignKey(Person, on_delete=models.SET_NULL, null=True)
     address = models.ForeignKey(Address, on_delete=models.SET_NULL, null=True)
     account_verified = models.BooleanField(default=False)
-
+    # felna added - bulk discount settings (producer-level, applies to all their products)
+    bulk_threshold_quantity = models.PositiveIntegerField(null=True, blank=True)
+    bulk_discount_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    # end felna addition
     class Meta:
         db_table = "producer_account"
 
     def __str__(self):
         return f"{self.business_name} ({self.user.email})"
+    # felna added - bulk eligibility helper
+    BULK_ELIGIBLE_ACCOUNT_TYPES = ("community", "restaurant")
 
+    def is_bulk_eligible_for(self, account_type):
+        """True if this producer + customer account type qualifies for bulk discount."""
+        return (
+            account_type in self.BULK_ELIGIBLE_ACCOUNT_TYPES
+            and self.bulk_threshold_quantity
+            and self.bulk_discount_percentage
+        )
+    # end felna addition
 
 
 class DeletionAudit(models.Model):

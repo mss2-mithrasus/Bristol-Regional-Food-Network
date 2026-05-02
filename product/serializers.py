@@ -110,8 +110,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "surplus_note",
             "discount_percentage",
             "surplus_expiry_date",
-            'bulk_threshold_quantity',
-            'bulk_discount_percentage',
+            
             
         ]
         

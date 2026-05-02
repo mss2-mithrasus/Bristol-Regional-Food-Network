@@ -329,8 +329,15 @@ class ProductDetailAPIView(APIView):
             account_type = request.user.customeraccount.account_type
         except Exception:
             account_type = "normal"
-        #ended
-
+        
+        producer = product.producer
+        producer_bulk_threshold = producer.bulk_threshold_quantity
+        producer_bulk_pct = (
+            str(producer.bulk_discount_percentage)
+            if producer.bulk_discount_percentage is not None
+            else None
+        )
+        # end felna change
 
         #return Response({"product": serializer.data, "farm_miles": farm_miles, "allergens": allergens_serializer.data}, status=status.HTTP_200_OK)
         return Response(
@@ -342,6 +349,8 @@ class ProductDetailAPIView(APIView):
                 # felna - bulk discount info for product page hint
                 "account_type": account_type,
                 "is_bulk_eligible": account_type in ["community", "restaurant"],
+                "producer_bulk_threshold_quantity": producer_bulk_threshold,
+                "producer_bulk_discount_percentage": producer_bulk_pct,
                 #ended
             },
             status=status.HTTP_200_OK

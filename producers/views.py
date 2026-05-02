@@ -202,16 +202,97 @@ class ProducerProductListAPI(APIView):
                 "surplus_discount_percentage": active_surplus.discount_percentage if active_surplus else None,
                 "surplus_expiry_date": active_surplus.expiry_date.isoformat() if active_surplus else None,
                 "days_until_best_before": days_until_best_before,
-                # felna added - bulk discount fields
-                "bulk_threshold_quantity": p.bulk_threshold_quantity,
-                "bulk_discount_percentage": (
-                    str(p.bulk_discount_percentage) if p.bulk_discount_percentage is not None else None
-                ),
-                # end felna addition
+               
             })
 
         return Response(data, status=status.HTTP_200_OK)
     
+# felna added - producer-level bulk discount settings
+class ProducerBulkSettingsAPI(APIView):
+
+    permission_classes = [IsAuthenticated, IsProducer]
+
+    def get(self, request):
+        producer = ProducerAccount.objects.filter(user=request.user).first()
+        if not producer:
+            return Response({"error": "Producer account not found"}, status=404)
+
+        return Response({
+            "bulk_threshold_quantity": producer.bulk_threshold_quantity,
+            "bulk_discount_percentage": (
+                str(producer.bulk_discount_percentage)
+                if producer.bulk_discount_percentage is not None
+                else None
+            ),
+        }, status=200)
+
+    def put(self, request):
+        producer = ProducerAccount.objects.filter(user=request.user).first()
+        if not producer:
+            return Response({"error": "Producer account not found"}, status=404)
+
+        threshold_raw = request.data.get("bulk_threshold_quantity")
+        pct_raw = request.data.get("bulk_discount_percentage")
+
+        
+        threshold_value = (
+            None if threshold_raw in (None, "", "null") else threshold_raw
+        )
+        pct_value = (
+            None if pct_raw in (None, "", "null") else pct_raw
+        )
+
+        # Both must be set together, or both empty
+        if (threshold_value is None) != (pct_value is None):
+            return Response(
+                {"error": "Bulk threshold and bulk discount percentage must be set together, or both empty."},
+                status=400,
+            )
+
+        # Both empty - clear them
+        if threshold_value is None and pct_value is None:
+            producer.bulk_threshold_quantity = None
+            producer.bulk_discount_percentage = None
+            producer.save(update_fields=["bulk_threshold_quantity", "bulk_discount_percentage"])
+            return Response({"message": "Bulk discount settings disabled."}, status=200)
+
+        # Both filled - validate
+        try:
+            tq = int(threshold_value)
+            if tq < 5 or tq > 100:
+                return Response(
+                    {"error": "Bulk threshold must be between 5 and 100."},
+                    status=400,
+                )
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "Bulk threshold must be a valid number."},
+                status=400,
+            )
+
+        try:
+            pct = Decimal(str(pct_value))
+            if pct < Decimal("5") or pct > Decimal("25"):
+                return Response(
+                    {"error": "Bulk discount must be between 5% and 25%."},
+                    status=400,
+                )
+        except (InvalidOperation, ValueError):
+            return Response(
+                {"error": "Bulk discount must be a valid number."},
+                status=400,
+            )
+
+        producer.bulk_threshold_quantity = tq
+        producer.bulk_discount_percentage = pct
+        producer.save(update_fields=["bulk_threshold_quantity", "bulk_discount_percentage"])
+
+        return Response({
+            "message": "Bulk discount settings saved.",
+            "bulk_threshold_quantity": tq,
+            "bulk_discount_percentage": str(pct),
+        }, status=200)
+# end felna addition
 
 class ProducerDeleteProductAPI(APIView):
     permission_classes = [IsAuthenticated, IsProducer]
@@ -322,59 +403,7 @@ class ProducerUpdateProductAPI(APIView):
                 product.low_stock_threshold = int(new_threshold)
             except (TypeError, ValueError):
                 pass
-        # felna added - bulk discount fields
-        bulk_threshold_raw = request.data.get("bulk_threshold_quantity")
-        bulk_pct_raw = request.data.get("bulk_discount_percentage")
-
-        # Treat empty strings as None (producer wants to clear the discount)
-        bulk_threshold_value = (
-            None if bulk_threshold_raw in (None, "", "null") else bulk_threshold_raw
-        )
-        bulk_pct_value = (
-            None if bulk_pct_raw in (None, "", "null") else bulk_pct_raw
-        )
-
-        # Paired-field validation
-        if (bulk_threshold_value is None) != (bulk_pct_value is None):
-            return Response(
-                {"error": "Bulk threshold and bulk discount percentage must be set together, or both empty."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Both empty — clear them
-        if bulk_threshold_value is None and bulk_pct_value is None:
-            product.bulk_threshold_quantity = None
-            product.bulk_discount_percentage = None
-        else:
-            # Both filled — validate ranges and save
-            try:
-                tq = int(bulk_threshold_value)
-                if tq < 2:
-                    return Response(
-                        {"error": "Bulk threshold must be at least 2."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                product.bulk_threshold_quantity = tq
-            except (TypeError, ValueError):
-                return Response(
-                    {"error": "Bulk threshold must be a valid number."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            try:
-                pct = Decimal(str(bulk_pct_value))
-                if pct < Decimal("1") or pct > Decimal("50"):
-                    return Response(
-                        {"error": "Bulk discount must be between 1% and 50%."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                product.bulk_discount_percentage = pct
-            except (InvalidOperation, ValueError):
-                return Response(
-                    {"error": "Bulk discount must be a valid number."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        # end felna addition
+        
                 
         image = request.FILES.get("image")
         if image:
