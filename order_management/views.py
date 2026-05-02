@@ -116,13 +116,16 @@ def multi_checkout(request):
                 Decimal("0.01"), rounding=ROUND_HALF_UP
             )
 
+            producer_obj = item.product.producer
+            has_surplus = surplus_unit_price != Decimal(str(item.product.price))
             bulk_applies = (
-                item.product.is_bulk_eligible_for(account_type)
-                and item.quantity >= item.product.bulk_threshold_quantity
+                not has_surplus
+                and producer_obj.is_bulk_eligible_for(account_type)
+                and item.quantity >= producer_obj.bulk_threshold_quantity
             )
 
             if bulk_applies:
-                bulk_pct = Decimal(str(item.product.bulk_discount_percentage))
+                bulk_pct = Decimal(str(producer_obj.bulk_discount_percentage))
                 final_unit_price = (
                     surplus_unit_price * (Decimal("1") - bulk_pct / Decimal("100"))
                 ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)

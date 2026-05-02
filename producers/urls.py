@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 from . import notification_views
-from .views import ProducerCreateProductAPI, ProducerDashboardAPI, ProducerOrdersAPI, ProducerProductListAPI, ProducerDeleteProductAPI, ProducerUpdateOrderStatusAPI, ProducerUpdateProductAPI, ProducerWeeklyPaymentsAPI
+from .views import ProducerCreateProductAPI, ProducerDashboardAPI, ProducerOrdersAPI, ProducerProductListAPI, ProducerDeleteProductAPI, ProducerUpdateOrderStatusAPI, ProducerUpdateProductAPI, ProducerWeeklyPaymentsAPI, ProducerBulkSettingsAPI
 app_name = "producers"
 
 urlpatterns = [
@@ -13,6 +13,7 @@ urlpatterns = [
     path("api/products/", ProducerProductListAPI.as_view(), name="api_list_products"),
     path("api/products/<int:product_id>/delete/", ProducerDeleteProductAPI.as_view(), name="api_delete_product"),
     path("api/products/<int:product_id>/update/",views.ProducerUpdateProductAPI.as_view(), name="api_update_product"),
+    path("api/bulk-settings/", ProducerBulkSettingsAPI.as_view(), name="producer_bulk_settings"),
 
     path("order_management/", views.order_management, name="order_management"),
     path("api/orders/", ProducerOrdersAPI.as_view(), name="producer_orders_api"),

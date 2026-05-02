@@ -9,9 +9,16 @@
 
 <section class="panel">
   <div class="panel-header-row">
-    <h2>My Product Listings</h2>
-    <a class="button-pill" href="/producer/product_management/add/">Add New Product</a>
+      <h2>My Product Listings</h2>
+      <div style="display:flex; gap:10px;">
+          <button id="openBulkSettingsBtn" class="button-pill secondary" type="button">
+              Bulk Discount Settings
+              <span id="bulkSettingsBadge" style="display:none; background:#2e7d32; color:white; padding:2px 8px; border-radius:10px; font-size:11px; margin-left:6px;">Active</span>
+          </button>
+          <a class="button-pill" href="/producer/product_management/add/">Add New Product</a>
+      </div>
   </div>
+  
 
   <div id="productsError" style="color:red; margin: 10px 0;"></div>
 
@@ -64,23 +71,7 @@
         <input type="number" id="editLowStockThreshold" min="0" step="1" value="10" required>
         <small style="display: block; font-size: 12px; color: #666;">You'll be notified when stock falls below this number</small>
       </div>
-      <!-- felna added - bulk discount fields -->
-      <div class="form-group">
-        <label>Bulk Threshold (qty)</label>
-        <input type="number" id="editBulkThreshold" min="2" step="1">
-        <small style="display: block; font-size: 12px; color: #666;">
-          Minimum quantity to trigger the discount. Community groups and restaurants only. Leave empty for none.
-        </small>
-      </div>
-
-      <div class="form-group">
-        <label>Bulk Discount (%)</label>
-        <input type="number" id="editBulkDiscountPct" min="1" max="50" step="0.01">
-        <small style="display: block; font-size: 12px; color: #666;">
-          Discount applied when threshold is met. 1-50%. Both fields must be set together, or both empty.
-        </small>
-      </div>
-      <!-- end felna addition -->
+      
       <div class="form-group">
         <label>Best Before Date</label>
         <input type="date" id="editBestBeforeDate">
@@ -157,7 +148,43 @@
     </div>
   </div>
 </div>
+<!-- felna added - BULK DISCOUNT SETTINGS MODAL -->
+<div id="bulkSettingsModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <h3 style="margin:0 0 10px;">Bulk Discount Settings</h3>
 
+    <p style="font-size: 13px; color:#555; margin: 0 0 14px;">
+      Reward community groups and restaurants who buy in bulk from your shop.
+    </p>
+
+    <div class="form-grid" style="margin-top:12px;">
+      <div class="form-group">
+        <label>Bulk Threshold (qty)</label>
+        <input type="number" id="bulkSettingsThreshold" min="5" max="100" step="1">
+        <small style="display: block; font-size: 12px; color: #666;">
+          Between 5 and 100.
+        </small>
+      </div>
+
+      <div class="form-group">
+        <label>Bulk Discount (%)</label>
+        <input type="number" id="bulkSettingsDiscountPct" min="5" max="25" step="0.01">
+        <small style="display: block; font-size: 12px; color: #666;">
+          Between 5% and 25%.
+        </small>
+      </div>
+    </div>
+
+    <div id="bulkSettingsErrors" style="color:red; margin-top:10px;"></div>
+
+    <div class="form-actions" style="margin-top:16px; display:flex; gap:10px; justify-content:flex-end;">
+      <button id="saveBulkSettingsBtn" class="button-pill" type="button">Save</button>
+      <button id="disableBulkSettingsBtn" class="button-pill secondary" type="button">Disable</button>
+      <button id="cancelBulkSettingsBtn" class="button-pill secondary" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+<!-- end felna addition -->
 <style>
 /* Modal styling */
 .modal{
@@ -200,6 +227,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   const cancelSurplusBtn = document.getElementById("cancelSurplusBtn");
   const surplusErrors = document.getElementById("surplusErrors");
   const surplusExpiryInput = document.getElementById("surplusExpiry");
+  // Bulk settings modal
+  const bulkSettingsModal = document.getElementById("bulkSettingsModal");
+  const openBulkSettingsBtn = document.getElementById("openBulkSettingsBtn");
+  const saveBulkSettingsBtn = document.getElementById("saveBulkSettingsBtn");
+  const disableBulkSettingsBtn = document.getElementById("disableBulkSettingsBtn");
+  const cancelBulkSettingsBtn = document.getElementById("cancelBulkSettingsBtn");
+  const bulkSettingsErrors = document.getElementById("bulkSettingsErrors");
+  const bulkSettingsBadge = document.getElementById("bulkSettingsBadge");
   let savedSeasonStart = "";
   let savedSeasonEnd = "";
 
@@ -316,6 +351,119 @@ document.addEventListener("DOMContentLoaded", async () => {
   surplusModal?.addEventListener("click", (e) => {
     if (e.target === surplusModal) closeSurplusModal();
   });
+  //bulk settings modal logic
+  function closeBulkSettingsModal() {
+      bulkSettingsModal.style.display = "none";
+  }
+
+  cancelBulkSettingsBtn?.addEventListener("click", closeBulkSettingsModal);
+  bulkSettingsModal?.addEventListener("click", (e) => {
+      if (e.target === bulkSettingsModal) closeBulkSettingsModal();
+  });
+
+  // Load current bulk settings on page load (to show "Active" badge)
+  async function loadBulkSettingsStatus() {
+      try {
+          const res = await fetch("/producer/api/bulk-settings/", {
+              headers: { "Authorization": `Bearer ${token}` }
+          });
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data.bulk_threshold_quantity && data.bulk_discount_percentage) {
+              bulkSettingsBadge.style.display = "inline-block";
+          } else {
+              bulkSettingsBadge.style.display = "none";
+          }
+      } catch (e) {
+          console.error("Could not load bulk settings status", e);
+      }
+  }
+  loadBulkSettingsStatus();
+
+  // Open modal and prefill with current values
+  openBulkSettingsBtn?.addEventListener("click", async () => {
+      bulkSettingsErrors.textContent = "";
+      document.getElementById("bulkSettingsThreshold").value = "";
+      document.getElementById("bulkSettingsDiscountPct").value = "";
+
+      try {
+          const res = await fetch("/producer/api/bulk-settings/", {
+              headers: { "Authorization": `Bearer ${token}` }
+          });
+          if (res.ok) {
+              const data = await res.json();
+              if (data.bulk_threshold_quantity) {
+                  document.getElementById("bulkSettingsThreshold").value = data.bulk_threshold_quantity;
+              }
+              if (data.bulk_discount_percentage) {
+                  document.getElementById("bulkSettingsDiscountPct").value = data.bulk_discount_percentage;
+              }
+          }
+      } catch (e) {
+          console.error("Could not load bulk settings", e);
+      }
+
+      bulkSettingsModal.style.display = "flex";
+  });
+
+  // Save bulk settings
+  saveBulkSettingsBtn?.addEventListener("click", async () => {
+      bulkSettingsErrors.textContent = "";
+
+      const thresholdRaw = document.getElementById("bulkSettingsThreshold").value.trim();
+      const pctRaw = document.getElementById("bulkSettingsDiscountPct").value.trim();
+
+      if (thresholdRaw === "" || pctRaw === "") {
+          bulkSettingsErrors.textContent = "Both fields are required. Use Disable to clear bulk discount.";
+          return;
+      }
+
+      const tq = parseInt(thresholdRaw, 10);
+      const pct = parseFloat(pctRaw);
+
+      if (isNaN(tq) || tq < 5 || tq > 100) {
+          bulkSettingsErrors.textContent = "Bulk threshold must be between 5 and 100.";
+          return;
+      }
+      if (isNaN(pct) || pct < 5 || pct > 25) {
+          bulkSettingsErrors.textContent = "Bulk discount must be between 5% and 25%.";
+          return;
+      }
+
+      try {
+          const res = await fetch("/producer/api/bulk-settings/", {
+              method: "PUT",
+              headers: {
+                  "Authorization": `Bearer ${token}`,
+                  "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                  bulk_threshold_quantity: tq,
+                  bulk_discount_percentage: pct
+              })
+          });
+
+          const data = await res.json();
+          if (!res.ok) {
+              bulkSettingsErrors.textContent = data.error || "Save failed.";
+              return;
+          }
+
+          closeBulkSettingsModal();
+          showSuccessPopup("Bulk discount settings saved!");
+          bulkSettingsBadge.style.display = "inline-block";
+      } catch (err) {
+          console.error(err);
+          bulkSettingsErrors.textContent = "Unexpected error saving bulk settings.";
+      }
+  });
+
+ // Disable bulk discount - show custom confirm popup
+  disableBulkSettingsBtn?.addEventListener("click", () => {
+      bulkSettingsErrors.textContent = "";
+      closeBulkSettingsModal();
+      document.getElementById("disableBulkPopup").style.display = "flex";
+  });
 
   // Load products
   try {
@@ -417,8 +565,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                data-season-end="${p.season_end_date || ""}"
                data-low-stock-threshold="${lowStockThreshold}"
                data-best-before-date="${p.best_before_date || ""}"
-               data-bulk-threshold="${p.bulk_threshold_quantity || ""}"
-               data-bulk-pct="${p.bulk_discount_percentage || ""}"
                data-available-status="${p.availability_status ? "true" : "false"}">
               <div class="cell-name">
                 <span class="product-name-text">${name}</span>
@@ -508,8 +654,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("editSeasonStart").value = seasonStart;
         document.getElementById("editSeasonEnd").value = seasonEnd;
         document.getElementById("editIsYearRound").checked = isYearRound;
-        document.getElementById("editBulkThreshold").value = row.dataset.bulkThreshold || "";
-        document.getElementById("editBulkDiscountPct").value = row.dataset.bulkPct || "";
         toggleSeasonFields();
         autoUpdateAvailableCheckbox();
         editModal.style.display = "flex";
@@ -588,34 +732,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       formData.append("is_year_round", document.getElementById("editIsYearRound").checked ? "true" : "false");
       // Some backends expect "true"/"false" strings in multipart
       formData.append("availability_status", available? "true" : "false");
-      // felna added - bulk discount fields (both together or both empty)
-      const bulkThresholdRaw = document.getElementById("editBulkThreshold").value.trim();
-      const bulkPctRaw = document.getElementById("editBulkDiscountPct").value.trim();
-
-      if ((bulkThresholdRaw === "") !== (bulkPctRaw === "")) {
-        editErrors.textContent = "Bulk threshold and bulk discount must both be set, or both empty.";
-        return;
-      }
-
-      if (bulkThresholdRaw !== "") {
-        const tq = parseInt(bulkThresholdRaw, 10);
-        const pct = parseFloat(bulkPctRaw);
-        if (isNaN(tq) || tq < 2) {
-          editErrors.textContent = "Bulk threshold must be at least 2.";
-          return;
-        }
-        if (isNaN(pct) || pct < 1 || pct > 50) {
-          editErrors.textContent = "Bulk discount must be between 1% and 50%.";
-          return;
-        }
-        formData.append("bulk_threshold_quantity", tq);
-        formData.append("bulk_discount_percentage", pct);
-      } else {
-        // Both empty — explicitly clear them on the backend
-        formData.append("bulk_threshold_quantity", "");
-        formData.append("bulk_discount_percentage", "");
-      }
-      // end felna addition
+      
       //  Optional image
       const imageFile = document.getElementById("editImage")?.files?.[0];
       if (imageFile) {
@@ -827,6 +944,53 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
     // Micaiah addition end 
+    function cancelDisableBulk() {
+        document.getElementById("disableBulkPopup").style.display = "none";
+    }
+
+    async function confirmDisableBulk() {
+        document.getElementById("disableBulkPopup").style.display = "none";
+
+        const token = localStorage.getItem("access") || sessionStorage.getItem("access");
+        if (!token) {
+            alert("Token missing. Please log in again.");
+            return;
+        }
+
+        try {
+            const res = await fetch("/producer/api/bulk-settings/", {
+                method: "PUT",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    bulk_threshold_quantity: "",
+                    bulk_discount_percentage: ""
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.error || "Disable failed.");
+                return;
+            }
+
+            // Close the bulk settings modal
+            document.getElementById("bulkSettingsModal").style.display = "none";
+
+            // Clear the inputs and badge
+            document.getElementById("bulkSettingsThreshold").value = "";
+            document.getElementById("bulkSettingsDiscountPct").value = "";
+            document.getElementById("bulkSettingsBadge").style.display = "none";
+
+            // Show success popup
+            showSuccessPopup("Bulk discount disabled.");
+        } catch (err) {
+            console.error(err);
+            alert("Unexpected error disabling bulk settings.");
+        }
+    }
 
     function confirmDeletion(){
 
@@ -916,5 +1080,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   </div>
 </div>
 
+<div id="disableBulkPopup" class="remove-item" style="display:none;">
+  <div class="remove-box">
+    <p>Disable bulk discount?</p>
+    <div class="removal-actions">
+      <button onclick="confirmDisableBulk()">Disable</button>
+      <button onclick="cancelDisableBulk()">Cancel</button>
+    </div>
+  </div>
+</div>
 
 {% endblock %}

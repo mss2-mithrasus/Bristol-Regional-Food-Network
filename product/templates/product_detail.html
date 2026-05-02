@@ -286,11 +286,11 @@
             // felna - bulk discount hint (community/restaurant only)
             if (
                 data.is_bulk_eligible &&
-                product.bulk_threshold_quantity &&
-                product.bulk_discount_percentage
+                data.producer_bulk_threshold_quantity &&
+                data.producer_bulk_discount_percentage
             ) {
-                const threshold = product.bulk_threshold_quantity;
-                const pct = parseFloat(product.bulk_discount_percentage);
+                const threshold = data.producer_bulk_threshold_quantity;
+                const pct = parseFloat(data.producer_bulk_discount_percentage);
                 const pctDisplay = pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(2);
 
                 document.querySelector(".product-price").innerHTML += `
