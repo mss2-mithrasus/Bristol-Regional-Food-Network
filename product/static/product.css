@@ -91,14 +91,14 @@
 
 
 
-/* .product-container {
+.product-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 20px;
     padding-bottom: 120px;
     margin: 30px;
    
-} */
+}
 
 
 
@@ -348,7 +348,7 @@
     color: white;
     cursor: not-allowed;
 }
-
+ 
 .status-out-of-stock {
     display: inline-block;
     background: #ffe5e5;

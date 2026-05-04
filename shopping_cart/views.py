@@ -293,9 +293,21 @@ def add_to_cart(request):
     product_id = serializer.validated_data['product_id']
     requested_quantity = serializer.validated_data['quantity']
     
+    try:
+        product = Product.objects.select_for_update().get(product_id=product_id)
+    except Product.DoesNotExist:
+        
+        return Response(
+            {'error': 'Product not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+        
+    allergens_exist = product.allergens.exists()
+        
+    
     viewed = request.session.get(f"viewed_{product_id}")
     
-    if not viewed:
+    if allergens_exist and not viewed:
         return Response(
             {
                 'success': False,
@@ -315,13 +327,13 @@ def add_to_cart(request):
     #         status=status.HTTP_404_NOT_FOUND
     #     )
 
-    try:
-        product = Product.objects.select_for_update().get(product_id=product_id)
-    except Product.DoesNotExist:
-        return Response(
-            {'error': 'Product not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
+    #try:
+        #product = Product.objects.select_for_update().get(product_id=product_id)
+    #except Product.DoesNotExist:
+        #return Response(
+            #{'error': 'Product not found'},
+            #status=status.HTTP_404_NOT_FOUND
+        
 
     if block_if_product_not_fulfillable(product):
         earliest_fulfilment_date = get_earliest_fulfilment_date()

@@ -172,18 +172,15 @@ class ProductSearchAPIView(APIView):
             # search conditions
             filtering =(
                 Q(name__icontains=query) | Q(allergens__name__icontains=query) | Q(producer__business_name__icontains=query)
+                
+                
             )
+            
             # if user searches organic display all organic products
             if "organic" in query.lower():
                 filtering |= Q(organic_certified=True)
                 
-            # if a query has multiple words search description
-            if len(words) >= 2:
-                filter_by_description = Q()
-                for word in words:
-                    filter_by_description |= Q(description__icontains=word)
-                    
-                filtering |= filter_by_description
+            
             # apply filters
             products = products.filter(filtering).distinct()
             
