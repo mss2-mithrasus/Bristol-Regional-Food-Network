@@ -33,7 +33,7 @@
       <div>Actions</div>
     </div>
 
-    <!-- rows will be injected here -->
+    
     <div id="productsRows"></div>
   </div>
 </section>
@@ -277,10 +277,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const earliestFulfilmentDate = getEarliestFulfilmentDate();
 
-    // if (stockValue <= 0) {
-    //   availableCheckbox.checked = false;
-    //   return;
-    // }
 
     if (bestBeforeValue && bestBeforeValue < earliestFulfilmentDate) {
       availableCheckbox.checked = true;
@@ -300,7 +296,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     errorBox.textContent = "You are not logged in. Please log in again.";
     return;
   }
-  // Micaiah added - 13-04-2026 - Checks ecpiry date is not in the past
+  // Micaiah added - Checks expiry date is not in the past
   if (surplusExpiryInput) {
     const now = new Date();
     const localNow = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
@@ -610,7 +606,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const unit = row.querySelector(".cell-unit")?.innerText?.trim() || "";
         const stock = row.querySelector(".cell-stock")?.innerText?.trim() || "";
         const statusText = row.querySelector(".cell-status")?.innerText?.toLowerCase() || "";
-        //const available = !statusText.includes("unavailable");
         const available = row.dataset.availableStatus === "true";
         const imgUrl = row.dataset.imageUrl || "";
         const preview = document.getElementById("editImagePreview");
@@ -659,7 +654,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         editModal.style.display = "flex";
         return;
       }
-      // Micaiah added - 13-04-2026
+      
       // ADD SURPLUS
       if (action === "surplus") {
         surplusErrors.textContent = "";
@@ -756,33 +751,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           return;
         }
 
-        //  Update UI instantly
-        // const row = document.querySelector(`[data-product-id="${id}"]`);
-        // if (row) {
-        //   row.querySelector(".cell-name").innerText = name;
-        //   row.querySelector(".cell-price").innerText = `£${price}`;
-        //   row.querySelector(".cell-unit").innerText = unit;
-        //   row.querySelector(".cell-stock").innerText = stock;
-
-        //   row.querySelector(".cell-status").innerHTML = getStatusTag({
-        //     stock_quantity: stock,
-        //     availability_status: available,
-        //     low_stock_threshold: threshold 
-        //   });
-        //   row.dataset.seasonStart = document.getElementById("editSeasonStart").value;
-        //   row.dataset.seasonEnd = document.getElementById("editSeasonEnd").value;
-        //   row.dataset.isYearRound = document.getElementById("editIsYearRound").checked ? "true" : "false";
-        //   row.dataset.lowStockThreshold = threshold;
-        //   row.dataset.bestBeforeDate = document.getElementById("editBestBeforeDate").value;
-          
-        //   // If backend returns updated image URL, store it for next edit open
-        //   if (data.image_url || data.image) {
-        //     row.dataset.imageUrl = data.image_url || data.image;
-        //   }
-        // }
-
-        // closeEditModal();
-        // showSuccessPopup("Product updated successfully!");
         closeEditModal();
         showSuccessPopup("Product updated successfully!");
         setTimeout(() => {
@@ -848,10 +816,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const data = await res.json();
 
-        // if (!res.ok) {
-        //   surplusErrors.textContent = data.error || JSON.stringify(data);
-        //   return;
-        // }
+        
         if (!res.ok) {
           let errorMessage = "Could not create surplus deal.";
 

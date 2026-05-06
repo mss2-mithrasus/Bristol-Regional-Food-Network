@@ -494,7 +494,7 @@
     // Load notifications on page load
     document.addEventListener('DOMContentLoaded', loadNotifications);
     
-    // Periodically check for new notifications (every 30 seconds)
+    // Periodically check for new notifications
     setInterval(() => {
         if (window.location.pathname.includes('/producer/notifications/')) {
             loadNotifications();

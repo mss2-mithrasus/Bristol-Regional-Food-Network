@@ -119,24 +119,12 @@
         const data = await response.json();
 
         if (response.ok) {
-            // Clear previous tokens
-            // localStorage.removeItem("access");
-            // localStorage.removeItem("refresh");
-            // sessionStorage.removeItem("access");
-            // sessionStorage.removeItem("refresh");
+            
             localStorage.clear();
             sessionStorage.clear();
             // If remeber me selected save tokens
             const remember = document.getElementById("rememberMe").checked;
-            // Save tokens
-            // if(remember){
-            //     localStorage.setItem("access", data.access);
-            //     localStorage.setItem("refresh", data.refresh);
-            // }
-            // else {
-            //     sessionStorage.setItem("access", data.access);
-            //     sessionStorage.setItem("refresh", data.refresh);
-            // }
+            
             if (remember) {
                 localStorage.setItem("access", data.access);
                 localStorage.setItem("refresh", data.refresh);

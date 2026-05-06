@@ -131,7 +131,7 @@
         </div>
         {% endfor %}
         
-        <!--felna changed - Producer Subtotal -->
+        <!--felna added - Producer Subtotal -->
         <div class="producer-subtotal">
             {% if producer.has_bulk_discount %}
                 <div class="subtotal-row">
@@ -154,7 +154,7 @@
             {% endif %}
         </div>
     {% endfor %}
-    <!--change ended-->
+   
     
     
     
@@ -273,12 +273,7 @@
             });
             const data = await response.json();
             
-            // if (data.success) {
-            //     const input = document.getElementById(`qty-${itemId}`);
-            //     if (input) {
-            //         input.max = data.max_total_allowed;
-            //     }
-            // }
+          
             if (data.success) {
                 const input = document.getElementById(`qty-${itemId}`);
                 if (input) {
@@ -373,9 +368,7 @@
         let newValue = parseInt(input.value) + change;
         
         if (newValue < 1) {
-            //if (confirm('Remove this item from cart?')) {
-                //removeItem(itemId);
-            //}
+            
             showRemoveMessage(itemId)
             return;
         }
@@ -557,10 +550,6 @@
             window.location.href = "/login/";
             return;
         }
-        
-        //if (!confirm('Remove this item from cart?')) {
-            //return;
-        //}
         
         fetch(`/cart/api/item/${itemId}/`, {
             method: 'DELETE',

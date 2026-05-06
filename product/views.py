@@ -73,14 +73,7 @@ class CategoryProductsAPIView(APIView):
         category = ProductCategory.objects.filter(category_name__iexact=category_name).first()
         if not category:
             return Response({"error": "Category not found"}, status=status.HTTP_404_NOT_FOUND)
-        # getting all the available products in the category
-        #products = Product.objects.filter(category=category, availability_status=True)
-        # products = Product.objects.filter(
-        #     category=category,
-        #     availability_status=True,
-        #     # stock_quantity__gt=0,
-        #     is_expired=False
-        # )
+        
         products = Product.objects.filter(
             availability_status=True,
             is_expired=False
@@ -129,7 +122,7 @@ class CategoryProductsAPIView(APIView):
 
             product_data.append(product_dict)
         
-        # return category name and products
+        
         return Response({
             "category": category.category_name,
             "products": product_data
@@ -193,11 +186,7 @@ class ProductSearchAPIView(APIView):
         # Convert products to JSON with available stock calculation
         product_data = []
         for product in products:
-            # if not is_product_valid_for_fulfilment(product):
-            #     continue
-            # Calculate available stock for this user
-            # If user is authenticated, exclude their own reservations
-            # If user is not authenticated, show all available stock
+            
             available_stock = get_available_stock(
                 product, 
                 exclude_user=request.user if request.user.is_authenticated else None
@@ -231,11 +220,7 @@ class ProductDetailAPIView(APIView):
         expire_surplus_deals()
         # getting product based on primary key
         product = get_object_or_404(Product, product_id=product_id)
-        # if not is_product_valid_for_fulfilment(product):
-        #     return Response(
-        #         {"error": "This product is no longer available for fulfilment."},
-        #         status=status.HTTP_404_NOT_FOUND
-        #     )
+        
         if not product.availability_status or product.is_expired:
             return Response(
                 {"error": "This product is not available."},
@@ -261,32 +246,7 @@ class ProductDetailAPIView(APIView):
         )['avg']
         
         product_dict['average_rating'] = round(average_rating, 1) if average_rating else None
-        # Surplus deal
-        # active_deal = SurplusDiscount.objects.filter(
-        #     product=product,
-        #     status="active",
-        #     expiry_date__gt=timezone.now()
-        # ).first()
-
-        # if active_deal:
-        #     original_price = float(product.price)
-        #     discounted_price = round(original_price * (100 - active_deal.discount_percentage) / 100, 2)
-
-        #     product_dict["has_surplus_discount"] = True
-        #     product_dict["original_price"] = original_price
-        #     product_dict["discounted_price"] = discounted_price
-        #     product_dict["discount_percentage"] = active_deal.discount_percentage
-        #     product_dict["surplus_note"] = active_deal.note
-        #     product_dict["surplus_expiry_date"] = active_deal.expiry_date.isoformat()
-        # else:
-        #     product_dict["has_surplus_discount"] = False
-        #     product_dict["original_price"] = float(product.price)
-        #     product_dict["discounted_price"] = float(product.price)
-        #     product_dict["discount_percentage"] = None
-        #     product_dict["surplus_note"] = ""
-        #     product_dict["surplus_expiry_date"] = None
-
-# getting all the allergens for the product
+        
         allergens = product.productallergen_set.all()
         allergens_serializer = ProductAllergenSerializer(allergens, many=True)
 
@@ -354,7 +314,7 @@ class ProductDetailAPIView(APIView):
             },
             status=status.HTTP_200_OK
         )
-# Micaiah added - 13-04-2026 - Surplus discount
+# Micaiah added - Surplus discount
 class SurplusDealsAPIView(APIView):
     permission_classes = [IsAuthenticated, IsCustomer]
 
@@ -384,25 +344,7 @@ class SurplusDealsAPIView(APIView):
                 exclude_user=request.user if request.user.is_authenticated else None
             )
 
-            # serializer = ProductSerializer(product)
-            # product_dict = serializer.data
-            # product_dict["producer_name"] = product.producer.business_name
-
-            # original_price = float(product.price)
-            # discounted_price = round(
-            #     original_price * (100 - deal.discount_percentage) / 100,
-            #     2
-            # )
-            # product_dict["producer_name"] = product.producer.business_name
-            # product_dict["available_stock"] = available_stock
-            # product_dict["stock_quantity"] = product.stock_quantity
-            # product_dict["surplus_id"] = deal.surplus_id
-            # product_dict["has_surplus_discount"] = True
-            # product_dict["original_price"] = original_price
-            # product_dict["discounted_price"] = discounted_price
-            # product_dict["discount_percentage"] = deal.discount_percentage
-            # product_dict["surplus_note"] = deal.note
-            # product_dict["surplus_expiry_date"] = deal.expiry_date.isoformat()
+            
             serializer = ProductSerializer(product)
             product_dict = serializer.data
             product_dict["producer_name"] = product.producer.business_name

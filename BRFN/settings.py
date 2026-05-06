@@ -193,7 +193,6 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    # Changed access token from 8hrs to 1hr
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=2),
     "ROTATE_REFRESH_TOKENS": True,
@@ -213,8 +212,6 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')  # Add to .env
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')  # Add to .env
 DEFAULT_FROM_EMAIL = 'BRFN <noreply@brfn.com>'
-
-# cloudinary 
 
 import cloudinary
 

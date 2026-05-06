@@ -4,7 +4,7 @@
 {% block head %}
 <script src="https://js.stripe.com/v3/"></script>
 <link rel="stylesheet" href="{% static 'payments.css' %}">
-<!-- Ensure Font Awesome is loaded (already in base, but safe to include) -->
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
     /* Custom CVV input styling */
@@ -111,9 +111,9 @@
         </form>
         
         <div class="security-badge">
-            <span>🔒 Secure Payment by Stripe</span>
-            <span>✅ PCI Compliant</span>
-            <span>🔐 Encrypted</span>
+            <span> Secure Payment by Stripe</span>
+            <span> PCI Compliant</span>
+            <span> Encrypted</span>
         </div>
     </div>
 </div>
@@ -128,7 +128,7 @@ initialize();
 
 document.getElementById('payment-form').addEventListener('submit', handleSubmit);
 
-// CVV visibility toggle with Font Awesome icons
+
 const cvvInput = document.getElementById('cvv-input');
 const cvvToggle = document.getElementById('cvv-toggle');
 const eyeIcon = cvvToggle.querySelector('i');
@@ -145,7 +145,7 @@ cvvToggle.addEventListener('click', () => {
     }
 });
 
-// Placeholder change on blur/focus (optional)
+
 cvvInput.addEventListener('blur', () => {
     if (!cvvInput.value) {
         cvvInput.placeholder = 'XXX';
@@ -240,7 +240,7 @@ async function handleSubmit(e) {
             type: 'card',
             card: cardNumberElement,
             billing_details: {
-                // Optionally add name, address if needed
+               
             },
         });
         

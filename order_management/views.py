@@ -295,7 +295,7 @@ def multi_checkout(request):
     overall_total_formatted = f"{overall_total:.2f}"
     overall_subtotal_formatted = f"{overall_subtotal:.2f}"
     
-    # Get user address - SIMPLIFIED - JUST ADDRESS (NO PERSONAL INFO)
+    # Get user address
     user_address = None
     if user.is_authenticated:
         try:
@@ -313,7 +313,7 @@ def multi_checkout(request):
                 'street': street,
                 'postcode': postcode,
             }
-            # OVERRIDE WITH SESSION IF EXISTS
+            
             session_address = request.session.get('user_address')
             if session_address:
                 user_address = session_address
@@ -512,7 +512,7 @@ def edit_upcoming_order(request, instance_id):
         messages.success(request, "Order updated. Changes apply only to this delivery.")
         return redirect('recurring_detail', template_id=instance.template.template_id)
 
-    # GET – prepare items with stock info and alternatives
+    
     items = []
     for suborder in order.suborders.all():
         for item in suborder.items.all():
@@ -523,7 +523,7 @@ def edit_upcoming_order(request, instance_id):
             ).aggregate(total=Sum('quantity'))['total'] or 0
             available_stock = product.stock_quantity - reserved_by_others
 
-            # Alternatives: other producers (excluding current product's producer)
+           
             alternatives = Product.objects.filter(
                 name=product.name,
                 availability_status=True,
@@ -574,7 +574,7 @@ def edit_upcoming_order(request, instance_id):
         'order': order,
         'items': items,
         'has_issues': any(i['has_issue'] for i in items),
-        'has_any_price_change': has_any_price_change,   # ← add this line
+        'has_any_price_change': has_any_price_change,  
         'scheduled_date': instance.scheduled_date,
     }
     return render(request, 'edit_upcoming_order.html', context)
@@ -718,7 +718,7 @@ def order_detail(request, order_id):
         'payment': masked_payment,
         'can_download': True,
         'has_collection': has_collection,
-        'total_items': total_items,  # Added from friend's version
+        'total_items': total_items, 
     }
     
     return render(request, 'order_detail.html', context)
@@ -772,10 +772,9 @@ def order_history(request):
         total_producers = order.suborders.count()
 
         for suborder in order.suborders.all():
-            #is_delivery = suborder.delivery_date is not None
-            # 06/05/2026
+          
             is_delivery = suborder.fulfillment_method == 'delivery'
-            # 06/05/2026 end 
+           
             display_status = suborder.status
 
             # Correctly distinguish delivered vs collected
@@ -815,17 +814,7 @@ def order_history(request):
                     'instruction': suborder.special_instruction
                 })
 
-            # Preview items (first 2 per producer)
-            # for item in suborder.items.all()[:2]:
-            #     preview_items.append({
-            #         'name': item.product.name,
-            #         'quantity': item.quantity,
-            #         'price': item.price_at_purchase,
-            #         'producer': suborder.producer.business_name
-            #     })
-             
-            # Micaiah added for surplus discount
-            #for item in suborder.items.all()[:2]:
+            
             for item in suborder.items.all():
                 # original_price = item.original_price_at_purchase or item.price_at_purchase
                 original_price = getattr(item, "original_price_at_purchase", None) or item.price_at_purchase
@@ -1044,44 +1033,6 @@ def reorder(request, order_id):
             response_data['unavailable_total_formatted'] = f"£{unavailable_total:.2f}"
         
         return JsonResponse(response_data)
-    
-"""@login_required
-def download_receipt(request, order_id):
-    #View receipt (printable version)
-    try:
-        order = Order.objects.get(
-            order_id=order_id,
-            customer=request.user.customeraccount
-        )
-    except Order.DoesNotExist:
-        messages.error(request, "Order not found")
-        return redirect('order_history')
-    
-    # Collect items (similar to payment_success)
-    items = []
-    for suborder in order.suborders.all():
-        for item in suborder.items.all():
-            items.append({
-                'name': item.product.name,
-                'quantity': item.quantity,
-                'price': item.price_at_purchase,
-                'unit': item.product.unit if hasattr(item.product, 'unit') else '',
-                'image': item.product.image.url if item.product.image else None,
-                'producer': suborder.producer.business_name
-            })
-    
-    context = {
-        'order_id': order.order_id,
-        'total': order.total_amount,
-        'items': items,
-        'order_date': order.created_at,
-        'customer_name': request.user.get_full_name() or request.user.email,
-        'delivery_address': order.delivery_address,
-        'delivery_postcode': order.delivery_postcode,
-        'is_receipt_view': True,  # Flag to hide success message
-    }
-    
-    return render(request, 'payment_success.html', context)"""
 
 def update_checkout_address(request):
     """Save edited address to session"""
@@ -1138,7 +1089,7 @@ def update_checkout_address(request):
     
     print("Method not allowed")
     print("=" * 50)
-    return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405) #need to use this 
+    return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
 
 
 @login_required

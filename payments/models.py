@@ -1,9 +1,7 @@
 from django.db import models
 
 
-# ============================================================
-# PAYMENT TRANSACTION
-# ============================================================
+
 class PaymentTransaction(models.Model):
     class PaymentStatus(models.TextChoices):
         PENDING = 'pending', 'Pending'
@@ -30,8 +28,7 @@ class PaymentTransaction(models.Model):
     payment_method = models.CharField(max_length=50, choices=PaymentMethod.choices)
     payment_status = models.CharField(max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
     
-    #stripe_payment_intent_id = models.CharField(max_length=255, blank=True, null=True)
-    # payments/models.py
+    
     stripe_payment_intent_id = models.CharField(max_length=255, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -42,9 +39,6 @@ class PaymentTransaction(models.Model):
         return f"Payment {self.transaction_id} - {self.payment_status}"
 
 
-# ============================================================
-# COMMISSION
-# ============================================================
 class Commission(models.Model):
     class CommissionStatus(models.TextChoices):
         PENDING = 'pending', 'Pending'

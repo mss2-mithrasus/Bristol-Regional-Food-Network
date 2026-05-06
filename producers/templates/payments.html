@@ -22,7 +22,7 @@
     </button>
     <div class="panel-controls">
       <select id="weekSelect" class="week-select">
-        <!-- later: fill from backend -->
+      
         
       </select>
 
@@ -208,7 +208,6 @@ function loadAvailableWeeks() {
             const fmt = d => d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short'});
             option.textContent = `${fmt(weekStart)} – ${fmt(weekEndDate)} ${weekEndDate.getFullYear()}`;
             
-            // Add status indicator if available
             
             
             weekSelect.appendChild(option);

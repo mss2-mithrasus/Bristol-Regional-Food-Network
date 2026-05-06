@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import ProductCategory, ProductAllergen, Product, Allergen, SeasonalAvailability
 from producers.utils import get_active_surplus_deal, is_product_valid_for_fulfilment
 
-# these serializers will convert the models into JSON and JSON to the model
+
 
 class ProductCategorySerializer(serializers.ModelSerializer):
     
@@ -67,7 +67,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
     allergens = ProductAllergenSerializer(source="productallergen_set", many=True,read_only=True)
     
-    # comes from producer_account.business_name 
+    
     producer_name = serializers.SerializerMethodField()
     
     #seasonal availability 
@@ -76,8 +76,8 @@ class ProductSerializer(serializers.ModelSerializer):
         many=True,
         read_only=True
     )
-    # Micaiah added - 13-04-2026 - Surplus discount 
-    #active_surplus = serializers.SerializerMethodField()
+    # Micaiah added - Surplus discount 
+    
     has_surplus_discount = serializers.SerializerMethodField()
     original_price = serializers.SerializerMethodField()
     discounted_price = serializers.SerializerMethodField()
@@ -117,7 +117,7 @@ class ProductSerializer(serializers.ModelSerializer):
     def get_producer_name(self, obj):
         return obj.producer.business_name
     
-    # Micaiah added - 13-04-2026 - Surplus discount
+    # Micaiah added - Surplus discount
     def _get_active_deal(self, obj):
         if not is_product_valid_for_fulfilment(obj):
             return None
@@ -139,9 +139,7 @@ class ProductSerializer(serializers.ModelSerializer):
         deal = self._get_active_deal(obj)
         return deal.note if deal else ""
 
-    # def get_surplus_discount_percentage(self, obj):
-    #     deal = self._get_active_deal(obj)
-    #     return deal.discount_percentage if deal else None
+   
     def get_discount_percentage(self, obj):
         deal = self._get_active_deal(obj)
         return deal.discount_percentage if deal else None

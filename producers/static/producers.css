@@ -232,8 +232,7 @@ h3 {
   font-weight:800;
 }
 
-/* Orders grid */
-/* Recent Orders */
+
 .orders-grid {
   display: grid;
   grid-template-columns: 1fr 2fr 1fr 1fr;
@@ -424,8 +423,7 @@ h3 {
 .mini-btn.danger{ background:#8b2e2e; }
 .mini-btn.danger:hover{ background:#6f2424; }
 
-/* form styling inside panel */
-/* Form styling */
+
 .form-card {
   background: #f8fafc;
   color: #1f2d3d;

@@ -174,7 +174,7 @@
                 <label>Password:</label>
                 <div class="password_field">
                     <input type="password" id="password" name="password" required>
-                    <!-- ICON -->
+                   
                     <i class="fa-solid fa-eye-slash toggle-password" data-target="password"></i>
                 </div>
             </div>
@@ -184,7 +184,7 @@
                 <label>Confirm Password:</label>
                 <div class="password_field">
                     <input type="password" id="confirm_password" name="confirm_password" onpaste="return false" autocomplete="new-password" required>
-                    <!-- ICON -->
+                    
                     <i class="fa-solid fa-eye-slash toggle-password" data-target="confirm_password"></i>
                 </div>
             </div>
@@ -274,7 +274,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
 
-    // ADDED (10-03-26) - Prevents copy and pasting password in the confirm password field
+    
     const confirmField = document.getElementById("confirm_password");
     // Block paste
     confirmField.addEventListener("paste", (e) => e.preventDefault());
@@ -331,18 +331,14 @@ document.addEventListener("DOMContentLoaded", function () {
     const custCommunityBtn = document.getElementById('custCommunityBtn');
     const custRestaurantBtn = document.getElementById('custRestaurantBtn');
 
-    // Customer type
-    // Only shows the specidic type input fields based on the type of customer selected
+    
     function showCustomerType(type) {
         custIndividualFields.style.display = (type === 'individual') ? 'block' : 'none';
         custCommunityFields.style.display = (type === 'community') ? 'block' : 'none';
         custRestaurantFields.style.display = (type === 'restaurant') ? 'block' : 'none';
     }
 
-    // Sets required only condition fields that are displayed
-    // function isVisible(el) {
-    //     return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-    // }
+    
     function isVisible(el) {
         return el.offsetParent !== null;
     }

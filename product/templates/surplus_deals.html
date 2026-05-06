@@ -255,7 +255,7 @@ function getProducts(products) {
             }
         });
 
-        // fix empty value when user leaves input
+        
         quantityInput?.addEventListener('blur', function () {
             if (this.value === "" || parseInt(this.value) < 1) {
                 this.value = 1;

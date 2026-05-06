@@ -41,7 +41,7 @@
 
       <div class="form-group">
         <label>Price (£)</label>
-        <!-- Important: numeric only -->
+       
         <input type="number" step="0.01" name="price" min="0" required>
       </div>
 
@@ -268,7 +268,7 @@
       formData.append("allergens", JSON.stringify(allergens));
 
       // Get JWT access token (must match login storage key)
-      // const token = localStorage.getItem("access");
+      
       const token = localStorage.getItem("access") || sessionStorage.getItem("access");
 
       if (!token) {

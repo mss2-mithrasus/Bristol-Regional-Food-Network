@@ -235,10 +235,7 @@
 
             const organic = product.organic_certified ?
               `<img src="/static/images/organic.png" class="organic-badge">` : "";
-                        
-            // const status = product.availability_status ? 
-            //  `<span class="status-available">Available</span>`
-            // : `<span class="status-out-of-stock">Out of stock</span>`;
+
             
             const availableStock = Number(product.available_stock ?? product.stock_quantity ?? 0);
             const canBuy = product.can_buy === true;
@@ -415,7 +412,7 @@
                 }
             });
 
-            // fix empty value when user leaves input
+            
             quantityInput?.addEventListener('blur', function () {
                 if (this.value === "" || parseInt(this.value) < 1) {
                     this.value = 1;
@@ -528,7 +525,7 @@
                 showNotification(data.message, 'success');
                 updateCartBadge(data.cart_total_items);
                 const display = button?.closest('.product-card')?.querySelector('.quantity-input');
-                //if (display) display.textContent = '1';
+                
                 if (display) display.value = '1';
             } else {
                 showNotification(data.error || 'Could not add to cart', 'error');
@@ -566,8 +563,7 @@
         if (!token) return;
         
         try {
-            // const quantityDisplay = card.querySelector('.quantity-input');
-            // const desiredQty = quantityDisplay ? parseInt(quantityDisplay.textContent) : 1;
+            
             const quantityInput = card.querySelector('.quantity-input');
             const desiredQty = quantityInput ? parseInt(quantityInput.value) || 1 : 1;
             // Call the real-time availability API
@@ -702,22 +698,6 @@
                     }
                 }
             });
-
-            /*
-            card.querySelector('.minus')?.addEventListener('click', function(e) {
-                e.preventDefault();
-                const display = card.querySelector('.quantity-display');
-                const productId = card.dataset.productId;
-                if (display) {
-                    const current = parseInt(display.textContent);
-                    if (current > 1) {
-                        display.textContent = current - 1;
-                        // Update notify button after quantity changes
-                        updateNotifyButton(card, productId);
-                    }
-                }
-            });
-        */
 
             
             card.querySelector('.add-cart')?.addEventListener('click', function(e) {

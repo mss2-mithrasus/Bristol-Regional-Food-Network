@@ -24,7 +24,7 @@ html, body {
     border-radius: 0 10px 10px 0;
 }
 
-/* Style links like your old buttons */
+
 .admin_sidebar a {
     background: #406083;
     border: none;
@@ -210,7 +210,7 @@ html, body {
     color: #555;
 }
 
-/* Responsive  */
+/* Responsive */
 @media (max-width: 900px) {
     .admin_layout {
         flex-direction: column;

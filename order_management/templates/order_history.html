@@ -597,19 +597,13 @@
                 <div class="producer-badge">
                     <span class="producer-name">{{ producer.name }}</span>
                     <span class="producer-delivery">
-                        <!-- {% if producer.delivery_date %}
-                            <i class="fa-solid fa-truck delivery-icon"></i> Del: {{ producer.delivery_date|date:"d M Y" }}
-                        {% else %}
-                            <i class="fa-solid fa-hand-holding-box collection-icon"></i> Collect
-                        {% endif %} -->
-                        
-                        <!-- 06/05/2026 -->
+
                         {% if producer.is_delivery %}
                             <i class="fa-solid fa-truck delivery-icon"></i> Del: {{ producer.delivery_date|date:"d M Y" }}
                         {% else %}
                             <i class="fa-solid fa-hand-holding-box collection-icon"></i> Collect: {{ producer.delivery_date|date:"d M Y" }}
                         {% endif %}
-                        <!-- 06/05/2026 end -->
+                        
                     </span>
                     <span class="producer-status">{{ producer.status }}</span>
                     <span class="producer-items">{{ producer.item_count }} items</span>
@@ -782,7 +776,7 @@
         {% endif %}
         
     {% else %}
-    <!-- Empty State (combined) -->
+    <!-- Empty State -->
     <div class="empty-state">
         <div class="empty-icon">
             <i class="fa-solid fa-basket-shopping"></i>

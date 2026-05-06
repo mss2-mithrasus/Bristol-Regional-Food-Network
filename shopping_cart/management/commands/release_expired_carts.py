@@ -1,4 +1,4 @@
-# shopping_cart/management/commands/release_expired_cart.py
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from shopping_cart.models import CartItem
@@ -35,7 +35,7 @@ class Command(BaseCommand):
         expired_items.delete()
         self.stdout.write(f"Deleted {expired_count} expired items")
         
-        # IMPORTANT: Check each product for stock availability and notify waiting customers
+        # Check each product for stock availability and notify waiting customers
         notifications_sent = 0
         for product in products_to_check:
             notified = check_and_notify_stock_available(product)

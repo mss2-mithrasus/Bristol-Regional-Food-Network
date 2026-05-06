@@ -49,7 +49,7 @@ class RegistrationSerializer(serializers.Serializer):
         # Checks if passwords match 
         if password != password2:
             raise serializers.ValidationError({"password": "Passwords do not match."})
-        # Custom password strenght checker
+        # Custom password strength checker
         # Custom complexity
         # Checks if greater than 8 characters
         if len(password) < 8:

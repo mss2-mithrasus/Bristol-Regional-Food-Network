@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from datetime import timedelta
-from dateutil.relativedelta import relativedelta   # ADDED: for calendar‑aware months
+from dateutil.relativedelta import relativedelta 
 from order_management.models import RecurringTemplate, RecurringOrderInstance, Order, SubOrder, OrderItem
 from product.models import Product
 from decimal import Decimal
@@ -11,13 +11,13 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         today = timezone.now().date()
-        # NEW: only generate orders up to 6 months ahead (prevents infinite future orders)
+        # only generate orders up to 6 months ahead (prevents infinite future orders)
         horizon = today + relativedelta(months=6)
         templates = RecurringTemplate.objects.filter(is_active=True)
         created = 0
 
         for template in templates:
-            # NEW: skip templates whose start date is already beyond horizon
+            #skip templates whose start date is already beyond horizon
             if template.start_date > horizon:
                 continue
 
@@ -25,13 +25,12 @@ class Command(BaseCommand):
             # (weekly = 4 deliveries, fortnightly = 2, monthly = 1)
             if template.recurrence == 'weekly':
                 max_deliveries = 4
-                delta = relativedelta(weeks=1)          # CHANGED: use relativedelta for consistency
+                delta = relativedelta(weeks=1)     
             elif template.recurrence == 'fortnightly':
                 max_deliveries = 2
                 delta = relativedelta(weeks=2)
             else:  # monthly
                 max_deliveries = 2
-                # CHANGE: from timedelta(days=28) to relativedelta(months=1)
                 # This makes monthly orders follow calendar months (28-31 days) correctly.
                 delta = relativedelta(months=1)
 
@@ -44,7 +43,6 @@ class Command(BaseCommand):
             deliveries_made = 0
             while deliveries_made < max_deliveries and current <= horizon:
                 if not template.end_date or current <= template.end_date:
-                    # Use get_or_create? We keep simple existence check to avoid duplicates
                     if not RecurringOrderInstance.objects.filter(template=template, scheduled_date=current).exists():
                         try:
                             self.create_order_from_template(template, current)
@@ -57,7 +55,6 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f"Generated {created} recurring orders"))
 
-    # CHANGED: get_next_delivery_date now accepts delta (the recurrence interval) as argument
     def get_next_delivery_date(self, template, reference_date, delta):
         current = template.start_date
         while current < reference_date:
@@ -65,7 +62,7 @@ class Command(BaseCommand):
         return current
 
     def create_order_from_template(self, template, delivery_date):
-        # (unchanged – creates Order, SubOrder, OrderItem)
+
         customer = template.customer
         street = ''
         postcode = ''

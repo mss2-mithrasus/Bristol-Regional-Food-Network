@@ -7,8 +7,7 @@
     </div>
 
     <nav class="nav-links">
-        <!--we want the buttons styling to be active if we are on that page to make it clear what page the user is currently on
-        which is what is being done here-->
+        
         
         <!-- Add a container for the notification bell with badge -->
         <span id="notification-container" style="display: none; margin-left: 10px; position: relative;">
@@ -91,7 +90,7 @@ async function buildNav() {
     const token = getAccessToken();
     const currentPath = window.location.pathname;
 
-    // Not logged in → public nav
+    
     if (!token) {
         nav.innerHTML = `
             <a href="/" class="${currentPath === '/' ? 'active' : ''}">Home</a>

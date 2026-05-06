@@ -62,18 +62,7 @@ class AddToCartSerializer(serializers.Serializer):
     product_id = serializers.IntegerField()
     quantity = serializers.IntegerField(min_value=1, max_value=99)
     
-    # def validate_product_id(self, value):
-    #     """Check if product exists and is available"""
-    #     try:
-    #         product = Product.objects.get(product_id=value, availability_status=True)
-    #     except Product.DoesNotExist:
-    #         raise serializers.ValidationError("Product not found or unavailable")
-        
-    #     # Check stock
-    #     if product.stock_quantity < 1:
-    #         raise serializers.ValidationError("Product out of stock")
-        
-    #     return value
+   
 
     # Micaiah changed for best before checks
     def validate_product_id(self, value):

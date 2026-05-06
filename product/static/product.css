@@ -269,24 +269,6 @@
     font-weight: 600;
 }
 
-
-/* .product-details {
-    display:  inline-block;
-    color: white;
-    background-color: #406083;
-    text-decoration: none;
-    padding: 7px;
-    border-radius: 9px;
-    transition: background-color 0.15s ease, color 0.15s ease;
-    cursor: pointer;
-    width: auto;
-    margin-bottom: 8px;
-    justify-content: center;
-    text-align: center;
-    border-style: none;
-
-
-} */
 .product-details {
     display: block;
     width: 100%;
@@ -432,7 +414,7 @@
 }
 
 .season-badge {
-    color: #28a745;            /* green */
+    color: #28a745;            
     font-size: 16px;
     margin-left: 8px;
     vertical-align: middle;

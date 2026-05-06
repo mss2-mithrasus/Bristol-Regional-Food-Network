@@ -3,7 +3,7 @@
 <!DOCTYPE html>
 <html lang = "en">
     <head>
-        <!-- Add Font Awesome for icons -->
+        
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
         <meta charset="UTF-8">
         <title>Bristol Regional Food Network</title>
@@ -17,33 +17,6 @@
 
     <body> 
         {% include "header.html" %}
-
-        <!--{% comment %} <header class="navbar">
-            <div class="nav-left">
-                <img src="{% static 'images/leaf.png' %}" alt="Leaf logo" class="logo">
-                <span class="title">Bristol Regional Food Network</span>
-            </div>
-            {%block nav%}
-
-            <nav class="nav-links">
-                
-                <a href="{%url 'home'%}"
-                class="{%if request.resolver_match.url_name == 'home'%}active{%endif%}">Home</a>
-                <a href="#">Login</a>
-                
-           
-                <span id="notification-container" style="display: none; margin-left: 10px; position: relative;">
-                    <a href="/notifications/" id="notification-link">
-                        <i class="fa-solid fa-bell"></i>
-                        <span id="notification-badge" style="position: absolute; top: -8px; right: -8px; background: #dc3545; color: white; font-size: 11px; font-weight: bold; min-width: 18px; height: 18px; border-radius: 9px; display: none; align-items: center; justify-content: center; padding: 0 4px;">0</span>
-                    </a>
-                </span>
-                
-                {%block nav_extra%}{%endblock%}
-            </nav>
-            {%endblock%}
-        </header> {% endcomment %}-->
-
 
         <!--page content will go here e.g login form-->
         <main>

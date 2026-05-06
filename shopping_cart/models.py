@@ -1,7 +1,7 @@
 
 from django.db import models
 
-# Create your models here.
+
 from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
@@ -84,14 +84,7 @@ class CartItem(models.Model):
     def __str__(self):
         return f"{self.quantity} x {self.product.name}"
     
-    # @property
-    # def subtotal(self):
-    #     """Calculate item subtotal"""
-    #     return self.quantity * self.product.price
     
-    # Micaiah added for surplus discount 
-    # If the product has an active surplus deal, use the discounted price.
-    # Otherwise, use the normal product price.
     def get_unit_price(self):
         # Looks if the status us active for surplus discount
         active_surplus = (

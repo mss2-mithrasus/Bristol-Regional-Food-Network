@@ -1,4 +1,4 @@
-# producers/low_stock_service.py
+
 from django.utils import timezone
 from notifications.models import ProducerNotification
 from producers.models import LowStockAlert
@@ -39,7 +39,7 @@ def check_low_stock(product):
                 is_resolved=False
             )
         
-        # Send notification to producer - ALWAYS SEND, NO DUPLICATE CHECK
+        # Send notification to producer
         send_low_stock_notification(product, current_stock, threshold)
         return True
     

@@ -169,7 +169,6 @@ class RejectAccountView(APIView):
         User.objects.filter(id=user_id).delete()
         return Response({"message": "Account rejected"})
 
-# ADDED (10-03-26)
 # Deleted account history
 class DeletedAccountsView(APIView):
     permission_classes = [IsAdmin]
@@ -206,7 +205,6 @@ class FailedLoginAttemptsView(APIView):
 
         return Response(results)
 
-# ADDED 19/03/2026
 # Admin financial reports 
 @require_GET
 def FinancialReportsMeta(request):
@@ -256,16 +254,6 @@ def FinancialReports(request):
         payment_status=PaymentTransaction.PaymentStatus.SUCCEEDED
     ).values_list("order_id", flat=True)
 
-    # orders_qs = (
-    #     Order.objects
-    #     .filter(
-    #         created_at__date__gte=start_date,
-    #         created_at__date__lte=end_date,
-    #         order_id__in=paid_order_ids,
-    #     )
-    #     .select_related("customer")
-    #     .prefetch_related("suborders__producer")
-    # )
     orders_qs = (
         Order.objects
         .filter(
@@ -333,25 +321,6 @@ def FinancialReports(request):
                 "items": item_rows,
             })
 
-    # for order in orders_qs:
-    #     producer_rows = []
-    #     for s in order.suborders.all():
-    #         subtotal = Decimal(str(s.subtotal))
-
-    #         commission = (subtotal * Decimal("0.05")).quantize(
-    #             Decimal("0.01"), rounding=ROUND_HALF_UP
-    #         )
-
-    #         payout = (subtotal * Decimal("0.95")).quantize(
-    #             Decimal("0.01"), rounding=ROUND_HALF_UP
-    #         )
-
-    #         producer_rows.append({
-    #             "producer": str(s.producer),
-    #             "subtotal": str(subtotal),
-    #             "commission": str(commission),
-    #             "payout": str(payout),
-    #         })
         order_total = money(order.total_amount)
 
         # Calculate from order total
@@ -379,7 +348,6 @@ def FinancialReports(request):
         "orders": orders_data,
     })
 
-# ADDED - 19/03/2026
 @require_GET
 def FinancialReportsCSV(request):
     """

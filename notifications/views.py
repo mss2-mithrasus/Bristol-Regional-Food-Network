@@ -1,6 +1,5 @@
 from django.shortcuts import render
 
-# Create your views here.
 from django.shortcuts import render
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -27,7 +26,6 @@ def get_notifications(request):
     notifications = Notification.objects.filter(recipient=request.user)
     
     # Mark as seen when fetched
-    # notifications.filter(is_seen=False).update(is_seen=True)
     
     serializer = NotificationSerializer(notifications, many=True)
     

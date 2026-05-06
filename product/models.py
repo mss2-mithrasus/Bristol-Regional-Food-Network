@@ -42,7 +42,7 @@ class Product(models.Model):
     availability_status = models.BooleanField(default=True)
     is_expired = models.BooleanField(default=False)
     harvest_date = models.DateField(null=True, blank=True)
-    # Micaiah added - 13-04-2026 - For surplus discount
+    # Micaiah added- For surplus discount
     best_before_date = models.DateField(null=True, blank=True)
     # End surplus discount addition 
     organic_certified = models.BooleanField(default=False)

@@ -3,35 +3,6 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 
-# SURPLUS DISCOUNT
-# class SurplusDiscount(models.Model):
-#     surplus_id = models.AutoField(primary_key=True)
-
-#     product = models.ForeignKey(
-#         "product.Product",
-#         on_delete=models.CASCADE,null=True, blank=True,
-#         db_column="product_id",
-#         related_name="surplus_discounts",
-#     )
-
-#     discount_percentage = models.DecimalField(max_digits=5, decimal_places=2)
-#     expiry_date = models.DateField()
-
-#     status = models.CharField(
-#         max_length=20,
-#         choices=[("active", "active"), ("expired", "expired")],
-#         default="active",
-#     )
-
-#     date_discount_created = models.DateTimeField(auto_now_add=True)
-
-#     class Meta:
-#         managed = True
-#         db_table = "surplus_discount"
-
-# Micaiah added - 13-04-2026 - Fixed Surplus Discount
-# SURPLUS DISCOUNT
-
 class SurplusDiscount(models.Model):
     surplus_id = models.AutoField(primary_key=True)
 
@@ -158,7 +129,7 @@ class ProducerSettlementOrder(models.Model):
 class FarmStory(models.Model):
     farm_story_id = models.AutoField(primary_key=True)
 
-    # Placeholder: use AUTH_USER_MODEL
+  
     producer = models.ForeignKey(
         "user_accounts.ProducerAccount",
         on_delete=models.CASCADE,

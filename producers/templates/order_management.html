@@ -168,7 +168,7 @@ if(!getAccessToken()){
 
 const token = getAccessToken();
 
-/* ---------------- MODAL CONTROLS ---------------- */
+
 
 function openModal(){
     document.getElementById("orderModal").style.display="flex";
@@ -191,7 +191,7 @@ document.addEventListener("keydown",(e)=>{
     }
 });
 
-/* ---------------- LOAD ORDERS ---------------- */
+
 
 fetch("/producer/api/orders/",{
     headers:{ "Authorization":"Bearer "+token }
@@ -223,21 +223,16 @@ function renderOrders(orders){
 
   orders.forEach(o=>{
 
-        // const itemsSummary = o.items.map(i =>
-        //     `${i.product_name} x${i.quantity}`
-        // ).join(", ");
-
-        // Micaiah changed for surplus discount
+       
         const itemsSummary = o.items.map(i =>
             i.has_surplus_discount
                 ? `${i.product_name} x${i.quantity} (discounted)`
                 : `${i.product_name} x${i.quantity}`
         ).join(", ");
 
-        // const deliveryType = o.delivery_date ? "Delivery" : "Collection";
-        // 06/05/2026
+        
         const deliveryType = o.delivery_type || "Delivery";
-        // 06/05/2026 end 
+  
 
         const row=document.createElement("div");
         row.className="prod-table orders row order-row";
@@ -283,7 +278,7 @@ function renderOrders(orders){
     container.appendChild(fragment);
 }
 
-/* ---------------- VIEW ORDER DETAILS ---------------- */
+
 
 document.addEventListener("click",function(e){
 
@@ -294,11 +289,7 @@ document.addEventListener("click",function(e){
     document.getElementById("modalMeta").innerHTML=
         `Order <strong>#${row.dataset.orderId}</strong>`;
 
-    // document.getElementById("dCustomerName").value=row.dataset.customerName||"";
-    // document.getElementById("dCustomerContact").value=row.dataset.customerContact||"";
-    // document.getElementById("dDeliveryAddress").value=row.dataset.deliveryAddress||"";
-    // document.getElementById("dOrderDate").value=row.dataset.orderDate||"";
-    // document.getElementById("dDeliveryDate").value=row.dataset.deliveryDate||"";
+  
     const fulfilmentMethod = row.dataset.deliveryType || "Delivery";
     const isCollection = fulfilmentMethod.toLowerCase() === "collection";
 
@@ -323,8 +314,7 @@ document.addEventListener("click",function(e){
         : "Delivery Date";
     document.getElementById("dSpecialInstruction").value=row.dataset.specialInstruction || "";
     
-    // document.getElementById("dTotalAmount").textContent="£"+(row.dataset.total||"0.00");
-    // Micaiah changed for surplus discount 
+
     let modalTotal = 0;
 
     try {
@@ -351,16 +341,6 @@ document.addEventListener("click",function(e){
         const r=document.createElement("div");
         r.className="prod-table row";
         r.style.gridTemplateColumns="2fr 0.7fr 0.9fr 0.9fr";
-
-        // r.innerHTML=`
-        // <div style="display:flex;align-items:center;gap:8px;">
-        //     ${it.image ? `<img src="${it.image}" style="width:40px;height:40px;border-radius:6px;">` : ""}
-        //     ${it.product_name||""}
-        // </div>
-        // <div>${it.quantity||0}</div>
-        // <div>£${Number(it.price_at_purchase||0).toFixed(2)}</div>
-        // <div><strong>£${Number((it.quantity||0)*(it.price_at_purchase||0)).toFixed(2)}</strong></div>
-        // `;
         
         //Micaiah changed for surplus discount
         const hasDiscount = !!it.has_surplus_discount;
@@ -411,7 +391,7 @@ document.addEventListener("click",function(e){
     openModal();
 });
 
-/* ---------------- STATUS NOTE MODAL ---------------- */
+
 
 let pendingStatusUpdate = null; // stores { selectEl, orderId, newStatus, row }
 
@@ -499,7 +479,7 @@ document.getElementById("statusNoteConfirmBtn").addEventListener("click", functi
     });
 });
 
-/* ---------------- UPDATE ORDER STATUS ---------------- */
+
 
 document.addEventListener("change", function(e){
 
@@ -537,7 +517,7 @@ document.addEventListener("change", function(e){
     openStatusNoteModal(selectEl, orderId, newStatus, row);
 });
 
-/* ---------------- STATUS FILTER ---------------- */
+
 
 let currentTab = "incoming";
 
@@ -611,7 +591,7 @@ function applyFilters() {
     });
 }
 
-// Tab switching
+
 document.querySelectorAll(".orders-tab").forEach(tab => {
     tab.addEventListener("click", () => {
         document.querySelectorAll(".orders-tab").forEach(t => t.classList.remove("active"));

@@ -2,9 +2,7 @@ from django.db import models
 from user_accounts.models import CustomerAccount, ProducerAccount
 from product.models import Product
 
-# ============================================================
-# ORDER
-# ============================================================
+
 class Order(models.Model):
 
     class OrderStatus(models.TextChoices):
@@ -44,9 +42,7 @@ class Order(models.Model):
         return f"Order #{self.order_id}"
         
 
-# ============================================================
-# SUBORDER
-# ============================================================
+
 class SubOrder(models.Model):
 
     class SubOrderStatus(models.TextChoices):
@@ -72,7 +68,7 @@ class SubOrder(models.Model):
     )
 
     delivery_date = models.DateField(null=True, blank=True)
-    #06/05/2026
+   
     class FulfillmentMethod(models.TextChoices):
         DELIVERY = "delivery", "Delivery"
         COLLECTION = "collection", "Collection"
@@ -82,7 +78,7 @@ class SubOrder(models.Model):
         choices=FulfillmentMethod.choices,
         default=FulfillmentMethod.DELIVERY,
     )
-    #06/05/2026 end
+    
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
     payout_amount = models.DecimalField(max_digits=10, decimal_places=2)
 
@@ -103,9 +99,6 @@ class SubOrder(models.Model):
         return f"SubOrder #{self.suborder_id}"
 
 
-# ============================================================
-# ORDER STATUS HISTORY
-# ============================================================
 class OrderStatusHistory(models.Model):
     history_id = models.AutoField(primary_key=True)
 
@@ -137,9 +130,7 @@ class OrderStatusHistory(models.Model):
         return f"StatusHistory #{self.history_id}"
 
 
-# ============================================================
-# ORDER ITEM
-# ============================================================
+
 class OrderItem(models.Model):
     order_item_id = models.AutoField(primary_key=True)
 
@@ -174,9 +165,7 @@ class OrderItem(models.Model):
     def __str__(self):
         return f"OrderItem #{self.order_item_id}"
     
-# ============================================================
-# RECURRING ORDER TEMPLATE (restaurant sets this up)
-# ============================================================
+
 class RecurringTemplate(models.Model):
     RECURRENCE_CHOICES = [
         ('weekly', 'Weekly'),
@@ -210,9 +199,6 @@ class RecurringTemplate(models.Model):
         return f"RecurringTemplate #{self.template_id} - {self.customer.user.email}"
 
 
-# ============================================================
-# RECURRING ORDER INSTANCE (links generated orders to template)
-# ============================================================
 class RecurringOrderInstance(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),

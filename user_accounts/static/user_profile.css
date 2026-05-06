@@ -114,8 +114,7 @@ button[onclick="logoutUser()"]:hover {
     background: #2d4460 !important;
     color: white !important;
 }
-/* Delete button */
-/* ADDED (10-03-26) - Made delete button less prominent to avoid confusion and stop users from miss clicking it. */
+
 .delete_text {
     margin-top: 5px;
     text-align: left;

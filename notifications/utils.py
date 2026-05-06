@@ -1,5 +1,3 @@
-# notifications/utils.py
-
 from django.utils import timezone
 from .models import Notification, StockAlert
 from .models import ProducerNotification
@@ -28,7 +26,6 @@ def notify_stock_available(product):
         # Only notify if the requested quantity is now available
         if current_available >= alert.requested_quantity:
         
-            
             # Create notification
             notification = Notification.objects.create(
                 recipient=alert.customer,

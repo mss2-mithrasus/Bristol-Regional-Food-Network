@@ -23,7 +23,7 @@
     {% endif %}
     {% if producer_groups %}
 
-    <!-- PAYMENT FORM (wrap entire checkout) -->
+    
     <form method="POST" action="{% url 'payments:payment_page' %}" id="globalPaymentForm" onsubmit="syncSpecialInstructions(); return validateGlobalPayment();">
     
         {% csrf_token %}
@@ -104,7 +104,6 @@
                         {% for item in group.items %}
                         <div class="summary-row">
                             <span class="summary-label">{{ item.name }} x{{ item.quantity }}</span>
-                            <!-- <span class="summary-value">£{{ item.price_formatted }}</span> -->
                             <!-- Micaiah changed for surplus discount  -->
                             <span class="summary-value">
                                 £{{ item.item_total_formatted }}
@@ -149,20 +148,7 @@
                                 <h4>Your Delivery Address</h4>
 
                             </div>
-                            <!--div class="address-details">
-                                <div class="address-item address-full">
-                                    <span class="address-label">Street</span>
-                                    <span class="address-value" id="customer-street-{{ group.producer.id }}">{{ user_address.street|default:"No address saved" }}</span>
-                                </div>
-                                <div class="address-item">
-                                    <span class="address-label">Postcode</span>
-                                    <span class="address-value" id="customer-postcode-{{ group.producer.id }}">{{ user_address.postcode|default:"" }}</span>
-                                </div>
-                                <button type="button" class="edit-address-btn" onclick="editAddress('{{ group.producer.id }}')">
-                                    <i class="fa-solid fa-pencil"></i> Edit
-                                </button>
-                            </div-->
-                            <!-- DISPLAY MODE (unchanged) -->
+                            
                             <div id="address-display-{{ group.producer.id }}" class="address-details">
                                 <div class="address-item address-full">
                                     <span class="address-label">Street</span>
@@ -177,7 +163,7 @@
                                 </button>
                             </div>
 
-                            <!-- EDIT MODE (added) -->
+                            <!-- EDIT MODE-->
                             <div id="address-edit-{{ group.producer.id }}" class="address-details" style="display: none;">
                                 <div class="address-item address-full">
                                     <span class="address-label">Street</span>
@@ -194,17 +180,6 @@
                                 </div>
                             </div>
 
-                            <!-- 06/05/2026 -->
-                            <!-- <label for="date-{{ group.producer.id }}" style="margin-top: 10px; display: block;">
-                                Select delivery date (48h minimum):
-                            </label>
-                            <input type="date" 
-                                   id="date-{{ group.producer.id }}"
-                                   name="delivery_date_{{ group.producer.id }}"
-                                   min="{{ group.min_delivery_date|date:'Y-m-d' }}"
-                                   class="delivery-date"
-                                   data-producer="{{ group.producer.id }}"
-                                   required> -->
                             <label for="delivery-date-{{ group.producer.id }}" style="margin-top: 10px; display: block;">
                                 Select delivery date (48h minimum):
                             </label>
@@ -215,12 +190,12 @@
                                 data-producer="{{ group.producer.id }}"
                                 data-method="delivery"
                                 required>
-                            <!-- 06/05/2026 end -->
+                          
                             <div class="delivery-helper">Earliest: {{ group.min_delivery_date|date:"D, j M Y" }}</div>
                         </div>
                     </div>
 
-                    <!-- 06/05/2026 -->
+                 
                     <!-- Collection Section -->
                     <div class="delivery-section hidden" id="collection-section-{{ group.producer.id }}">
                         <div class="address-card collection-address">
@@ -262,32 +237,8 @@
                             </div>
                         </div>
                     </div>
-                    <!-- 06/05/2026 end -->
-
-                    <!-- Collection Section -->
-                    <!-- <div class="delivery-section hidden" id="collection-section-{{ group.producer.id }}">
-                        <div class="address-header">
-                            <h4>Collection Address - {{ group.producer.name }}</h4>
-                        </div>
-                        <div class="address-details">
-                            {% if group.producer_address %}
-                            <div class="address-item address-full">
-                                <span class="address-label">Street</span>
-                                <span class="address-value">{{ group.producer_address.street }}</span>
-                            </div>
-                            <div class="address-item">
-                                <span class="address-label">Postcode</span>
-                                <span class="address-value">{{ group.producer_address.postcode }}</span>
-                            </div>
-                            {% else %}
-                            <div class="address-item">
-                                <span class="address-value">No collection address available</span>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div> -->
-
                     
+
 
                     <!-- Special Instructions -->
                     <div class="special-instructions">

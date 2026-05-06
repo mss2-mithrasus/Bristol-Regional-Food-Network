@@ -13,7 +13,7 @@
 
 
 {% block content%}
- <!--<img src="/static/images/organic.png" class="organic-badge" style="display:;">-->
+ 
 
 <div class="product-detail-container">
     <div class="product-image-container">
@@ -219,8 +219,7 @@
                 <i class="fa-solid fa-star"></i>`
             }
 
-            // inserting product name, description and producer name into page
-            //document.querySelector(".product-name").textContent = "Product: " + product.name;
+            
             document.querySelector(".product-name").textContent = product.name;
             // Micaiah added surplus discount
             const descriptionEl = document.querySelector(".product-description");
@@ -313,8 +312,7 @@
             }
             // end felna
             
-            //document.querySelector(".product-producer").textContent = "Producer: " + product.producer_name;
-            // Micaiah fixed layout 
+            
             document.querySelector(".product-producer").innerHTML = `
                 Sold by <strong>${product.producer_name}</strong>
             `;
@@ -558,7 +556,7 @@ function confirmDeleteReview(){
      
 }
 
-    // run ProductDetail function on page load
+    
     document.addEventListener("DOMContentLoaded", ProductDetails);
 
 
@@ -669,9 +667,7 @@ function showStockAlert(event, productId, productName) {
     currentProductId = productId;
     currentProductName = productName;
 
-    //const quantityDisplay = document.querySelector(".quantity-display");
-    // const quantityInput = document.querySelector(".quantity-input");
-    // const desiredQty = quantityDisplay ? parseInt(quantityDisplay.textContent) : 1;
+    
     const quantityInput = document.querySelector(".quantity-input");
     const desiredQty = quantityInput ? parseInt(quantityInput.value) || 1 : 1;
     const card = document.getElementById("productDetailCard");

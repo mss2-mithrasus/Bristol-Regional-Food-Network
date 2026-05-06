@@ -4,7 +4,6 @@ from .views import (
     PendingAccountsView,
     ApproveAccountView,
     RejectAccountView,
-    # ADDED (10-03-26)
     DeletedAccountsView,
     FailedLoginAttemptsView,
     AdminPendingPageView,

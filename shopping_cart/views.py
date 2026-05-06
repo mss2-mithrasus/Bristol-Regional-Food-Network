@@ -75,17 +75,7 @@ def block_if_product_not_fulfillable(product):
             ).update(status="cancelled")
 
             return True
-        # if product.best_before_date < earliest_fulfilment_date:
-        #     if product.availability_status:
-        #         product.availability_status = False
-        #         product.save(update_fields=["availability_status"])
-
-        #     SurplusDiscount.objects.filter(
-        #         product=product,
-        #         status="active"
-        #     ).update(status="cancelled")
-
-        #     return True
+        
 
     return False
 
@@ -135,7 +125,7 @@ def cart_view(request):
     # Get all cart items
     cart_items = cart.items.select_related('product__producer').all()
     
-    # Removed items from cart f they r expired after adding to the cart
+   
     invalid_cart_items = []
 
     for item in cart_items:
@@ -156,7 +146,7 @@ def cart_view(request):
     items_count = cart_items.count()
     
     
-    # If no items, return empty cart
+    
     if items_count == 0:
         print(" No items in cart")
         context = {
@@ -190,7 +180,7 @@ def cart_view(request):
     # lano added 
     total_farm_miles = 0
     
-    #felna added - account tye for bulk discount
+    #felna added - account the for bulk discount
     try:
         account_type = request.user.customeraccount.account_type
     except Exception:
@@ -339,24 +329,6 @@ def add_to_cart(request):
             },
             status=status.HTTP_403_FORBIDDEN
         )
-    
-    # try:
-    #     product = Product.objects.select_for_update().get(
-    #         product_id=product_id, 
-    #         availability_status=True
-    #     )
-    # except Product.DoesNotExist:
-    #     return Response(
-    #         {'error': 'Product not found or unavailable'},
-    #         status=status.HTTP_404_NOT_FOUND
-    #     )
-
-    #try:
-        #product = Product.objects.select_for_update().get(product_id=product_id)
-    #except Product.DoesNotExist:
-        #return Response(
-            #{'error': 'Product not found'},
-            #status=status.HTTP_404_NOT_FOUND
         
 
     if block_if_product_not_fulfillable(product):
@@ -396,8 +368,7 @@ def add_to_cart(request):
     # Get or create cart for user
     cart, _ = Cart.objects.get_or_create(customer=request.user)
     
-    # Calculate what's available for THIS user to add
-    # First, get ALL active reservations from OTHER users
+   
     other_users_reservations = CartItem.objects.filter(
         product=product,
         reserved_until__gt=timezone.now()
@@ -510,7 +481,7 @@ def update_cart_item(request, item_id):
         product_name = cart_item.product.name
         product_to_check = cart_item.product
         cart_item.delete()
-        # Notify AFTER transaction commits so stock counts are accurate
+        # Notify after transaction commits so stock counts are accurate
         transaction.on_commit(lambda: check_and_notify_stock_available(product_to_check))
         # Get updated cart
         cart = Cart.objects.get(customer=request.user)
@@ -631,7 +602,7 @@ def get_cart_item_available_stock(request, item_id):
         
         product = cart_item.product
         if not product.availability_status or block_if_product_not_fulfillable(product):
-        #if block_if_product_not_fulfillable(product):
+        
             return Response({
                 'success': True,
                 'item_id': item_id,
@@ -688,15 +659,11 @@ def cart_icon_data(request):
 @permission_classes([IsAuthenticated])
 def check_product_availability(request, product_id):
     """Check how many units of a product are available for the current user"""
-    # try:
-    #     product = Product.objects.get(product_id=product_id)
-        
-    #     from .utils import get_available_stock
-    #     available = get_available_stock(product, exclude_user=request.user)
+  
     try:
         product = Product.objects.get(product_id=product_id)
         if not product.availability_status or block_if_product_not_fulfillable(product):
-        #if block_if_product_not_fulfillable(product):
+        
             return Response({
                 'success': True,
                 'product_id': product_id,

@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 import json
 from .models import PaymentTransaction, Commission
-from order_management.models import Order, SubOrder, OrderItem, RecurringTemplate, RecurringOrderInstance  # Assuming these models are defined in order_management/models.py
+from order_management.models import Order, SubOrder, OrderItem, RecurringTemplate, RecurringOrderInstance
 from shopping_cart.models import Cart
 from user_accounts.models import ProducerAccount
 from product.models import Product
@@ -109,8 +109,6 @@ def payment_success(request):
                 all_items.append({
                     'name': item.product.name,
                     'quantity': item.quantity,
-                    # 'price': float(item.price_at_purchase),
-                    # 'unit': getattr(item.product, 'unit', ''),
                     'price': float(item.price_at_purchase),
                     'original_price': float(original_price),
                     'has_surplus_discount': item.price_at_purchase != original_price,
@@ -121,10 +119,9 @@ def payment_success(request):
                     'producer_phone': suborder.producer.contact_person.phone if suborder.producer.contact_person else '',
                 })
 
-        # has_delivery = any(sub.delivery_date for sub in order.suborders.all())
-        # 06/05/2026
+        
         has_delivery = any(sub.fulfillment_method == 'delivery' for sub in order.suborders.all())
-        # 06/05/2026
+        
         return render(request, 'payment_success.html', {
             'order_id': order.order_id,
             'total': float(order.total_amount),
@@ -154,9 +151,7 @@ def payment_success(request):
                     invalid_products.append(item_data.get('product_name', 'Unknown product'))
                     continue
 
-                # if not is_product_valid_for_fulfilment(product):
-                #     if product.name not in invalid_products:
-                #         invalid_products.append(product.name)
+               
                 if not product.availability_status or not is_product_valid_for_fulfilment(product):
                     if product.name not in invalid_products:
                         invalid_products.append(product.name)
@@ -309,7 +304,7 @@ def payment_success(request):
             print("Notification error:", e)
 
 
-        # ----- RECURRING ORDER TEMPLATE (Restaurant only) -----
+        # RECURRING ORDER TEMPLATE (Restaurant only)
         form_data = checkout_data.get('form_data', {})
         is_recurring = form_data.get('recurring') == 'true'
         if is_recurring and request.user.customeraccount.account_type == 'restaurant':
@@ -335,7 +330,7 @@ def payment_success(request):
             # Create the template
             RecurringTemplate.objects.create(
                 customer=request.user.customeraccount,
-                name=recurring_name,    # now this variable is defined
+                name=recurring_name,    
                 recurrence=recurrence,
                 delivery_weekday=delivery_weekday,
                 start_date=start_date,

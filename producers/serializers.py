@@ -141,7 +141,7 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = "__all__"
     
-# Micaiah added - 13-04-2026 - Surplus Serilizers
+
 class SurplusDiscountSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
     original_price = serializers.DecimalField(
@@ -207,23 +207,6 @@ class SurplusDiscountSerializer(serializers.ModelSerializer):
 
         return attrs
     
-# class OrderItemSerializer(serializers.ModelSerializer):
-#     product_name = serializers.CharField(source="product.name")
-#     image = serializers.SerializerMethodField()
-
-#     class Meta:
-#         model = OrderItem
-#         fields = [
-#             "product_name",
-#             "quantity",
-#             "price_at_purchase",
-#             "image",
-#         ]
-
-#     def get_image(self, obj):
-#         if obj.product.image:
-#             return obj.product.image.url
-#         return None
 
 # Micaiah changed for surplus discount 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -272,8 +255,6 @@ class ProducerOrderSerializer(serializers.ModelSerializer):
     order_id = serializers.IntegerField(source="order.order_id")
     customer_name = serializers.SerializerMethodField()
     customer_contact = serializers.SerializerMethodField()
-    # delivery_address = serializers.CharField(source="order.delivery_address")
-    # created_at = serializers.DateTimeField(source="order.created_at", format="%d/%m/%Y")
     delivery_address = serializers.CharField(source="order.delivery_address")
     collection_address = serializers.SerializerMethodField()
     created_at = serializers.DateTimeField(source="order.created_at", format="%d/%m/%Y")
@@ -281,7 +262,6 @@ class ProducerOrderSerializer(serializers.ModelSerializer):
     delivery_date = serializers.DateField(format="%d/%m/%Y", allow_null=True)
     delivery_type = serializers.SerializerMethodField()
     items = OrderItemSerializer(many=True, read_only=True)
-    #total_value = serializers.DecimalField(source="payout_amount", max_digits=10, decimal_places=2)
     # Micaiah changed for surplus discount
     total_value = serializers.DecimalField(source="subtotal", max_digits=10, decimal_places=2)
     # Change end     
@@ -351,12 +331,6 @@ class ProducerOrderSerializer(serializers.ModelSerializer):
         except Exception:
             return "No contact info"
 
-    # def get_delivery_type(self, obj):
-    #     if obj.delivery_date:
-    #         return "Delivery"
-    #     return "Collection"
-
-    # 06/05/2026
     def get_delivery_type(self, obj):
         if obj.fulfillment_method == "collection":
             return "Collection"

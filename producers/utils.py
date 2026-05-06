@@ -4,7 +4,7 @@ from .models import SurplusDiscount
 from product.models import Product
 from datetime import timedelta
 
-# Gets the earliest fullfilment date based on the 48hrs lead time 
+
 def get_earliest_fulfilment_date():
     return timezone.now().date() + timedelta(days=2)
 # Checks if product is valid for fulfilment 
@@ -108,15 +108,6 @@ def deactivate_expired_products():
 
     return count
 
-# def deactivate_surplus_if_not_fulfillable(product):
-#     """
-#     Cancel any active surplus deal if the product can no longer be fulfilled.
-#     """
-#     if not is_product_valid_for_fulfilment(product):
-#         SurplusDiscount.objects.filter(
-#             product=product,
-#             status="active"
-#         ).update(status="cancelled")
 def deactivate_surplus_if_not_fulfillable(product):
     """
     Cancel surplus only if the product has stock but cannot be fulfilled.

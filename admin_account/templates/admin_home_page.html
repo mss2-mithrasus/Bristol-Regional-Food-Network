@@ -89,7 +89,7 @@ async function loadDashboardStats() {
     document.getElementById("pending-restaurants").textContent = restaurants;
     document.getElementById("pending-producers").textContent = producers;
 
-    // FIXED: removed failed-24h (it doesn't exist)
+    
     const failedRes = await fetch("/admin-dashboard/failed-logins/api/", {
         headers: { "Authorization": "Bearer " + getToken() }
     });

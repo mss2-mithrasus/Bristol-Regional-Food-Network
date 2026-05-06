@@ -342,7 +342,7 @@
                 <span>£{{ producer.subtotal|floatformat:2 }}</span>
             </div>
         </div>
-         <!-- ADD THIS BLOCK -->
+         
          {% if producer.special_instruction %}
          <div class="special-instruction-display">
              <h4><i class="fa-regular fa-note-sticky"></i> Special Instructions:</h4>
@@ -350,7 +350,7 @@
          </div>
          {% endif %}
 
-        <!-- Status History with meaningful messages (REPLACED SECTION) -->
+        <!-- Status History with meaningful messages -->
         {% if producer.status_history %}
         <div class="status-history-section">
             <h4><i class="fa-solid fa-clock-rotate-left"></i> Order Timeline - {{ producer.name }}</h4>
@@ -560,7 +560,7 @@ function reorder(orderId) {
             viewCartBtn.style.display = 'inline-block';
             checkoutBtn.style.display = 'inline-block';
             
-            // Make sure the view cart button has the correct onclick handler
+           
             viewCartBtn.setAttribute('onclick', 'goToCartWithForce()');
         } else {
             statusDiv.innerHTML = `<p class="error-message"> Error: ${data.error}</p>`;

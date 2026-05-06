@@ -165,11 +165,6 @@ class ProducerProductListAPI(APIView):
         data = []
         for p in products:
             season = p.seasonal_availability.first()
-            # active_surplus = SurplusDiscount.objects.filter(
-            #     product=p,
-            #     status="active",
-            #     expiry_date__gt=timezone.now()
-            # ).first()
             active_surplus = None
             if is_product_valid_for_fulfilment(p):
                 active_surplus = SurplusDiscount.objects.filter(
@@ -363,7 +358,7 @@ class ProducerUpdateProductAPI(APIView):
         # Update fields
         product.name = request.data.get("name", product.name)
         product.description = request.data.get("description", product.description)
-        #product.price = request.data.get("price", product.price)
+      
         price_value = request.data.get("price")
         if price_value not in [None, ""]:
             try:
@@ -374,7 +369,7 @@ class ProducerUpdateProductAPI(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
         product.unit = request.data.get("unit", product.unit)
-        #product.best_before_date = request.data.get("best_before_date") or None
+        
         best_before_value = request.data.get("best_before_date")
         if best_before_value:
             parsed_best_before = parse_date(best_before_value)
@@ -404,13 +399,7 @@ class ProducerUpdateProductAPI(APIView):
         else:
             product.is_expired = False
 
-        # Availability logic
-        # if product.stock_quantity <= 0:
-        #     product.availability_status = False
-        # elif product.best_before_date and product.best_before_date < earliest_fulfilment_date:
-        #     product.availability_status = False
-        # else:
-        #     product.availability_status = True
+        
         manual_available = request.data.get("availability_status")
 
         if manual_available is not None:
@@ -447,6 +436,7 @@ class ProducerUpdateProductAPI(APIView):
         check_low_stock(product)
         deactivate_surplus_if_sold_out(product)
         deactivate_surplus_if_not_fulfillable(product)
+        
         # If stock increased, notify customers waiting for this product
         if int(new_stock) > old_stock:
             from django.db import transaction
@@ -608,10 +598,7 @@ class ProducerUpdateOrderStatusAPI(APIView):
         from notifications.models import Notification
         
         customer = order.customer.user  # Get the customer user
-        #is_delivery = suborders.first().delivery_date is not None
-        #06/05/2026
         is_delivery = suborders.first().fulfillment_method == 'delivery'
-        #06/05/2026 end 
         # Create notification based on status
         if new_status == "Confirmed":
             title = f"Order #{order_id} Confirmed by {producer.business_name}"
@@ -620,21 +607,12 @@ class ProducerUpdateOrderStatusAPI(APIView):
                 message += f" Note from producer: {note}"
                 
         elif new_status == "Ready":
-            #title = f"Order #{order_id} Ready for {'Collection' if not suborders.first().delivery_date else 'Delivery'}"
-            # 06/05/2026
             title = f"Order #{order_id} Ready for {'Delivery' if is_delivery else 'Collection'}"
-            # 06/05/2026 end 
             message = f"Great news! {producer.business_name} has marked your order as ready. "
-            # if suborders.first().delivery_date:
-            #     message += f"Expected delivery on {suborders.first().delivery_date.strftime('%d %b %Y')}."
-            # else:
-            #     message += "You can now collect your order."
-            # 06/05/2026
             if is_delivery:
                 message += f"Expected delivery on {suborders.first().delivery_date.strftime('%d %b %Y')}."
             else:
                 message += f"Ready for collection on {suborders.first().delivery_date.strftime('%d %b %Y')}."
-            # 06/05/2026 end 
             if note:
                 message += f" Note from producer: {note}"
                 
@@ -721,8 +699,6 @@ def get_ytd_totals(producer, start, end):
         .filter(actual_delivered_date__date__range=[start, end])
     )
 
-    # total_paid = sum((s.subtotal or Decimal("0.00")) * Decimal("0.95") for s in suborders)
-    # total_commission = sum((s.subtotal or Decimal("0.00")) * Decimal("0.05") for s in suborders)
     total_paid = sum(
         ((s.subtotal or Decimal("0.00")) * Decimal("0.95")).quantize(Decimal("0.01"))
         for s in suborders
@@ -946,7 +922,7 @@ class ProducerWeeklyPaymentsAPI(APIView):
             except Exception as e:
                 print("AUTO-SETTLEMENT ERROR:", e)
 
-        # Fallback: return live data for current/incomplete weeks
+        
 
         suborders = SubOrder.objects.filter(
             producer=producer,
@@ -1318,8 +1294,7 @@ def resolve_low_stock_alert(request, alert_id):
         'success': True,
         'message': f'Alert for {alert.product.name} resolved'
     })
-# Micaiah added - 13-04-2026
-# Surplus discount 
+
 class ProducerCreateSurplusDealAPI(APIView):
     permission_classes = [IsAuthenticated, IsProducer]
 

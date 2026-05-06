@@ -1,4 +1,3 @@
-# notifications/seasonal_notify.py
 from django.utils import timezone
 from datetime import timedelta
 from product.models import Product, SeasonalAvailability
