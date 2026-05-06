@@ -60,6 +60,11 @@
     <div class="producer-group">
         <h3 class="producer-name">
             <i class="fa-solid fa-store"></i> {{ producer.name }}
+            <!-- lano adding farm miles -->
+             <span style="font-size: 13px; color:#666;">
+                ({{producer.farm_miles}} miles away)
+             </span>
+            
         </h3>
         
         {% for item in producer.items %}
@@ -157,6 +162,9 @@
     <div class="cart-footer">
         <div class="cart-totals">
             <div class="total-row">
+                <!-- lano adding farm miles -->
+                 <span>Total Food Miles:</span>
+                 <span>{{total_farm_miles}} miles</span>
                 <span>Total:</span>
                 <span class="total-amount" id="cart-subtotal">£{{ subtotal|floatformat:2 }}</span>
             </div>

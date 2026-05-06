@@ -14,16 +14,26 @@
 </div>
 
 <section class="panel">
+    <div class="orders-tabs">
+    <button class="orders-tab active" data-tab="incoming" type="button">Incoming</button>
+    <button class="orders-tab" data-tab="completed" type="button">Completed</button>
+  </div>
   <div class="panel-header-row">
-    <h2>Incoming Orders</h2>
+    <h2 id="ordersHeading">Incoming Orders</h2>
 
-    <select id="statusFilter" class="button-pill" style="border-radius:10px; padding:8px 12px;">
-      <option value="">All statuses</option>
-      <option value="Pending">Pending</option>
-      <option value="Confirmed">Confirmed</option>
-      <option value="Ready">Ready</option>
-      <option value="Delivered">Delivered</option>
-    </select>
+    <div style="display:flex; gap:10px;">
+        <select id="statusFilter" class="button-pill" style="border-radius:10px; padding:8px 12px;">
+        <option value="">All statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="Confirmed">Confirmed</option>
+        <option value="Ready">Ready</option>
+        </select>
+
+        <select id="sortOrder" class="button-pill" style="border-radius:10px; padding:8px 12px;">
+        <option value="oldest">Oldest to newest</option>
+        <option value="newest">Newest to oldest</option>
+        </select>
+    </div>
   </div>
 
   <div class="table-wrap">
@@ -32,8 +42,8 @@
       <div>Order #</div>
       <div>Customer</div>
       <div>Order Date</div>
-      <div>Delivery Date</div>
-      <div>Delivery Type</div>
+      <div>Fulfilment Date</div>
+      <div>Fulfilment Method</div>
       <div>Items</div>
       <div>Total</div>
       <div>Status</div>
@@ -67,7 +77,7 @@
       </div>
 
       <div class="form-group form-group-full">
-        <label>Delivery Address</label>
+        <label id="dAddressLabel">Delivery Address</label>
         <input id="dDeliveryAddress" disabled>
       </div>
 
@@ -77,7 +87,7 @@
       </div>
 
       <div class="form-group">
-        <label>Delivery Date</label>
+        <label id="dFulfilmentDateLabel">Fulfilment Date</label>
         <input id="dDeliveryDate" disabled>
       </div>
 
@@ -190,7 +200,11 @@ fetch("/producer/api/orders/",{
     if(r.status===401) throw new Error("Unauthorized");
     return r.json();
 })
-.then(data=>renderOrders(data.orders || []))
+.then(data => {
+    renderOrders(data.orders || []);
+    sortRows();
+    applyFilters();
+})
 .catch(err=>{
     console.error(err);
 });
@@ -220,23 +234,28 @@ function renderOrders(orders){
                 : `${i.product_name} x${i.quantity}`
         ).join(", ");
 
-        const deliveryType = o.delivery_date ? "Delivery" : "Collection";
+        // const deliveryType = o.delivery_date ? "Delivery" : "Collection";
+        // 06/05/2026
+        const deliveryType = o.delivery_type || "Delivery";
+        // 06/05/2026 end 
 
         const row=document.createElement("div");
         row.className="prod-table orders row order-row";
         row.style.gridTemplateColumns="1.1fr 1.6fr 1.1fr 1.1fr 1fr 2fr 0.9fr 1fr 0.9fr";
 
-        row.dataset.status=o.status;
-        row.dataset.orderId=o.order_id;
-        row.dataset.customerName=o.customer_name;
-        row.dataset.customerContact=o.customer_contact;
-        row.dataset.deliveryAddress=o.delivery_address;
-        row.dataset.orderDate=o.created_at;
-        row.dataset.deliveryDate=o.delivery_date;
-        row.dataset.items=JSON.stringify(o.items);
-        row.dataset.total=o.total_value;
+        row.dataset.status = o.status;
+        row.dataset.orderId = o.order_id;
+        row.dataset.customerName = o.customer_name;
+        row.dataset.customerContact = o.customer_contact;
+        row.dataset.deliveryAddress = o.delivery_address || "";
+        row.dataset.collectionAddress = o.collection_address || "";
+        row.dataset.deliveryType = deliveryType;
+        row.dataset.orderDate = o.created_at;
+        row.dataset.deliveryDate = o.delivery_date;
+        row.dataset.items = JSON.stringify(o.items);
+        row.dataset.total = o.total_value;
         row.dataset.specialInstruction = o.special_instruction || "";
-
+        row.dataset.deliveredAt = o.delivered_at || "";
         row.innerHTML=`
         <div><strong>#${o.order_id}</strong></div>
         <div>${o.customer_name}</div>
@@ -275,12 +294,35 @@ document.addEventListener("click",function(e){
     document.getElementById("modalMeta").innerHTML=
         `Order <strong>#${row.dataset.orderId}</strong>`;
 
-    document.getElementById("dCustomerName").value=row.dataset.customerName||"";
-    document.getElementById("dCustomerContact").value=row.dataset.customerContact||"";
-    document.getElementById("dDeliveryAddress").value=row.dataset.deliveryAddress||"";
-    document.getElementById("dOrderDate").value=row.dataset.orderDate||"";
-    document.getElementById("dDeliveryDate").value=row.dataset.deliveryDate||"";
+    // document.getElementById("dCustomerName").value=row.dataset.customerName||"";
+    // document.getElementById("dCustomerContact").value=row.dataset.customerContact||"";
+    // document.getElementById("dDeliveryAddress").value=row.dataset.deliveryAddress||"";
+    // document.getElementById("dOrderDate").value=row.dataset.orderDate||"";
+    // document.getElementById("dDeliveryDate").value=row.dataset.deliveryDate||"";
+    const fulfilmentMethod = row.dataset.deliveryType || "Delivery";
+    const isCollection = fulfilmentMethod.toLowerCase() === "collection";
+
+    const addressToShow = isCollection
+        ? row.dataset.collectionAddress
+        : row.dataset.deliveryAddress;
+    document.getElementById("dAddressLabel").textContent = isCollection
+    ? "Collection Address"
+    : "Delivery Address";
+    document.getElementById("dCustomerName").value = row.dataset.customerName || "";
+    document.getElementById("dCustomerContact").value = row.dataset.customerContact || "";
+    document.getElementById("dDeliveryAddress").value = addressToShow || "";
+    document.getElementById("dOrderDate").value = row.dataset.orderDate || "";
+    document.getElementById("dDeliveryDate").value = row.dataset.deliveryDate || "";
+
+    document.getElementById("dAddressLabel").textContent = isCollection
+        ? "Collection Address"
+        : "Delivery Address";
+
+    document.getElementById("dFulfilmentDateLabel").textContent = isCollection
+        ? "Collection Date"
+        : "Delivery Date";
     document.getElementById("dSpecialInstruction").value=row.dataset.specialInstruction || "";
+    
     // document.getElementById("dTotalAmount").textContent="£"+(row.dataset.total||"0.00");
     // Micaiah changed for surplus discount 
     let modalTotal = 0;
@@ -497,14 +539,108 @@ document.addEventListener("change", function(e){
 
 /* ---------------- STATUS FILTER ---------------- */
 
-document.getElementById("statusFilter").addEventListener("change",()=>{
+let currentTab = "incoming";
 
-    const selected=document.getElementById("statusFilter").value;
+const incomingStatuses = ["Pending", "Confirmed", "Ready"];
+const completedStatuses = ["Delivered"];
 
-    document.querySelectorAll(".order-row").forEach(row=>{
-        const status=row.dataset.status||"";
-        row.style.display=(!selected||status===selected)?"grid":"none";
+function parseUkDate(str) {
+    if (!str) return null;
+    const parts = str.split("/");
+    if (parts.length !== 3) return new Date(str);
+    const [d, m, y] = parts;
+    return new Date(`${y}-${m}-${d}`);
+}
+
+function sortRows() {
+    const container = document.getElementById("ordersRows");
+    const rows = Array.from(container.querySelectorAll(".order-row"));
+    const sortOrder = document.getElementById("sortOrder")?.value || "oldest";
+
+    rows.sort((a, b) => {
+        let dateA;
+        let dateB;
+
+        if (currentTab === "incoming") {
+            dateA = a.dataset.deliveryDate && a.dataset.deliveryDate !== "null" && a.dataset.deliveryDate !== "-"
+                ? parseUkDate(a.dataset.deliveryDate)
+                : parseUkDate(a.dataset.orderDate);
+
+            dateB = b.dataset.deliveryDate && b.dataset.deliveryDate !== "null" && b.dataset.deliveryDate !== "-"
+                ? parseUkDate(b.dataset.deliveryDate)
+                : parseUkDate(b.dataset.orderDate);
+        } else {
+            dateA = a.dataset.deliveredAt
+                ? new Date(a.dataset.deliveredAt)
+                : parseUkDate(a.dataset.orderDate);
+
+            dateB = b.dataset.deliveredAt
+                ? new Date(b.dataset.deliveredAt)
+                : parseUkDate(b.dataset.orderDate);
+        }
+
+        const timeA = dateA instanceof Date && !isNaN(dateA) ? dateA.getTime() : 0;
+        const timeB = dateB instanceof Date && !isNaN(dateB) ? dateB.getTime() : 0;
+
+        const orderA = Number(a.dataset.orderId || 0);
+        const orderB = Number(b.dataset.orderId || 0);
+
+        if (timeA !== timeB) {
+            return sortOrder === "newest"
+                ? timeB - timeA
+                : timeA - timeB;
+        }
+
+        return sortOrder === "newest"
+            ? orderB - orderA
+            : orderA - orderB;
     });
+
+    rows.forEach(row => container.appendChild(row));
+}
+
+function applyFilters() {
+    const selected = document.getElementById("statusFilter").value;
+    const allowed = currentTab === "incoming" ? incomingStatuses : completedStatuses;
+
+    document.querySelectorAll(".order-row").forEach(row => {
+        const status = row.dataset.status || "";
+        const inTab = allowed.includes(status);
+        const matchesFilter = !selected || status === selected;
+        row.style.display = (inTab && matchesFilter) ? "grid" : "none";
+    });
+}
+
+// Tab switching
+document.querySelectorAll(".orders-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+        document.querySelectorAll(".orders-tab").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+
+        currentTab = tab.dataset.tab;
+
+        // Update heading
+        document.getElementById("ordersHeading").textContent =
+            currentTab === "incoming" ? "Incoming Orders" : "Completed Orders";
+
+        // Rebuild status filter options based on tab
+        const filter = document.getElementById("statusFilter");
+        filter.innerHTML = '<option value="">All statuses</option>';
+        const opts = currentTab === "incoming" ? incomingStatuses : completedStatuses;
+        opts.forEach(s => {
+            const opt = document.createElement("option");
+            opt.value = s;
+            opt.textContent = s;
+            filter.appendChild(opt);
+        });
+        sortRows();
+        applyFilters();
+    });
+});
+
+document.getElementById("sortOrder").addEventListener("change", function () {
+    sortRows();
+    applyFilters();
 });
 
 </script>

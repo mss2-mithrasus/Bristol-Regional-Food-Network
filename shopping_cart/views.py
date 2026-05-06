@@ -6,6 +6,7 @@ from datetime import timedelta
 from .utils import get_available_stock
 from product.models import Product
 import json
+from product.utils import food_miles
 
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -173,7 +174,7 @@ def cart_view(request):
     cart_items_list = list(cart_items)
     
     for item in cart_items_list:
-        print(f"  - {item.product.name} x {item.quantity} = £{item.subtotal}")
+        print(f"  - {item.product.name} x {item.quantity} = Â£{item.subtotal}")
     
     # Calculate totals
     #subtotal = sum(item.quantity * item.product.price for item in cart_items_list)
@@ -185,6 +186,9 @@ def cart_view(request):
     # Group by producer
     producers = []
     producer_dict = {}
+    
+    # lano added 
+    total_farm_miles = 0
     
     #felna added - account tye for bulk discount
     try:
@@ -236,6 +240,13 @@ def cart_view(request):
         # Group by producer
         producer_name = item.producer_name
         if producer_name not in producer_dict:
+            # lano added
+            producer_obj = item.product.producer
+            farm_postcode = producer_obj.address.postcode
+            customer_postode = request.user.customeraccount.address.postcode
+            distance = food_miles(farm_postcode, customer_postode)
+            # lano end
+            
             producer_dict[producer_name] = {
                 "name": producer_name,
                 "items": [],
@@ -243,7 +254,17 @@ def cart_view(request):
                 "discounted_subtotal": Decimal("0"),  # after bulk
                 "bulk_discount_amount": Decimal("0"),
                 "has_bulk_discount": False,
+                
+                # lano start 
+                "farm_miles": distance or 0
+                
+                # lano end
             }
+             # lano start
+            if distance:
+                total_farm_miles += distance
+                
+            # lano end
 
         producer_dict[producer_name]["items"].append(item)
         producer_dict[producer_name]["subtotal"] += surplus_line_total
@@ -273,6 +294,9 @@ def cart_view(request):
         'total_bulk_savings': total_bulk_savings,
         'account_type': account_type,
         'is_bulk_account': account_type in ['community', 'restaurant'],
+        # lano start
+        "total_farm_miles": total_farm_miles,
+        # lano end
     }
     
     

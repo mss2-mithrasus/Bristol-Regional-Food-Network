@@ -37,6 +37,9 @@ from decimal import Decimal, ROUND_HALF_UP
 def is_admin(user):
     return user.is_authenticated and user.role == "admin"
 
+# Money
+def money(value):
+    return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 # Admin home page 
 @method_decorator(login_required, name="dispatch")
@@ -276,17 +279,14 @@ def FinancialReports(request):
 
     aggregates = orders_qs.aggregate(
         total_order_value=Sum("total_amount"),
-        total_commission=Sum("commission_amount"),
         order_count=Count("order_id"),
     )
 
-    total_order_value = aggregates["total_order_value"] or Decimal("0.00")
-    total_commission = aggregates["total_commission"] or Decimal("0.00")
+    total_order_value = money(aggregates["total_order_value"] or Decimal("0.00"))
 
-    suborders_qs = SubOrder.objects.filter(order__in=orders_qs)
-    total_producer_payments = suborders_qs.aggregate(
-        total_payout=Sum("payout_amount")
-    )["total_payout"] or Decimal("0.00")
+    # Calculate from total price, not summed producer rounded values
+    total_commission = money(total_order_value * Decimal("0.05"))
+    total_producer_payments = money(total_order_value * Decimal("0.95"))
 
     orders_data = []
     for order in orders_qs:
@@ -352,18 +352,19 @@ def FinancialReports(request):
     #             "commission": str(commission),
     #             "payout": str(payout),
     #         })
-        order_payout = sum(
-            (s.payout_amount for s in order.suborders.all()),
-            Decimal("0.00")
-        )
+        order_total = money(order.total_amount)
+
+        # Calculate from order total
+        order_commission = money(order_total * Decimal("0.05"))
+        order_payout = money(order_total * Decimal("0.95"))
 
         orders_data.append({
             "id": order.order_id,
             "customer": str(order.customer),
             "created_at": order.created_at.isoformat(),
             "status": order.order_status,
-            "total": str(order.total_amount),
-            "commission": str(order.commission_amount),
+            "total": str(order_total),
+            "commission": str(order_commission),
             "producer_payment": str(order_payout),
             "producers": producer_rows,
         })
@@ -428,14 +429,17 @@ def FinancialReportsCSV(request):
     ])
 
     for order in orders_qs:
-        payout = sum((s.payout_amount for s in order.suborders.all()), Decimal("0.00"))
+        order_total = money(order.total_amount)
+        commission = money(order_total * Decimal("0.05"))
+        payout = money(order_total * Decimal("0.95"))
+
         writer.writerow([
             order.order_id,
             str(order.customer),
             order.created_at.isoformat(),
             order.order_status,
-            str(order.total_amount),
-            str(order.commission_amount),
+            str(order_total),
+            str(commission),
             str(payout),
         ])
 

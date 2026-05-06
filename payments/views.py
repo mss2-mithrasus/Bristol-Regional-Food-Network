@@ -121,8 +121,10 @@ def payment_success(request):
                     'producer_phone': suborder.producer.contact_person.phone if suborder.producer.contact_person else '',
                 })
 
-        has_delivery = any(sub.delivery_date for sub in order.suborders.all())
-
+        # has_delivery = any(sub.delivery_date for sub in order.suborders.all())
+        # 06/05/2026
+        has_delivery = any(sub.fulfillment_method == 'delivery' for sub in order.suborders.all())
+        # 06/05/2026
         return render(request, 'payment_success.html', {
             'order_id': order.order_id,
             'total': float(order.total_amount),
@@ -197,7 +199,14 @@ def payment_success(request):
                     pid = group['producer']['id']
                     producer = ProducerAccount.objects.get(id=pid)
 
+                    raw_method = producer_data.get(f'producer_{pid}_method', 'delivery')
+                    fulfillment_method = 'collection' if raw_method in ['collect', 'collection'] else 'delivery'
+
                     delivery_date = producer_data.get(f'producer_{pid}_delivery_date') or None
+                    if not delivery_date:
+                        raise Exception(
+                            f"Please select a {'collection' if fulfillment_method == 'collection' else 'delivery'} date for {producer.business_name}."
+                        )
                     special_instruction = producer_data.get(
                         f'producer_{pid}_special_instruction', ''
                     )
@@ -218,6 +227,7 @@ def payment_success(request):
                         order=order,
                         producer=producer,
                         delivery_date=delivery_date,
+                        fulfillment_method=fulfillment_method,
                         subtotal=customer_pays,
                         payout_amount=producer_gets,
                         status='Pending',

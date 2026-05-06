@@ -129,13 +129,24 @@
             // If remeber me selected save tokens
             const remember = document.getElementById("rememberMe").checked;
             // Save tokens
-            if(remember){
+            // if(remember){
+            //     localStorage.setItem("access", data.access);
+            //     localStorage.setItem("refresh", data.refresh);
+            // }
+            // else {
+            //     sessionStorage.setItem("access", data.access);
+            //     sessionStorage.setItem("refresh", data.refresh);
+            // }
+            if (remember) {
                 localStorage.setItem("access", data.access);
                 localStorage.setItem("refresh", data.refresh);
-            }
-            else {
+                localStorage.setItem("role", data.role);
+                localStorage.setItem("homepage", data.homepage);
+            } else {
                 sessionStorage.setItem("access", data.access);
                 sessionStorage.setItem("refresh", data.refresh);
+                sessionStorage.setItem("role", data.role);
+                sessionStorage.setItem("homepage", data.homepage);
             }
             // Redirect to homepage
             window.location.href = data.homepage;

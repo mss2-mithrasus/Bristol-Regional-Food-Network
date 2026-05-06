@@ -50,6 +50,8 @@
                 <label>End Date:</label>
                 <input type="date" id="endDate">
 
+                
+
                 <button class="approve_btn" onclick="loadFinancialReport()">Generate Report</button>
                 <button class="download_btn" onclick="downloadCSV()">Download CSV</button>
                 <button class="download_btn" onclick="window.print()">Print / Save as PDF</button>
@@ -63,6 +65,22 @@
 
             <section class="admin_section">
                 <h2>Order Breakdown</h2>
+                <!-- Sort orders by  -->
+                 <div class="order-sort-row">
+                    <label for="orderSort">Sort Orders By:</label>
+                    <select id="orderSort" onchange="renderFinancialOrders()">
+                        <option value="created_desc">Newest First</option>
+                        <option value="created_asc">Oldest First</option>
+                        <option value="total_desc">Order Value: High to Low</option>
+                        <option value="total_asc">Order Value: Low to High</option>
+                        <option value="commission_desc">Commission: High to Low</option>
+                        <option value="commission_asc">Commission: Low to High</option>
+                        <option value="payout_desc">Payout: High to Low</option>
+                        <option value="payout_asc">Payout: Low to High</option>
+                        <option value="customer_asc">Customer: A to Z</option>
+                        <option value="customer_desc">Customer: Z to A</option>
+                    </select>
+                </div>
                 <div id="financialError" class="empty-message"></div>
 
                 <div class="table-container">
@@ -121,6 +139,8 @@ function getToken() {
 function money(n) {
     return "£" + Number(n || 0).toFixed(2);
 }
+
+let currentFinancialOrders = [];
 
 // Date validation 
 async function loadDateLimits() {
@@ -210,15 +230,61 @@ async function loadFinancialReport() {
         <div class="pill"><span>Orders Processed</span><strong>${data.order_count}</strong></div>
     `;
 
+    currentFinancialOrders = data.orders || [];
+    renderFinancialOrders();
+}
+
+function renderFinancialOrders() {
     const tbody = document.getElementById("financialTableBody");
+    const sortValue = document.getElementById("orderSort").value;
+
     tbody.innerHTML = "";
 
-    if (!data.orders.length) {
+    if (!currentFinancialOrders.length) {
         tbody.innerHTML = `<tr><td colspan="7" class="empty-message">No orders found.</td></tr>`;
         return;
     }
 
-    data.orders.forEach(o => {
+    const sortedOrders = [...currentFinancialOrders];
+
+    sortedOrders.sort((a, b) => {
+        switch (sortValue) {
+            case "created_asc":
+                return new Date(a.created_at) - new Date(b.created_at);
+
+            case "created_desc":
+                return new Date(b.created_at) - new Date(a.created_at);
+
+            case "total_asc":
+                return Number(a.total || 0) - Number(b.total || 0);
+
+            case "total_desc":
+                return Number(b.total || 0) - Number(a.total || 0);
+
+            case "commission_asc":
+                return Number(a.commission || 0) - Number(b.commission || 0);
+
+            case "commission_desc":
+                return Number(b.commission || 0) - Number(a.commission || 0);
+
+            case "payout_asc":
+                return Number(a.producer_payment || 0) - Number(b.producer_payment || 0);
+
+            case "payout_desc":
+                return Number(b.producer_payment || 0) - Number(a.producer_payment || 0);
+
+            case "customer_asc":
+                return String(a.customer || "").localeCompare(String(b.customer || ""));
+
+            case "customer_desc":
+                return String(b.customer || "").localeCompare(String(a.customer || ""));
+
+            default:
+                return 0;
+        }
+    });
+
+    sortedOrders.forEach(o => {
         const tr = document.createElement("tr");
         tr.dataset.order = JSON.stringify(o);
 

@@ -600,7 +600,10 @@ def order_detail(request, order_id):
         items = []
         
         # Check if this is a collection order
-        is_collection = not suborder.delivery_date
+        #is_collection = not suborder.delivery_date
+        # 06/05/2026
+        is_collection = suborder.fulfillment_method == 'collection'
+        # 06/05/2026 end 
         
         for item in suborder.items.all():
             # Safer image URL handling (try/except instead of direct .url)
@@ -654,6 +657,7 @@ def order_detail(request, order_id):
         producers.append({
             'name': suborder.producer.business_name,
             'delivery_date': suborder.delivery_date,
+            'fulfillment_method': suborder.fulfillment_method,
             'status': suborder.status,
             'items': items,
             'subtotal': float(suborder.subtotal),
@@ -768,7 +772,10 @@ def order_history(request):
         total_producers = order.suborders.count()
 
         for suborder in order.suborders.all():
-            is_delivery = suborder.delivery_date is not None
+            #is_delivery = suborder.delivery_date is not None
+            # 06/05/2026
+            is_delivery = suborder.fulfillment_method == 'delivery'
+            # 06/05/2026 end 
             display_status = suborder.status
 
             # Correctly distinguish delivered vs collected
@@ -794,7 +801,7 @@ def order_history(request):
                 'status': suborder.status,
                 'display_status': display_status,
                 'is_delivery': is_delivery,
-                'delivery_date': suborder.delivery_date,
+                'fulfillment_method': suborder.fulfillment_method,
                 'item_count': suborder.items.count(),
                 'subtotal': float(suborder.subtotal),
             }

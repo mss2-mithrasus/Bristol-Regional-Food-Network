@@ -247,7 +247,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
         profileData = await response.json();
         localStorage.setItem("role", profileData.role);
-
+        if (profileData.role === "admin") {
+            document.getElementById("person-section").style.display = "none";
+            document.getElementById("address-section").style.display = "none";
+        }
+        if (
+            profileData.role === "customer" &&
+            (profileData.account_type === "community" || profileData.account_type === "restaurant")
+        ) {
+            document.getElementById("person-section").style.display = "none";
+        }
         for (const key in profileData) {
             const el = document.getElementById(key);
             if (el) el.innerText = profileData[key] || "";

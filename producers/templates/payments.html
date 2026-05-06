@@ -202,7 +202,11 @@ function loadAvailableWeeks() {
             end.setDate(start.getDate() + 6);
 
             option.value = end.toISOString().split("T")[0];
-            option.textContent = `Week starting ${week.end_date_formatted || week.week_ending}`;
+            const weekStart = new Date(week.week_ending);
+            const weekEndDate = new Date(weekStart);
+            weekEndDate.setDate(weekStart.getDate() + 6);
+            const fmt = d => d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short'});
+            option.textContent = `${fmt(weekStart)} – ${fmt(weekEndDate)} ${weekEndDate.getFullYear()}`;
             
             // Add status indicator if available
             
@@ -326,7 +330,13 @@ function loadPaymentHistory() {
             row.style.gridTemplateColumns = "1fr 1.6fr 1.1fr 1.1fr 2fr 0.9fr";
             
             row.innerHTML = `
-                <div><strong>${week.week_ending_formatted || week.week_ending}</strong></div>
+                <div><strong>${(() => {
+                    const end = new Date(week.week_ending);
+                    const start = new Date(end);
+                    start.setDate(end.getDate() - 6);
+                    const fmt = d => d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short'});
+                    return fmt(start) + ' – ' + fmt(end) + ' ' + end.getFullYear();
+                })()}</strong></div>
                 <div>${week.settlement_ref || 'AUTO'}</div>
                 <div>${money(week.total_value)}</div>
                 <div><strong>${money(week.payout)}</strong></div>
@@ -342,11 +352,8 @@ function loadPaymentHistory() {
         // Attach history view buttons
         document.querySelectorAll(".history-view-btn").forEach(btn => {
             btn.addEventListener("click", () => {
-                const start = new Date(btn.dataset.week);
-                const end = new Date(start);
-                end.setDate(start.getDate() + 6);
-
-                loadPayments(end.toISOString().split("T")[0]);
+                
+                loadPayments(btn.dataset.week);
 
                 window.scrollTo({ top: 0, behavior: "smooth" });
                 const section = document.getElementById("weeklySummary");

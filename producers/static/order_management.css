@@ -1,5 +1,4 @@
 /* Order management page */
-
 .orders-table {
     width: 100%;
 }
@@ -173,4 +172,33 @@
 .order-items {
   line-height: 1.2;
   word-break: break-word;
+}
+/*orders tabs */
+.orders-tabs {
+  display: flex;
+  gap: 28px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 18px;
+}
+
+.orders-tab {
+  background: none;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  color: #94a3b8;
+  padding: 10px 4px;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.orders-tab:hover {
+  color: #406083;
+}
+
+.orders-tab.active {
+  color: #406083;
+  border-bottom-color: #406083;
 }

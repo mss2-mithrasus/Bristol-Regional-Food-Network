@@ -15,7 +15,7 @@
   <header class="topbar">
     <div class="topbar-left">
       <img src="{% static 'images/leaf.png' %}" class="logo" alt="logo">
-      <span class="brand">Bristol Regional Food Network</span>
+      <span class="title">Bristol Regional Food Network</span>
     </div>
 
     <div class="topbar-right">
@@ -43,7 +43,6 @@
         href="/producer/order_management/">Orders</a>
       <a class="sidebar-link {% if '/producer/payments/' in request.path %}active{% endif %}"
         href="/producer/payments/">Payments</a>
-      <a class="sidebar-link" href="#">Content</a>
     </aside>
 
     <main class="dash-main">

@@ -57,16 +57,17 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
 {% block content %}
 
 <div class="search-box">
-    <form id="searchForm" style="position: relative;">
-        <input type="text" name="q" placeholder="Search Products" class="search-bar" >
+    <form id="searchForm" class="search-form">
+        <input type="text" name="q" placeholder="Search Products" class="search-bar">
+
         <select id="organic-filter" class="filter-dropdown">
             <option value="">All Products</option>
             <option value="organic">Organic Products</option>
-            
         </select>
+
         <button class="submit" type="submit">Search</button>
     </form>
-</div> 
+</div>
 
 
 
@@ -339,18 +340,18 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
             card.innerHTML = ` <img src="/static/${category.image}" alt="${category.category_name}">
             <p>${category.category_name}</p>`;
 
-            // load products when category is clicked
-            // card.addEventListener("click", function(e){
-            //     e.preventDefault();
-            //     titleEL.textContent = category.category_name;
-            //     //loading products for that category
-            //     loadProducts("", "", category.category_name);
-            // });
+            
 
             // Micaiah changed to fix redirect issue
             card.addEventListener("click", function(e){
                 e.preventDefault();
                 window.location.href = `/customer/home/category/${encodeURIComponent(category.category_name)}/`;
+                
+
+            //document.querySelector(".category-title").textContent = category.category_name;
+
+            //loadProducts("", "", category.category_name);
+                
             });
             data.appendChild(card); 
         })
@@ -407,7 +408,7 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
     }
 
     // function to create product cards
-    function getProducts(products){
+function getProducts(products){
         const data = document.querySelector(".product-container");
         
 
@@ -432,7 +433,7 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
             // if product has yearly availability display this
             if (season.is_year_round){
                 seasonalData = `<h4 class="field"><span class="label">Season:</span> All Year</h4>`;
-                seasonBadge = `<i class="fa-solid fa-seedling season badge"></i>`;
+           
                 outOfSeason = false;
             } else if (season.season_start_date && season.season_end_date){
                 const startDate = new Date(season.season_start_date + "T00:00:00")
@@ -474,46 +475,35 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
             // Micaiah added surplus discount 
             const priceHtml = product.has_surplus_discount
                 ? `
-                    <h4 class="field">
-                        <span class="label">Price:</span>
-                        <span style="text-decoration: line-through; color:#777;">
-                            £${Number(product.original_price).toFixed(2)}
-                        </span>
-                        <strong style="color:#c62828;">
+                    <div class="price-section">
+                        <p class="product-price">
                             £${Number(product.discounted_price).toFixed(2)}
-                        </strong>
-                    </h4>
+                            <span class="old-price">£${Number(product.original_price).toFixed(2)}</span>
+                        </p>
 
-                    <div style="margin:8px 0;">
-                        <span style="background:#ffe5e5; color:#c62828; padding:4px 8px; border-radius:10px; font-size:12px; font-weight:bold;">
-                            ${product.discount_percentage}% OFF
-                        </span>
+                        <span class="discount-badge">${product.discount_percentage}% OFF</span>
+
+                        ${product.surplus_note ? `
+                            <p class="surplus-note">
+                                ${product.surplus_note}
+                            </p>
+                        ` : ""}
+
+                        ${product.surplus_expiry_date ? `
+                            <p class="deal-expiry">
+                                Deal ends ${new Date(product.surplus_expiry_date).toLocaleString('en-GB', {
+                                    day: '2-digit',
+                                    month: 'short',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                            </p>
+                        ` : ""}
                     </div>
-
-                    ${product.surplus_note ? `
-                        <p style="font-size:13px; color:black;">
-                            <strong>Discount Reason:</strong>
-                            ${product.surplus_note}
-                        </p>
-                    ` : ""}
-
-                    ${product.surplus_expiry_date ? `
-                        <p style="font-size:13px; color:#b26a00;">
-                            <strong>Surplus Deal Ends:</strong>
-                            ${new Date(product.surplus_expiry_date).toLocaleString('en-GB', {
-                                day: '2-digit',
-                                month: 'short',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            })}
-                        </p>
-                    ` : ""}
                 `
                 : `
-                    <h4 class="field">
-                        <span class="label">Price:</span> £${Number(product.price).toFixed(2)}
-                    </h4>
+                    <p class="product-price">£${Number(product.price).toFixed(2)}</p>
                 `;
             // Micaiah added best before date
             const bestBeforeHtml = product.best_before_date
@@ -535,55 +525,51 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
             if (!canBuy) {
                 card.classList.add("unavailable-product");
             }
-            card.innerHTML = ` <img src="${product.image? product.image : '/static/images/default-product.png'}">
+            card.innerHTML = `
+                <img class="product-img" src="${product.image ? product.image : '/static/images/default-product.png'}">
 
-            <div class="field-row">
-                        <h4 class="field"><span class="label">Product:</span> ${product.name}</h4>
-                        ${organic}
-                        ${seasonBadge}
+                <div class="product-info">
+                    <div class="product-top-row">
+                        <h3 class="product-name">${product.name}</h3>
+                        <div class="badges">
+                            ${organic}
+                            ${seasonBadge}
+                        </div>
                     </div>
 
-                    <h4 class="field"><span class="label">Producer:</span> ${product.producer_name}</h4>
+                    <p class="producer-name">${product.producer_name}</p>
+
                     ${priceHtml}
                     ${bestBeforeHtml}
                     ${seasonalData}
 
                     <div class="status-section">
-                        <h4 class="field"><span class="label">Status:</span> ${status}
-                            
-                        </h4>
+                        ${status}
                     </div>
+                </div>
 
-
-
-
-                    <div class="button-group">
-                        <div class="quantity ${!canBuy ? "quantity-disabled" : ""}">
-                            <button class="minus" ${!canBuy ? "disabled" : ""}>-</button>
-                            <span class="quantity-display">1</span>
-                            <button class="plus" ${!canBuy ? "disabled" : ""}>+</button>
-                        </div>
-                        <button class="add-cart" ${!canBuy ? "disabled" : ""}>
-                            ${canBuy ? "Add to Cart" : "Unavailable"}
-                        </button>
+                <div class="button-group">
+                    <div class="quantity ${!canBuy ? "quantity-disabled" : ""}">
+                        <button class="minus" ${!canBuy ? "disabled" : ""}>-</button>
+                        <input type="number" class="quantity-input" value="1" min="1">
+                        <button class="plus" ${!canBuy ? "disabled" : ""}>+</button>
                     </div>
-
-
-                    <button class="notify-btn"
-                            data-product-id="${product.product_id }"
-                            onclick="showStockAlert(event, ${product.product_id}, '${product.name}')"
-                            style="${availableStock <= 0 ? 'display:block;' : 'display:none;'}">
-                        <i class="fa-regular fa-bell"></i> Notify when available
+                    <button class="add-cart" ${!canBuy ? "disabled" : ""}>
+                        ${canBuy ? "Add to Cart" : "Unavailable"}
                     </button>
+                </div>
 
+                <button class="notify-btn"
+                    data-product-id="${product.product_id}"
+                    onclick="showStockAlert(event, ${product.product_id}, '${product.name}')"
+                    style="${availableStock <= 0 ? 'display:block;' : 'display:none;'}">
+                    <i class="fa-regular fa-bell"></i> Notify when available
+                </button>
 
-                    <a href="/customer/home/product/${product.product_id}/?next=${encodeURIComponent(window.location.pathname + window.location.search)}" class="product-details">
-                        View Product Details
-                    </a>
-                
-                    
-                    
-                    `;
+                <a href="/customer/home/product/${product.product_id}/?next=${encodeURIComponent(window.location.pathname + window.location.search)}" class="product-details">
+                    View details
+                </a>
+            `;
             
 
             data.appendChild(card);
@@ -592,18 +578,27 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
             if (plusBtn) {
                 plusBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    const display = card.querySelector('.quantity-display');
+                    //const display = card.querySelector('.quantity-display');
+                    const input = card.querySelector('.quantity-input');
                     const maxStock = parseInt(card.dataset.maxStock);
                     const productId = card.dataset.productId;
+                    // if (display) {
+                    //     const currentQty = parseInt(display.textContent);
+                    // if (currentQty < maxStock) {
+                    //     display.textContent = currentQty + 1;
+                    //     // Update notify button after quantity changes
+                    //     updateNotifyButton(card, productId);
+                    // } else {
+                    //     showNotification(`Only ${maxStock} items available in stock`, 'error');
+                    // }
+                    // }
                     if (display) {
                         const currentQty = parseInt(display.textContent);
-                    if (currentQty < maxStock) {
-                        display.textContent = currentQty + 1;
-                        // Update notify button after quantity changes
-                        updateNotifyButton(card, productId);
-                    } else {
-                        showNotification(`Only ${maxStock} items available in stock`, 'error');
-                    }
+                        if (currentQty < maxStock) {
+                            display.textContent = currentQty + 1;
+                        } else {
+                            showNotification(`Only ${maxStock} items available in stock`, 'error');
+                        }
                     }
                 });
 
@@ -614,19 +609,57 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
             if (minusBtn) {
                 minusBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    const display = card.querySelector('.quantity-display');
+                    //const display = card.querySelector('.quantity-display');
                     const productId = card.dataset.productId;
-                    if (display) {
-                        let currentQty = parseInt(display.textContent);
-                        if (currentQty > 1){
-                            display.textContent = currentQty - 1;
-                            // Update notify button after quantity decreases
-                            updateNotifyButton(card, productId);
+                    // if (display) {
+                    //     let currentQty = parseInt(display.textContent);
+                    //     if (currentQty > 1){
+                    //         display.textContent = currentQty - 1;
+                    //         // Update notify button after quantity decreases
+                    //         updateNotifyButton(card, productId);
+                    //     }
+                    // }
+                    const input = card.querySelector('.quantity-input');
+
+                    if (input) {
+                        let currentQty = parseInt(input.value) || 1;
+
+                        if (currentQty > 1) {
+                            input.value = currentQty - 1;
+                            updateNotifyButton?.(card, productId);
                         }
                     }
+
                 });
 
             }
+
+            const quantityInput = card.querySelector('.quantity-input');
+
+            quantityInput?.addEventListener('input', function () {
+                const maxStock = parseInt(card.dataset.maxStock) || 1;
+
+                if (this.value === "") return;
+
+                let value = parseInt(this.value);
+
+                if (value < 1) {
+                    this.value = 1;
+                    return;
+                }
+
+                if (value > maxStock) {
+                    this.value = maxStock;
+                    showNotification(`Only ${maxStock} items available in stock`, 'error');
+                }
+            });
+
+            // fix empty value when user leaves input
+            quantityInput?.addEventListener('blur', function () {
+                if (this.value === "" || parseInt(this.value) < 1) {
+                    this.value = 1;
+                }
+            });
             
             
             const addToCartBtn = card.querySelector('.add-cart');
@@ -638,8 +671,10 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
                         showNotification('Error: Product ID not found', 'error');
                         return;
                     }
-                    const quantityDisplay = card.querySelector('.quantity-display');
-                    const quantity = quantityDisplay ? parseInt(quantityDisplay.textContent) : 1;
+                    // const quantityDisplay = card.querySelector('.quantity-display');
+                    // const quantity = quantityDisplay ? parseInt(quantityDisplay.textContent) : 1;
+                    const quantityInput = card.querySelector('.quantity-input');
+                    const quantity = quantityInput ? parseInt(quantityInput.value) || 1 : 1;
                     addToCart(productId, quantity, this);
                 });
             }
@@ -749,7 +784,8 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
                 showNotification(data.message, 'success');
                 updateCartBadge(data.cart_total_items);
                 const display = button?.closest('.product-card')?.querySelector('.quantity-display');
-                if (display) display.textContent = '1';
+                // if (display) display.textContent = '1';
+                if (display) display.value = '1';
             } else {
                 showNotification('Error: ' + (data.error || 'Could not add to cart'), 'error');
             }
@@ -791,9 +827,10 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
         if (!token) return;
         
         try {
-            const quantityDisplay = card.querySelector('.quantity-display');
-            const desiredQty = quantityDisplay ? parseInt(quantityDisplay.textContent) : 1;
-            
+            // const quantityDisplay = card.querySelector('.quantity-input')
+            // const desiredQty = quantityDisplay ? parseInt(quantityDisplay.textContent) : 1;
+            const quantityInput = card.querySelector('.quantity-input');
+            const desiredQty = quantityInput ? parseInt(quantityInput.value) || 1 : 1;
             // Call the real-time availability API
             const response = await fetch(`/cart/api/check-availability/${productId}/`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -825,8 +862,8 @@ ADD LINE LIKE WELCOME CUSTOMER NAME
         
         // Get the quantity from the product card
         const card = event?.target?.closest('.product-card');
-        const quantityDisplay = card?.querySelector('.quantity-display');
-        const desiredQty = quantityDisplay ? parseInt(quantityDisplay.textContent) : 1;
+        const quantityInput = card?.querySelector('.quantity-input');
+        const desiredQty = quantityInput ? parseInt(quantityInput.value) || 1 : 1;
         const maxStock = parseInt(card?.dataset.maxStock) || 99; // Get total stock
 
         // Store max stock in a data attribute or variable

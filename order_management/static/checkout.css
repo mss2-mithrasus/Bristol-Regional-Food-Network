@@ -333,43 +333,87 @@
 }
 
 /* Delivery Section */
+/* Fulfilment Sections: Delivery + Collection */
 .delivery-section {
     margin: 15px 0;
-    padding: 12px;
-    background-color: #f0f8ff;
-    border: 1px solid #406083;
-    border-radius: 8px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 12px;
+}
+
+.delivery-section .address-card {
+    margin-bottom: 0;
+    padding: 18px;
+    border: 1.5px solid #d0e0f0;
+    border-left: 4px solid #406083;
+    background: linear-gradient(135deg, #f8fbff, #ffffff);
+    box-shadow: 0 3px 10px rgba(64, 96, 131, 0.08);
+}
+
+.delivery-section .address-header {
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #dbe6f1;
+}
+
+.delivery-section .address-header h4 {
+    margin: 0;
+    color: #406083;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.delivery-section .address-details {
+    margin-bottom: 14px;
 }
 
 .delivery-section label {
     display: block;
-    margin-bottom: 8px;
-    font-weight: 600;
+    margin: 12px 0 8px;
+    font-weight: 700;
     color: #406083;
     font-size: 14px;
 }
 
-.delivery-date {
-    width: 100%;
-    padding: 10px;
-    border: 1.5px solid #d0d0d0;
-    border-radius: 6px;
+/* Shared date input style for delivery and collection */
+.delivery-date,
+.collection-date,
+.fulfilment-date {
+    width:80%;
+    padding: 11px 12px;
+    border: 1.5px solid #cbd6e2;
+    border-radius: 8px;
     font-size: 14px;
+    color: #333;
+    background-color: #ffffff;
     cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.delivery-date:focus {
+.delivery-date:focus,
+.collection-date:focus,
+.fulfilment-date:focus {
     border-color: #406083;
     outline: none;
+    box-shadow: 0 0 0 3px rgba(64, 96, 131, 0.12);
+}
+
+.delivery-date:disabled,
+.collection-date:disabled,
+.fulfilment-date:disabled {
+    background-color: #f2f4f6;
+    cursor: not-allowed;
+    opacity: 0.75;
 }
 
 .delivery-helper {
     margin-top: 8px;
     font-size: 12px;
-    color: #666;
-    padding: 5px 8px;
-    background-color: white;
-    border-radius: 4px;
+    color: #5f6f7f;
+    padding: 7px 10px;
+    background-color: #ffffff;
+    border-radius: 6px;
     border-left: 3px solid #406083;
 }
 

@@ -194,8 +194,8 @@
                                 </div>
                             </div>
 
-
-                            <label for="date-{{ group.producer.id }}" style="margin-top: 10px; display: block;">
+                            <!-- 06/05/2026 -->
+                            <!-- <label for="date-{{ group.producer.id }}" style="margin-top: 10px; display: block;">
                                 Select delivery date (48h minimum):
                             </label>
                             <input type="date" 
@@ -204,13 +204,68 @@
                                    min="{{ group.min_delivery_date|date:'Y-m-d' }}"
                                    class="delivery-date"
                                    data-producer="{{ group.producer.id }}"
-                                   required>
+                                   required> -->
+                            <label for="delivery-date-{{ group.producer.id }}" style="margin-top: 10px; display: block;">
+                                Select delivery date (48h minimum):
+                            </label>
+                            <input type="date" 
+                                id="delivery-date-{{ group.producer.id }}"
+                                min="{{ group.min_delivery_date|date:'Y-m-d' }}"
+                                class="fulfilment-date delivery-date"
+                                data-producer="{{ group.producer.id }}"
+                                data-method="delivery"
+                                required>
+                            <!-- 06/05/2026 end -->
                             <div class="delivery-helper">Earliest: {{ group.min_delivery_date|date:"D, j M Y" }}</div>
                         </div>
                     </div>
 
+                    <!-- 06/05/2026 -->
                     <!-- Collection Section -->
                     <div class="delivery-section hidden" id="collection-section-{{ group.producer.id }}">
+                        <div class="address-card collection-address">
+                            <div class="address-header">
+                                <h4>Collection Address - {{ group.producer.name }}</h4>
+                            </div>
+
+                            <div class="address-details">
+                                {% if group.producer_address %}
+                                <div class="address-item address-full">
+                                    <span class="address-label">Street</span>
+                                    <span class="address-value">{{ group.producer_address.street }}</span>
+                                </div>
+                                <div class="address-item">
+                                    <span class="address-label">Postcode</span>
+                                    <span class="address-value">{{ group.producer_address.postcode }}</span>
+                                </div>
+                                {% else %}
+                                <div class="address-item address-full">
+                                    <span class="address-value">No collection address available</span>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <label for="collection-date-{{ group.producer.id }}" style="margin-top: 10px; display: block;">
+                                Select collection date (48h minimum):
+                            </label>
+                            <input type="date"
+                                id="collection-date-{{ group.producer.id }}"
+                                min="{{ group.min_delivery_date|date:'Y-m-d' }}"
+                                class="fulfilment-date collection-date"
+                                data-producer="{{ group.producer.id }}"
+                                data-method="collection"
+                                disabled
+                                required>
+
+                            <div class="delivery-helper">
+                                Earliest: {{ group.min_delivery_date|date:"D, j M Y" }}
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 06/05/2026 end -->
+
+                    <!-- Collection Section -->
+                    <!-- <div class="delivery-section hidden" id="collection-section-{{ group.producer.id }}">
                         <div class="address-header">
                             <h4>Collection Address - {{ group.producer.name }}</h4>
                         </div>
@@ -230,7 +285,7 @@
                             </div>
                             {% endif %}
                         </div>
-                    </div>
+                    </div> -->
 
                     
 
@@ -241,7 +296,7 @@
                                   name="producer_{{ group.producer.id }}_special_instruction"
                                   rows="3"
                                   placeholder="Any special requests for this producer?"
-                                  style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;"></textarea>
+                                  style="width: 90%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;"></textarea>
                     </div>
 
                     <!-- Hidden inputs for global payment -->
@@ -335,7 +390,10 @@
             </div>
 
             <div id="globalWarning" class="warning-message hidden">
-                Please select delivery dates for all producers in delivery mode
+                <!-- Please select delivery dates for all producers in delivery mode -->
+                <!-- 06/05/2026 -->
+                Please select a delivery or collection date for every producer
+                <!-- 06/05/2026 -->
             </div>
             
             <input type="hidden" name="total" value="{{ total }}">
@@ -438,89 +496,161 @@ document.addEventListener("DOMContentLoaded", () => {
     {
         const producerId = '{{ group.producer.id }}';
 
-        // Track state
-        producerStates[producerId] = { 
-            isDelivery: true, 
-            dateSelected: false, 
-            dateValue: '' 
+        // // Track state
+        // producerStates[producerId] = { 
+        //     isDelivery: true, 
+        //     dateSelected: false, 
+        //     dateValue: '' 
+        // };
+        // 06/05/2026
+        producerStates[producerId] = {
+            method: 'delivery',
+            dateSelected: false,
+            dateValue: ''
         };
+        // 06/05/2026 end 
+
 
         // Scoped elements
         const card = document.getElementById(`producer-${producerId}`);
         const deliveryBtn = card.querySelector(".producer-delivery");
         const collectBtn = card.querySelector(".producer-collect");
-        const dateInput = card.querySelector(".delivery-date");
+        //const dateInput = card.querySelector(".delivery-date");
+        //06/05/2026
+        const deliveryDateInput = document.getElementById(`delivery-date-${producerId}`);
+        const collectionDateInput = document.getElementById(`collection-date-${producerId}`);
+        
+        // // Event listeners
+        // deliveryBtn.addEventListener("click", () => setProducerMode(producerId, true));
+        // collectBtn.addEventListener("click", () => setProducerMode(producerId, false));
+        // dateInput.addEventListener("change", () => validateProducerDate(producerId));
 
-        // Event listeners
-        deliveryBtn.addEventListener("click", () => setProducerMode(producerId, true));
-        collectBtn.addEventListener("click", () => setProducerMode(producerId, false));
-        dateInput.addEventListener("change", () => validateProducerDate(producerId));
+        // // Default mode
+        // setProducerMode(producerId, true);
 
-        // Default mode
-        setProducerMode(producerId, true);
+        deliveryBtn.addEventListener("click", () => setProducerMode(producerId, 'delivery'));
+        collectBtn.addEventListener("click", () => setProducerMode(producerId, 'collection'));
+        deliveryDateInput.addEventListener("change", () => validateProducerDate(producerId));
+        collectionDateInput.addEventListener("change", () => validateProducerDate(producerId));
+
+        setProducerMode(producerId, 'delivery');
+        //06/05/2026 end
     }
     {% endfor %}
 
     updateGlobalPaymentButton();
 });
-
-function setProducerMode(producerId, isDelivery) {
-
+// 06/05/2026
+function getActiveDateInput(producerId) {
+    const state = producerStates[producerId];
+    const inputId = state.method === 'collection'
+        ? `collection-date-${producerId}`
+        : `delivery-date-${producerId}`;
+    return document.getElementById(inputId);
+}
+function setProducerMode(producerId, method) {
     const card = document.getElementById(`producer-${producerId}`);
     const deliveryBtn = card.querySelector(".producer-delivery");
     const collectBtn = card.querySelector(".producer-collect");
     const deliverySection = document.getElementById(`delivery-section-${producerId}`);
     const collectionSection = document.getElementById(`collection-section-${producerId}`);
     const methodInput = document.getElementById(`global-method-${producerId}`);
-    const dateInput = card.querySelector(".delivery-date");
     const hiddenInput = document.getElementById(`global-hidden-${producerId}`);
+    const deliveryDateInput = document.getElementById(`delivery-date-${producerId}`);
+    const collectionDateInput = document.getElementById(`collection-date-${producerId}`);
+    const isDelivery = method === 'delivery';
 
-    if (isDelivery) {
-        deliveryBtn.classList.add("active");
-        collectBtn.classList.remove("active");
+    deliveryBtn.classList.toggle("active", isDelivery);
+    collectBtn.classList.toggle("active", !isDelivery);
 
-        methodInput.value = "delivery";
-        deliverySection.classList.remove("hidden");
-        collectionSection.classList.add("hidden");
+    methodInput.value = method;
+    deliverySection.classList.toggle("hidden", !isDelivery);
+    collectionSection.classList.toggle("hidden", isDelivery);
 
-        dateInput.required = true;
-        dateInput.disabled = false;
+    deliveryDateInput.disabled = !isDelivery;
+    deliveryDateInput.required = isDelivery;
+    collectionDateInput.disabled = isDelivery;
+    collectionDateInput.required = !isDelivery;
 
-        producerStates[producerId].isDelivery = true;
-        producerStates[producerId].dateSelected = !!dateInput.value;
-        producerStates[producerId].dateValue = dateInput.value || "";
+    producerStates[producerId].method = method;
 
-    } else {
-        collectBtn.classList.add("active");
-        deliveryBtn.classList.remove("active");
-
-        methodInput.value = "collect";
-        deliverySection.classList.add("hidden");
-        collectionSection.classList.remove("hidden");
-
-        dateInput.required = false;
-        dateInput.disabled = true;
-        dateInput.value = "";
-
-        producerStates[producerId].isDelivery = false;
-        producerStates[producerId].dateSelected = true;
-        producerStates[producerId].dateValue = "";
-        hiddenInput.value = "";
-    }
+    const activeInput = getActiveDateInput(producerId);
+    producerStates[producerId].dateSelected = !!activeInput.value;
+    producerStates[producerId].dateValue = activeInput.value || "";
+    hiddenInput.value = activeInput.value || "";
 
     updateGlobalPaymentButton();
 }
+// 06/05/2026 end 
+// function setProducerMode(producerId, isDelivery) {
+
+//     const card = document.getElementById(`producer-${producerId}`);
+//     const deliveryBtn = card.querySelector(".producer-delivery");
+//     const collectBtn = card.querySelector(".producer-collect");
+//     const deliverySection = document.getElementById(`delivery-section-${producerId}`);
+//     const collectionSection = document.getElementById(`collection-section-${producerId}`);
+//     const methodInput = document.getElementById(`global-method-${producerId}`);
+//     //const dateInput = card.querySelector(".delivery-date");
+//     // 06/05/2026
+//     const deliveryDateInput = document.getElementById(`delivery-date-${producerId}`);
+//     const collectionDateInput = document.getElementById(`collection-date-${producerId}`);
+//     // 06/05/2026 end 
+//     const hiddenInput = document.getElementById(`global-hidden-${producerId}`);
+
+//     if (isDelivery) {
+//         deliveryBtn.classList.add("active");
+//         collectBtn.classList.remove("active");
+
+//         methodInput.value = "delivery";
+//         deliverySection.classList.remove("hidden");
+//         collectionSection.classList.add("hidden");
+
+//         dateInput.required = true;
+//         dateInput.disabled = false;
+
+//         producerStates[producerId].isDelivery = true;
+//         producerStates[producerId].dateSelected = !!dateInput.value;
+//         producerStates[producerId].dateValue = dateInput.value || "";
+
+//     } else {
+//         collectBtn.classList.add("active");
+//         deliveryBtn.classList.remove("active");
+
+//         methodInput.value = "collect";
+//         deliverySection.classList.add("hidden");
+//         collectionSection.classList.remove("hidden");
+
+//         dateInput.required = false;
+//         dateInput.disabled = true;
+//         dateInput.value = "";
+
+//         producerStates[producerId].isDelivery = false;
+//         producerStates[producerId].dateSelected = true;
+//         producerStates[producerId].dateValue = "";
+//         hiddenInput.value = "";
+//     }
+
+//     updateGlobalPaymentButton();
+// }
 
 function validateProducerDate(producerId) {
-    const dateInput = document.getElementById(`date-${producerId}`);
+    // const dateInput = document.getElementById(`date-${producerId}`);
+    // const hiddenInput = document.getElementById(`global-hidden-${producerId}`);
+    // 06/05/2026
+    const dateInput = getActiveDateInput(producerId);
     const hiddenInput = document.getElementById(`global-hidden-${producerId}`);
-
+    const methodLabel = producerStates[producerId].method === 'collection' ? 'collection' : 'delivery';
+    // 06/05/2026 end 
     if (dateInput.value) {
         const selectedDate = new Date(dateInput.value);
         const minDate = new Date(dateInput.min);
 
         if (selectedDate < minDate) {
+            //alert("Please select a date at least 48h from now");
+            // 06/05/2026
             alert("Please select a date at least 48h from now");
+            // 06/05/2026 end 
+
             dateInput.value = "";
             producerStates[producerId].dateSelected = false;
             hiddenInput.value = "";
@@ -537,28 +667,43 @@ function validateProducerDate(producerId) {
     updateGlobalPaymentButton();
 }
 
-function allDeliveryDatesSelected() {
-    return Object.values(producerStates).every(state =>
-        state.isDelivery ? state.dateSelected : true
-    );
+// function allDeliveryDatesSelected() {
+//     return Object.values(producerStates).every(state =>
+//         state.isDelivery ? state.dateSelected : true
+//     );
+// }
+// 06/05/2026
+function allFulfilmentDatesSelected() {
+    return Object.values(producerStates).every(state => state.dateSelected);
 }
+// 06/05/2026 end 
 
 function updateGlobalPaymentButton() {
     const btn = document.getElementById("globalPayBtn");
     const warning = document.getElementById("globalWarning");
 
-    if (allDeliveryDatesSelected()) {
+    // if (allDeliveryDatesSelected()) {
+    //     btn.disabled = false;
+    //     warning.classList.add("hidden");
+    // } else {
+    //     btn.disabled = true;
+    //     warning.classList.remove("hidden");
+    // }
+
+    // 06/05/2026
+    if (allFulfilmentDatesSelected()) {
         btn.disabled = false;
         warning.classList.add("hidden");
     } else {
         btn.disabled = true;
         warning.classList.remove("hidden");
     }
+    // 06/05/2026 end 
 }
 
 function validateGlobalPayment() {
-    if (!allDeliveryDatesSelected()) {
-        alert("Please select delivery dates for all producers in delivery mode before payment.");
+    if (!allFulfilmentDatesSelected()) {
+        alert("Please select a delivery or collection date for every producer");
         return false;
     }
     return true;

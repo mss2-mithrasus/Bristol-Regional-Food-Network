@@ -36,3 +36,24 @@
 </div>
 
 {% endblock %}
+
+{% block scripts %}
+<script>
+function getToken() {
+    return localStorage.getItem("access") || sessionStorage.getItem("access");
+}
+
+function getHomepage() {
+    return localStorage.getItem("homepage") || sessionStorage.getItem("homepage");
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    const token = getToken();
+    const homepage = getHomepage();
+
+    if (token && homepage) {
+        window.location.href = homepage;
+    }
+});
+</script>
+{% endblock %}

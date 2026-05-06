@@ -72,6 +72,17 @@ class SubOrder(models.Model):
     )
 
     delivery_date = models.DateField(null=True, blank=True)
+    #06/05/2026
+    class FulfillmentMethod(models.TextChoices):
+        DELIVERY = "delivery", "Delivery"
+        COLLECTION = "collection", "Collection"
+    
+    fulfillment_method = models.CharField(
+        max_length=10,
+        choices=FulfillmentMethod.choices,
+        default=FulfillmentMethod.DELIVERY,
+    )
+    #06/05/2026 end
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
     payout_amount = models.DecimalField(max_digits=10, decimal_places=2)
 

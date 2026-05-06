@@ -25,9 +25,11 @@
         <select name="category" required>
           <option value="">Select category</option>
           {% for category in categories %}
-            <option value="{{ category.category_id }}">
-              {{ category.category_name }}
-            </option>
+            {% if category.category_name != "Seasonal Specialities" %}
+              <option value="{{ category.category_id }}">
+                {{ category.category_name }}
+              </option>
+            {% endif %}
           {% endfor %}
         </select>
       </div>
@@ -91,7 +93,8 @@
         </select>
         <small>Hold Ctrl (Windows) / Cmd (Mac) to select multiple.</small>
       </div>
-      <div id="allergenDescriptions" class=form-group form-group-full></div>
+
+      <div id="allergenDescriptions" class="form-group form-group-full"></div>
 
       <div class="form-group">
         <label>Harvest date</label>
@@ -187,16 +190,20 @@
     const form = document.getElementById("addProductForm");
     const errorBox = document.getElementById("formErrors");
     //seasonal date cant be older than the current date of the day
-    const todays_date = new Date().toISOString().split("T")[0];
-    document.querySelector("input[name='season_start_date']").min = todays_date;
-    document.querySelector("input[name='season_end_date']").min = todays_date;
+    const todaysDate = new Date().toISOString().split("T")[0];
+    
+    
     //validating end date so that it is not before the start date
     const startDate = document.querySelector("input[name='season_start_date']")
     const endDate = document.querySelector("input[name='season_end_date']")
     
     startDate.addEventListener("change", function(){
-      endDate.min = startDate.value;
-    })
+      if (startDate.value) endDate.min = startDate.value;
+    });
+
+    endDate.addEventListener("change", function(){
+      if (endDate.value) startDate.max = endDate.value;
+    });
 
 
     form.addEventListener("submit", async (e) => {
@@ -209,7 +216,17 @@
       let startDate = form.querySelector("input[name='season_start_date']").value;
       let endDate = form.querySelector("input[name='season_end_date']").value;
 
-      
+      // Validate seasonal dates if "seasonal" was chosen
+      if (seasonType === "seasonal") {
+        if (!startDate || !endDate) {
+          errorBox.innerHTML = "<p>Please provide both a season start date and a season end date.</p>";
+          return;
+        }
+        if (new Date(endDate) < new Date(startDate)) {
+          errorBox.innerHTML = "<p>Season end date cannot be before the season start date.</p>";
+          return;
+        }
+      }
 
       formData.set("seasonal_type", seasonType);
 
@@ -269,8 +286,18 @@
         });
 
         const data = await response.json();
-
         if (response.ok) {
+          const seasonType = form.querySelector("select[name='seasonal_type']").value;
+          if (seasonType === "seasonal") {
+            const startDate = form.querySelector("input[name='season_start_date']").value;
+            if (startDate) {
+              const today = new Date().toISOString().split('T')[0];
+              const daysUntil = Math.ceil((new Date(startDate) - new Date(today)) / (1000 * 60 * 60 * 24));
+              if (daysUntil >= 0 && daysUntil <= 7) {
+                console.log('Seasonal product will be available in ${daysUntil} days - notification will be sent');
+              }
+            }
+          }
           document.getElementById("successModal").classList.add("active");
 
           document.getElementById("closeModalBtn").addEventListener("click", () => {

@@ -68,6 +68,19 @@ services:
 
     restart: always  
 
+  #separate service for generating settlement report
+  settlement-scheduler:
+    build: .
+    container_name: settlement_scheduler
+    command: python manage.py generate_settlements
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
   db:
     image: mysql:8.0
     container_name: mysql_db

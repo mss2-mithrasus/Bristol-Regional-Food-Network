@@ -57,7 +57,7 @@ class ProductCreateSerializer(serializers.Serializer):
     def validate_price(self, value):
         cleaned = (
             str(value)
-            .replace("£", "")
+            .replace("Â£", "")
             .replace("$", "")
             .replace(",", "")
             .strip()
@@ -272,8 +272,13 @@ class ProducerOrderSerializer(serializers.ModelSerializer):
     order_id = serializers.IntegerField(source="order.order_id")
     customer_name = serializers.SerializerMethodField()
     customer_contact = serializers.SerializerMethodField()
+    # delivery_address = serializers.CharField(source="order.delivery_address")
+    # created_at = serializers.DateTimeField(source="order.created_at", format="%d/%m/%Y")
     delivery_address = serializers.CharField(source="order.delivery_address")
+    collection_address = serializers.SerializerMethodField()
     created_at = serializers.DateTimeField(source="order.created_at", format="%d/%m/%Y")
+    delivered_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    delivery_date = serializers.DateField(format="%d/%m/%Y", allow_null=True)
     delivery_type = serializers.SerializerMethodField()
     items = OrderItemSerializer(many=True, read_only=True)
     #total_value = serializers.DecimalField(source="payout_amount", max_digits=10, decimal_places=2)
@@ -289,8 +294,10 @@ class ProducerOrderSerializer(serializers.ModelSerializer):
             "customer_name",
             "customer_contact",
             "delivery_address",
+            "collection_address",
             "delivery_type",
             "created_at",
+            "delivered_at",
             "delivery_date",
             "special_instruction",
             "items",
@@ -344,11 +351,35 @@ class ProducerOrderSerializer(serializers.ModelSerializer):
         except Exception:
             return "No contact info"
 
+    # def get_delivery_type(self, obj):
+    #     if obj.delivery_date:
+    #         return "Delivery"
+    #     return "Collection"
+
+    # 06/05/2026
     def get_delivery_type(self, obj):
-        if obj.delivery_date:
-            return "Delivery"
-        return "Collection"
-    
+        if obj.fulfillment_method == "collection":
+            return "Collection"
+        return "Delivery"
+
+    def get_collection_address(self, obj):
+        try:
+            producer_address = getattr(obj.producer, "address", None)
+
+            if not producer_address:
+                return "No collection address available"
+
+            parts = [
+                getattr(producer_address, "address_line", ""),
+                getattr(producer_address, "street", ""),
+                getattr(producer_address, "postcode", ""),
+            ]
+
+            return ", ".join([part for part in parts if part])
+
+        except Exception:
+            return "No collection address available"
+
     def get_special_instruction(self, obj):
         return obj.special_instruction or ""
     

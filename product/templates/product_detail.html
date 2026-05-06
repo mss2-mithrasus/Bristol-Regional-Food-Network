@@ -40,7 +40,7 @@
             <div class="button-group" id="detailButtonGroup">
                 <div class="quantity">
                     <button class="minus" type="button">-</button>
-                    <span class="quantity-display">1</span>
+                    <input type="number" class="quantity-input" value="1" min="1">
                     <button class="plus" type="button">+</button>
                 </div>
 
@@ -287,7 +287,8 @@
             if (
                 data.is_bulk_eligible &&
                 data.producer_bulk_threshold_quantity &&
-                data.producer_bulk_discount_percentage
+                data.producer_bulk_discount_percentage &&
+                !product.has_surplus_discount
             ) {
                 const threshold = data.producer_bulk_threshold_quantity;
                 const pct = parseFloat(data.producer_bulk_discount_percentage);
@@ -386,16 +387,16 @@
 
             const plusBtn = document.querySelector(".plus");
             const minusBtn = document.querySelector(".minus");
-            const quantityDisplay = document.querySelector(".quantity-display");
-
+            // const quantityDisplay = document.querySelector(".quantity-display");
+            const quantityInput = document.querySelector(".quantity-input");
             plusBtn.onclick = function(e) {
                 e.preventDefault();
 
-                const currentQty = parseInt(quantityDisplay.textContent);
+                const currentQty = parseInt(quantityInput.value) || 1;
                 const maxStock = Number(product.available_stock ?? product.stock_quantity ?? 0);
 
                 if (currentQty < maxStock) {
-                    quantityDisplay.textContent = currentQty + 1;
+                    quantityInput.value = currentQty + 1;
                 } else {
                     showNotification(`Only ${maxStock} items available in stock`, "error");
                 }
@@ -404,17 +405,41 @@
             minusBtn.onclick = function(e) {
                 e.preventDefault();
 
-                const currentQty = parseInt(quantityDisplay.textContent);
+                const currentQty = parseInt(quantityInput.value) || 1;
 
                 if (currentQty > 1) {
-                    quantityDisplay.textContent = currentQty - 1;
+                    quantityInput.value = currentQty - 1;
                 }
             };
+
+            quantityInput?.addEventListener("input", function () {
+                const maxStock = Number(product.available_stock ?? product.stock_quantity ?? 0);
+
+                if (this.value === "") return;
+
+                let value = parseInt(this.value);
+
+                if (value < 1) {
+                    this.value = 1;
+                    return;
+                }
+
+                if (value > maxStock) {
+                    this.value = maxStock;
+                    showNotification(`Only ${maxStock} items available in stock`, "error");
+                }
+            });
+
+            quantityInput?.addEventListener("blur", function () {
+                if (this.value === "" || parseInt(this.value) < 1) {
+                    this.value = 1;
+                }
+            });
 
             addCartBtn.onclick = function(e) {
                 e.preventDefault();
 
-                const quantity = parseInt(quantityDisplay.textContent);
+                const quantity = parseInt(quantityInput.value) || 1;
                 addToCart(product.product_id, quantity, addCartBtn);
             };
 
@@ -619,8 +644,8 @@ function addToCart(productId, quantity = 1, button) {
             showNotification(data.message, "success");
             updateCartBadge(data.cart_total_items);
 
-            const display = document.querySelector(".quantity-display");
-            if (display) display.textContent = "1";
+            const input = document.querySelector(".quantity-input");
+            if (input) input.value = "1";
         } else {
             showNotification(data.error || "Could not add to cart", "error");
         }
@@ -644,9 +669,11 @@ function showStockAlert(event, productId, productName) {
     currentProductId = productId;
     currentProductName = productName;
 
-    const quantityDisplay = document.querySelector(".quantity-display");
-    const desiredQty = quantityDisplay ? parseInt(quantityDisplay.textContent) : 1;
-
+    //const quantityDisplay = document.querySelector(".quantity-display");
+    // const quantityInput = document.querySelector(".quantity-input");
+    // const desiredQty = quantityDisplay ? parseInt(quantityDisplay.textContent) : 1;
+    const quantityInput = document.querySelector(".quantity-input");
+    const desiredQty = quantityInput ? parseInt(quantityInput.value) || 1 : 1;
     const card = document.getElementById("productDetailCard");
     const maxStock = parseInt(card?.dataset.maxStock) || 99;
 

@@ -25,11 +25,11 @@
   <h2>Recent Orders</h2>
 
   <div class="orders-grid head">
-    <div class="pill mini">Order ID</div>
-    <div class="pill mini">Customer</div>
-    <div class="pill mini">Items</div>
-    <div class="pill mini">Status</div>
-  </div>
+        <div>Order ID</div>
+        <div>Customer</div>
+        <div>Items</div>
+        <div>Status</div>
+    </div>
 
   <div id="recent-orders-container">
     <!-- Orders will be inserted here -->
@@ -65,6 +65,19 @@
     // Dashboard logic
     const token = getAccessToken();
 
+    function getStatusClass(status) {
+        if (!status) return "";
+
+        const s = status.toLowerCase();
+
+        if (s === "pending") return "status-pending";
+        if (s === "confirmed") return "status-confirmed";
+        if (s === "ready") return "status-ready";
+        if (s === "delivered") return "status-delivered";
+
+        return "";
+    }
+
     fetch("/producer/api/dashboard/", {
         headers: {
             "Authorization": "Bearer " + token
@@ -97,7 +110,11 @@
                         <div>${order.id}</div>
                         <div>${order.customer}</div>
                         <div>${order.items}</div>
-                        <div>${order.status}</div>
+                        <div>
+                            <span class="status-badge ${getStatusClass(order.status)}">
+                                ${order.status}
+                            </span>
+                        </div>
                     </div>
                 `;
             });

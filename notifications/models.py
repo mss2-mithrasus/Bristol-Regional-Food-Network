@@ -76,6 +76,7 @@ class ProducerNotification(models.Model):
         ('order_update', 'Order Update'),
         ('low_stock', 'Low Stock Alert'),
         ('low_stock_resolved', 'Low Stock Resolved'),
+        ('seasonal_coming_soon', 'Seasonal Product Coming Soon'), #added
         ('general', 'General'),
     ]
     
@@ -92,6 +93,13 @@ class ProducerNotification(models.Model):
     # Related objects
     order = models.ForeignKey('order_management.Order', on_delete=models.SET_NULL, null=True, blank=True)
     suborder = models.ForeignKey('order_management.SubOrder', on_delete=models.SET_NULL, null=True, blank=True)
+    
+    product = models.ForeignKey(
+        'product.Product',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
     
     is_read = models.BooleanField(default=False)
     is_seen = models.BooleanField(default=False)

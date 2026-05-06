@@ -310,6 +310,8 @@
             } else if (notif.notification_type === 'low_stock' || notif.notification_type === 'low_stock_resolved') {
                 // Low stock alerts go to products page
                 linkUrl = '/producer/product_management/';
+            } else if (notif.notification_type === 'seasonal_coming_soon') {
+                linkUrl = '/producer/product_management/';
             } else if (notif.notification_type === 'general') {
                 linkUrl = '/producer/order_management/';
             }
@@ -343,6 +345,7 @@
             'order_update': 'fa-truck',
             'low_stock': 'fa-exclamation-triangle',
             'low_stock_resolved': 'fa-check-circle',
+            'seasonal_coming_soon': 'fa-seedling',
             'general': 'fa-bell'
         };
         return icons[type] || 'fa-bell';

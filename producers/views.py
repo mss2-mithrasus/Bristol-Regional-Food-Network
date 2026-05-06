@@ -1,7 +1,8 @@
 import csv
 from itertools import product
 from django.http import HttpResponse
-from django.db.models import Count, Sum
+# from django.db.models import Count, Sum
+from django.db.models import Count, Sum, F, Subquery, OuterRef
 from django.db import transaction
 from django.shortcuts import render
 from rest_framework.views import APIView
@@ -31,6 +32,7 @@ from .utils import (
     is_product_valid_for_fulfilment,
     deactivate_surplus_if_not_fulfillable,
 )
+
 from django.utils.dateparse import parse_date
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 class ProducerDashboardAPI(APIView):
@@ -54,10 +56,9 @@ class ProducerDashboardAPI(APIView):
 
         delivered_orders = SubOrder.objects.filter(producer=producer, status="Delivered")
 
-        revenue = sum((o.payout_amount or Decimal('0')) * Decimal('0.95') 
-              for o in delivered_orders)
-
-        revenue = revenue.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        revenue = sum((o.subtotal or Decimal('0')) * Decimal('0.95') 
+              for o in delivered_orders),
+        Decimal('0.00').quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         
         recent_suborders = (SubOrder.objects.filter(producer=producer).select_related("order", "order__customer").prefetch_related("items__product").order_by("-order__created_at")[:5])
         serializer = DashboardOrderSerializer(recent_suborders, many=True)
@@ -137,7 +138,7 @@ class ProducerCreateProductAPI(APIView):
         serializer = ProductCreateSerializer(data=request.data, context={"request": request})
         if serializer.is_valid():
             product = serializer.save()
-            
+            check_and_notify_seasonal(product)
             return Response(
                 {"message": "Product added successfully!", "product_id": product.product_id},
                 status=status.HTTP_201_CREATED
@@ -320,6 +321,25 @@ class ProducerDeleteProductAPI(APIView):
 
         return Response({"message": "Product deleted successfully"}, status=status.HTTP_200_OK)
 
+def check_and_notify_seasonal(product):
+    try:
+        from notifications.seasonal_notify import notify_single_product_seasonal
+
+        season = product.seasonal_availability.first()
+        print(f"DEBUG season: {season}")
+        print(f"DEBUG is_year_round: {season.is_year_round if season else 'NO SEASON'}")
+        print(f"DEBUG start_date: {season.season_start_date if season else 'NONE'}")
+        if season and season.season_start_date:
+            from django.utils import timezone
+            today = timezone.now().date()
+            days = (season.season_start_date - today).days
+            print(f"DEBUG days_until_start: {days}")
+
+        count = notify_single_product_seasonal(product)
+        print(f"DEBUG notification count returned: {count}")
+    except Exception as e:
+        print(f"Error sending seasonal notification: {e}")
+
     
 class ProducerUpdateProductAPI(APIView):
     permission_classes = [IsAuthenticated, IsProducer]
@@ -422,6 +442,7 @@ class ProducerUpdateProductAPI(APIView):
             season.season_start_date = parse_date(start) if start else None
             season.season_end_date = parse_date(end) if end else None
         season.save()
+        check_and_notify_seasonal(product)
         product.save()
         check_low_stock(product)
         deactivate_surplus_if_sold_out(product)
@@ -467,13 +488,19 @@ class ProducerOrdersAPI(APIView):
 
         if not producer:
             return Response({"error": "Producer account not found"}, status=404)
-
+        delivered_at_sq = (
+            OrderStatusHistory.objects
+            .filter(suborder=OuterRef('pk'), new_status='Delivered')
+            .order_by('-order_status_changed_at')
+            .values('order_status_changed_at')[:1]
+        )
         suborders = (
             SubOrder.objects
             .filter(producer=producer)
             .select_related("order", "order__customer")
             .prefetch_related("items__product")
-            .order_by("-order__created_at")
+            .annotate(delivered_at=Subquery(delivered_at_sq))
+            .order_by(F("delivery_date").asc(nulls_last=True), "order__created_at")
         )
 
         serializer = ProducerOrderSerializer(suborders, many=True)
@@ -543,8 +570,8 @@ class ProducerUpdateOrderStatusAPI(APIView):
                 # If delivery date exists and today is before delivery date, block
                 if delivery_date and today < delivery_date:
                     return Response({
-                        "error": f"Cannot mark as delivered before the delivery date ({delivery_date.strftime('%d %b %Y')}). "
-                                f"Please wait until the delivery date."
+                        "error": f"Cannot mark as delivered before the delivery/collection date ({delivery_date.strftime('%d %b %Y')}). "
+                                f"Please wait until the delivery/collection date."
                     }, status=400)
         # Update all suborders for this producer
         updated_suborders = []
@@ -581,7 +608,10 @@ class ProducerUpdateOrderStatusAPI(APIView):
         from notifications.models import Notification
         
         customer = order.customer.user  # Get the customer user
-        is_delivery = suborders.first().delivery_date is not None
+        #is_delivery = suborders.first().delivery_date is not None
+        #06/05/2026
+        is_delivery = suborders.first().fulfillment_method == 'delivery'
+        #06/05/2026 end 
         # Create notification based on status
         if new_status == "Confirmed":
             title = f"Order #{order_id} Confirmed by {producer.business_name}"
@@ -590,12 +620,21 @@ class ProducerUpdateOrderStatusAPI(APIView):
                 message += f" Note from producer: {note}"
                 
         elif new_status == "Ready":
-            title = f"Order #{order_id} Ready for {'Collection' if not suborders.first().delivery_date else 'Delivery'}"
+            #title = f"Order #{order_id} Ready for {'Collection' if not suborders.first().delivery_date else 'Delivery'}"
+            # 06/05/2026
+            title = f"Order #{order_id} Ready for {'Delivery' if is_delivery else 'Collection'}"
+            # 06/05/2026 end 
             message = f"Great news! {producer.business_name} has marked your order as ready. "
-            if suborders.first().delivery_date:
+            # if suborders.first().delivery_date:
+            #     message += f"Expected delivery on {suborders.first().delivery_date.strftime('%d %b %Y')}."
+            # else:
+            #     message += "You can now collect your order."
+            # 06/05/2026
+            if is_delivery:
                 message += f"Expected delivery on {suborders.first().delivery_date.strftime('%d %b %Y')}."
             else:
-                message += "You can now collect your order."
+                message += f"Ready for collection on {suborders.first().delivery_date.strftime('%d %b %Y')}."
+            # 06/05/2026 end 
             if note:
                 message += f" Note from producer: {note}"
                 
@@ -667,25 +706,54 @@ def get_tax_year():
 
     return start, end, display
 
-
 def get_ytd_totals(producer, start, end):
-    suborders = SubOrder.objects.filter(
-        producer=producer,
-        status="Delivered",
-        order__created_at__date__range=[start, end]
+    delivered_date_sq = (
+        OrderStatusHistory.objects
+        .filter(suborder=OuterRef('pk'), new_status='Delivered')
+        .order_by('-order_status_changed_at')
+        .values('order_status_changed_at')[:1]
     )
 
-    total_paid = sum((s.payout_amount or Decimal("0.00")) * Decimal("0.95") for s in suborders)
-    total_commission = sum((s.payout_amount or Decimal("0.00")) * Decimal("0.05") for s in suborders)
+    suborders = (
+        SubOrder.objects
+        .filter(producer=producer, status="Delivered")
+        .annotate(actual_delivered_date=Subquery(delivered_date_sq))
+        .filter(actual_delivered_date__date__range=[start, end])
+    )
+
+    # total_paid = sum((s.subtotal or Decimal("0.00")) * Decimal("0.95") for s in suborders)
+    # total_commission = sum((s.subtotal or Decimal("0.00")) * Decimal("0.05") for s in suborders)
+    total_paid = sum(
+        ((s.subtotal or Decimal("0.00")) * Decimal("0.95")).quantize(Decimal("0.01"))
+        for s in suborders
+    ) or Decimal("0.00")
+
+    total_commission = sum(
+        ((s.subtotal or Decimal("0.00")) * Decimal("0.05")).quantize(Decimal("0.01"))
+        for s in suborders
+    ) or Decimal("0.00")
 
     return total_paid, total_commission
+
+def _get_customer_name(sub):
+    try:
+        customer = sub.order.customer
+        if customer.person:
+            return f"{customer.person.first_name} {customer.person.last_name}"
+        if customer.account_type == "community":
+            return customer.communitygroup.organisation_name
+        if customer.account_type == "restaurant":
+            return customer.restaurant.organisation_name
+        return customer.user.email
+    except Exception:
+        return "Unknown Customer"
 
 
 def build_orders_from_suborders(suborders):
     orders = []
 
     for sub in suborders:
-        order_value = Decimal(sub.payout_amount or 0)
+        order_value = Decimal(sub.subtotal or 0)
 
         commission = (order_value * Decimal("0.05")).quantize(Decimal("0.01"))
         payout = (order_value * Decimal("0.95")).quantize(Decimal("0.01"))
@@ -707,30 +775,36 @@ def build_orders_from_suborders(suborders):
 
     return orders
 
-
 def build_orders_from_settlement(settlement, producer):
     orders = []
 
     for o in settlement.settlement_orders.all():
 
         sub = SubOrder.objects.filter(
-            order__order_id=o.order_id,
+            orderorder_id=o.order_id,
             producer=producer
         ).select_related(
-            "order", "order__customer"
+            "order", "ordercustomer"
         ).prefetch_related(
             "items__product"
         ).first()
 
         if sub:
-            customer_name = f"{sub.order.customer.person.first_name} {sub.order.customer.person.last_name}"
+            customer_name = _get_customer_name(sub)
 
             items = ", ".join([
                 f"{i.product.name} x{i.quantity}"
                 for i in sub.items.all()
             ])
 
-            delivered_date = sub.order.created_at.strftime("%d %b %Y")
+            history = OrderStatusHistory.objects.filter(
+                suborder=sub, new_status='Delivered'
+            ).order_by('-order_status_changed_at').first()
+            delivered_date = (
+                history.order_status_changed_at.strftime("%d %b %Y")
+                if history
+                else sub.order.created_at.strftime("%d %b %Y")
+            )
         else:
             customer_name = "Unknown"
             items = ""
@@ -795,6 +869,85 @@ class ProducerWeeklyPaymentsAPI(APIView):
             except Exception as e:
                 print("DB LOAD ERROR:", e)
 
+        if week_param:
+            try:
+                week_end = datetime.strptime(week_param, '%Y-%m-%d').date()
+                week_start = week_end - timedelta(days=6)
+                today = timezone.now().date()
+
+                if week_end < today:
+                    delivered_date_sq = (
+                    OrderStatusHistory.objects
+                    .filter(suborder=OuterRef('pk'), new_status='Delivered')
+                    .order_by('-order_status_changed_at')
+                    .values('order_status_changed_at')[:1]
+                    )
+                    suborders =( SubOrder.objects.filter(producer=producer, status="Delivered")
+                        .annotate(actual_delivered_date=Subquery(delivered_date_sq))
+                        .filter(actual_delivered_date__date__range=[week_start, week_end])
+                        )
+
+                    if suborders.exists():
+                        # Auto-create the settlement
+                        total_value = Decimal("0.00")
+                        total_commission = Decimal("0.00")
+                        total_payout = Decimal("0.00")
+                        order_list = []
+
+                        for sub in suborders:
+                            order_value = Decimal(sub.subtotal or 0)
+                            commission = (order_value * Decimal("0.05")).quantize(Decimal("0.01"))
+                            payout = (order_value * Decimal("0.95")).quantize(Decimal("0.01"))
+                            total_value += order_value
+                            total_commission += commission
+                            total_payout += payout
+                            order_list.append({
+                                "order_id": sub.order.order_id,
+                                "order_value": order_value,
+                                "commission": commission,
+                                "payout": payout,
+                            })
+
+                        with transaction.atomic():
+                            settlement = SettlementReport.objects.create(
+                                producer=producer,
+                                transaction_id=None,
+                                week_start=week_start,
+                                week_end=week_end,
+                                total_order_value=total_value,
+                                commission_amount=total_commission,
+                                payout_amount=total_payout,
+                                payment_status="Processed",
+                            )
+                            ProducerSettlementOrder.objects.bulk_create([
+                                ProducerSettlementOrder(
+                                    settlement_report=settlement,
+                                    order_id=o["order_id"],
+                                    order_value=o["order_value"],
+                                    commission_amount=o["commission"],
+                                    producer_payout=o["payout"],
+                                ) for o in order_list
+                            ])
+
+                        # Return the newly created settlement
+                        orders = build_orders_from_settlement(settlement, producer)
+                        return Response({
+                            "total_value": settlement.total_order_value,
+                            "commission": settlement.commission_amount,
+                            "payout": settlement.payout_amount,
+                            "status": settlement.payment_status,
+                            "settlement_ref": f"SETT-{week_param.replace('-', '')}-{producer.id}",
+                            "week_end": week_end.strftime('%d %b %Y'),
+                            "tax_year": tax_year_display,
+                            "total_paid_ytd": total_paid_ytd,
+                            "total_commission_ytd": total_commission_ytd,
+                            "orders": orders
+                        })
+            except Exception as e:
+                print("AUTO-SETTLEMENT ERROR:", e)
+
+        # Fallback: return live data for current/incomplete weeks
+
         suborders = SubOrder.objects.filter(
             producer=producer,
             status="Delivered"
@@ -809,8 +962,16 @@ class ProducerWeeklyPaymentsAPI(APIView):
                 week_end = datetime.strptime(week_param, '%Y-%m-%d').date()
                 week_start = week_end - timedelta(days=6)
 
-                suborders = suborders.filter(
-                    order__created_at__date__range=[week_start, week_end]
+                delivered_date_sq = (
+                    OrderStatusHistory.objects
+                    .filter(suborder=OuterRef('pk'), new_status='Delivered')
+                    .order_by('-order_status_changed_at')
+                    .values('order_status_changed_at')[:1]
+                )
+                suborders = suborders.annotate(
+                    actual_delivered_date=Subquery(delivered_date_sq)
+                ).filter(
+                    actual_delivered_date__date__range=[week_start, week_end]
                 )
             except:
                 return Response({"error": "Invalid week format"}, status=400)
@@ -853,10 +1014,17 @@ class ProducerWeeklyPaymentsWeeksAPI(APIView):
             return Response({"error": "Producer account not found"}, status=404)
 
         # Get all delivered orders and group by week
+        delivered_date_sq = (
+        OrderStatusHistory.objects
+        .filter(suborder=OuterRef('pk'), new_status='Delivered')
+        .order_by('-order_status_changed_at')
+        .values('order_status_changed_at')[:1]
+        )
         weekly_orders = (
             SubOrder.objects
-            .filter(producer=producer)
-            .annotate(week_ending=TruncWeek('order__created_at'))
+            .filter(producer=producer, status="Delivered")
+            .annotate(actual_delivered_date=Subquery(delivered_date_sq))
+            .annotate(week_ending=TruncWeek('actual_delivered_date'))
             .values('week_ending')
             .annotate(
                 order_count=Count('suborder_id'),
@@ -864,6 +1032,7 @@ class ProducerWeeklyPaymentsWeeksAPI(APIView):
             )
             .order_by('-week_ending')
         )
+        
 
         weeks = []
         for week_data in weekly_orders:
@@ -940,20 +1109,41 @@ class ProducerWeeklyPaymentsCSV(APIView):
         writer.writerow(["Settlement Reference", f"SETT-{week_end.strftime('%Y%m%d')}-{producer.id}"])
         writer.writerow(["Week Ending", week_end.strftime("%d %b %Y")])
         writer.writerow(["Status", settlement.payment_status])
+        writer.writerow(["Total Order Value", f"{settlement.total_order_value:.2f}"])
+        writer.writerow(["Commission (5%)", f"{settlement.commission_amount:.2f}"])
+        writer.writerow(["Producer Payout (95%)", f"{settlement.payout_amount:.2f}"])
         writer.writerow([])
         writer.writerow([
             "Order ID",
+            "customer",
+            "Delivered Date",
+            "Items",
             "Order Value",
-            "Commission",
-            "Producer Payout"
+            "Commission (5%)",
+            "Producer Payout (95%)"
         ])
 
         for o in settlement.settlement_orders.all():
+            sub = SubOrder.objects.filter(
+                orderorder_id=o.order_id, producer=producer
+            ).select_related("order", "ordercustomer").prefetch_related("items__product").first()
+
+            customer_name = _get_customer_name(sub) if sub else "Unknown"
+            items = ", ".join(f"{i.product.name} x{i.quantity}" for i in sub.items.all()) if sub else ""
+
+            history = OrderStatusHistory.objects.filter(
+                suborder=sub, new_status='Delivered'
+            ).order_by('-order_status_changed_at').first() if sub else None
+            delivered_date = history.order_status_changed_at.strftime("%d %b %Y") if history else ""
+
             writer.writerow([
                 o.order_id,
-                float(o.order_value),
-                float(o.commission_amount),
-                float(o.producer_payout)
+                customer_name,
+                delivered_date,
+                items,
+                f"{o.order_value:.2f}",
+                f"{o.commission_amount:.2f}",
+                f"{o.producer_payout:.2f}"
             ])
 
         return response
@@ -994,11 +1184,19 @@ class ProcessSettlementAPI(APIView):
             }, status=200)
 
         #  Fetch suborders
-        suborders = SubOrder.objects.filter(
-            producer=producer,
-            status="Delivered",
-            order__created_at__date__range=[week_start, week_end]
-        ).select_related("order")
+        delivered_date_sq = (
+            OrderStatusHistory.objects
+            .filter(suborder=OuterRef('pk'), new_status='Delivered')
+            .order_by('-order_status_changed_at')
+            .values('order_status_changed_at')[:1]
+        )
+        suborders = (
+            SubOrder.objects
+            .filter(producer=producer, status="Delivered")
+            .annotate(actual_delivered_date=Subquery(delivered_date_sq))
+            .filter(actual_delivered_datedaterange=[week_start, week_end])
+            .select_related("order")
+        )
 
         total_value = Decimal("0.00")
         total_commission = Decimal("0.00")
@@ -1007,7 +1205,7 @@ class ProcessSettlementAPI(APIView):
         order_list = []
 
         for sub in suborders:
-            order_value = Decimal(sub.payout_amount or 0)
+            order_value = Decimal(sub.subtotal or 0)
 
             commission = (order_value * Decimal("0.05")).quantize(Decimal("0.01"))
             payout = (order_value * Decimal("0.95")).quantize(Decimal("0.01"))
