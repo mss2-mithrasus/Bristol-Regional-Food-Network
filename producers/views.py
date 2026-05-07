@@ -57,8 +57,10 @@ class ProducerDashboardAPI(APIView):
         delivered_orders = SubOrder.objects.filter(producer=producer, status="Delivered")
 
         revenue = sum((o.subtotal or Decimal('0')) * Decimal('0.95') 
-              for o in delivered_orders),
-        Decimal('0.00').quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        #       for o in delivered_orders),
+        # Decimal('0.00').quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                for o in delivered_orders) or Decimal('0.00')
+        revenue = revenue.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         
         recent_suborders = (SubOrder.objects.filter(producer=producer).select_related("order", "order__customer").prefetch_related("items__product").order_by("-order__created_at")[:5])
         serializer = DashboardOrderSerializer(recent_suborders, many=True)
@@ -741,8 +743,12 @@ def build_orders_from_suborders(suborders):
 
         orders.append({
             "order_id": sub.order.order_id,
-            "customer_name": f"{sub.order.customer.person.first_name} {sub.order.customer.person.last_name}",
-            "delivered_date": sub.order.created_at.strftime("%d %b %Y"),
+            "customer_name": _get_customer_name(sub),
+            "delivered_date": (
+                sub.actual_delivered_date.strftime("%d %b %Y")
+                if hasattr(sub, 'actual_delivered_date') and sub.actual_delivered_date
+                else sub.order.created_at.strftime("%d %b %Y")
+            ),
             "items": items,
             "order_value": order_value,
             "commission": commission,
@@ -757,10 +763,10 @@ def build_orders_from_settlement(settlement, producer):
     for o in settlement.settlement_orders.all():
 
         sub = SubOrder.objects.filter(
-            orderorder_id=o.order_id,
+            order__order_id=o.order_id,
             producer=producer
         ).select_related(
-            "order", "ordercustomer"
+            "order", "order__customer"
         ).prefetch_related(
             "items__product"
         ).first()
@@ -1101,8 +1107,8 @@ class ProducerWeeklyPaymentsCSV(APIView):
 
         for o in settlement.settlement_orders.all():
             sub = SubOrder.objects.filter(
-                orderorder_id=o.order_id, producer=producer
-            ).select_related("order", "ordercustomer").prefetch_related("items__product").first()
+                order__order_id=o.order_id, producer=producer
+            ).select_related("order", "order__customer").prefetch_related("items__product").first()
 
             customer_name = _get_customer_name(sub) if sub else "Unknown"
             items = ", ".join(f"{i.product.name} x{i.quantity}" for i in sub.items.all()) if sub else ""
@@ -1170,7 +1176,7 @@ class ProcessSettlementAPI(APIView):
             SubOrder.objects
             .filter(producer=producer, status="Delivered")
             .annotate(actual_delivered_date=Subquery(delivered_date_sq))
-            .filter(actual_delivered_datedaterange=[week_start, week_end])
+            .filter(actual_delivered_date__date__range=[week_start, week_end])
             .select_related("order")
         )
 
