@@ -91,7 +91,8 @@ class Command(BaseCommand):
             commission_amount=0,
             delivery_address=street,
             delivery_postcode=postcode,
-            order_status=Order.OrderStatus.PENDING
+            order_status=Order.OrderStatus.PENDING,
+            fulfillment_method='delivery'
         )
 
         total_order = Decimal('0')
